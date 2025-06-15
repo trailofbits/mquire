@@ -10,12 +10,12 @@ cmake_minimum_required(VERSION 3.14)
 project("mquire" LANGUAGES NONE)
 
 set(MQUIRE_REPOSITORY_PATH "" CACHE PATH "This is the path where mquire has been cloned")
-if(NOT EXISTS "${MQUIRE_REPOSITORY_PATH}/mquire/Cargo.toml")
+if(NOT EXISTS "${MQUIRE_REPOSITORY_PATH}/Cargo.toml")
   message(FATAL_ERROR "The MQUIRE_REPOSITORY_PATH parameter is either empty or not valid")
 endif()
 
 execute_process(
-  COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_version.sh" "${MQUIRE_REPOSITORY_PATH}/mquire/Cargo.toml"
+  COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_version.sh" "${MQUIRE_REPOSITORY_PATH}/mq/Cargo.toml"
   OUTPUT_VARIABLE MQUIRE_VERSION
   COMMAND_ERROR_IS_FATAL ANY
 )

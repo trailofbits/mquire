@@ -6,7 +6,8 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod architecture;
+pub mod entities;
 pub mod error;
-pub mod primitives;
-pub mod readable;
-pub mod virtual_address;
+pub mod operating_system;
+pub mod virtual_memory_reader;

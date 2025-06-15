@@ -6,9 +6,9 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::{fs::File, os::unix::fs::FileExt, path::Path};
+use crate::memory::{error::Result, primitives::PhysicalAddress, readable::Readable};
 
-use crate::memory::{PhysicalAddress, Readable, Result as MemoryResult};
+use std::{fs::File, os::unix::fs::FileExt, path::Path, rc::Rc};
 
 /// Represents a raw snapshot of the memory
 pub struct RawSnapshot {
@@ -18,26 +18,26 @@ pub struct RawSnapshot {
 
 impl RawSnapshot {
     /// Creates a new raw snapshot from the given path
-    pub fn new(file_path: &Path) -> MemoryResult<Self> {
-        Ok(RawSnapshot {
+    pub fn new(file_path: &Path) -> Result<Rc<Self>> {
+        Ok(Rc::new(RawSnapshot {
             file: File::open(file_path)?,
-        })
+        }))
     }
 }
 
 impl Readable for RawSnapshot {
     /// Reads the specified number of bytes from the given physical address
-    fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> MemoryResult<()> {
-        Ok(self.file.read_exact_at(buffer, physical_address.get())?)
+    fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<()> {
+        Ok(self.file.read_exact_at(buffer, physical_address.into())?)
     }
 
     /// Returns the size of the snapshot
-    fn len(&self) -> MemoryResult<u64> {
+    fn len(&self) -> Result<u64> {
         Ok(self.file.metadata().map(|metadata| metadata.len())?)
     }
 
     /// Returns true if the snapshot is empty
-    fn is_empty(&self) -> MemoryResult<bool> {
+    fn is_empty(&self) -> Result<bool> {
         self.len().map(|len| len == 0)
     }
 }

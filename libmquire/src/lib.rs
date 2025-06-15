@@ -7,8 +7,8 @@
 //
 
 pub mod architecture;
+pub mod core;
 pub mod memory;
 pub mod operating_system;
 pub mod snapshot;
-pub mod sys;
 pub mod utils;

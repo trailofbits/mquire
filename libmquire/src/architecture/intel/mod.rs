@@ -6,8 +6,5 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod intel_architecture;
-pub use intel_architecture::*;
-
-mod table_entry;
-use table_entry::*;
+pub mod architecture;
+mod page_table_entry;

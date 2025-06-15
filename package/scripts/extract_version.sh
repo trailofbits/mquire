@@ -6,7 +6,7 @@ main() {
       return 1
   fi
 
-  local version=$(grep version "${cargo_toml_path}" | cut -d '"' -f 2)
+  local version=$(grep version "${cargo_toml_path}" | head -n 1 | cut -d '"' -f 2)
   if [[ -z "${version}" ]]; then
       return 1
   fi

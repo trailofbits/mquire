@@ -6,5 +6,4 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod raw_snapshot;
-pub use raw_snapshot::*;
+pub mod raw_snapshot;

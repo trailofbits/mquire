@@ -6,16 +6,17 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::fmt;
-
 use crate::{
-    memory::VirtualAddress,
-    sys::{
-        Error as SystemError, ErrorKind as SystemErrorKind, Result as SystemResult,
-        VirtualMemoryReader,
+    core::{
+        error::{Error as CoreError, ErrorKind as CoreErrorKind, Result as CoreResult},
+        virtual_memory_reader::VirtualMemoryReader,
     },
+    memory::virtual_address::VirtualAddress,
 };
+
 use btfparse::{Offset, TypeInformation};
+
+use std::fmt;
 
 /// A virtual structure, backed by debug symbols, located in the virtual address space
 #[derive(Clone, Copy)]
@@ -40,10 +41,10 @@ impl<'a> VirtualStruct<'a> {
         type_information: &'a TypeInformation,
         tid: u32,
         virtual_address: &VirtualAddress,
-    ) -> SystemResult<Self> {
+    ) -> CoreResult<Self> {
         if type_information.from_id(tid).is_none() {
-            Err(SystemError::new(
-                SystemErrorKind::TypeInformationError,
+            Err(CoreError::new(
+                CoreErrorKind::TypeInformationError,
                 &format!("Invalid virtual struct ID: {}", tid),
             ))
         } else {
@@ -62,12 +63,12 @@ impl<'a> VirtualStruct<'a> {
         type_information: &'a TypeInformation,
         name: &str,
         virtual_address: &VirtualAddress,
-    ) -> SystemResult<Self> {
+    ) -> CoreResult<Self> {
         if let Some(tid) = type_information.id_of(name) {
             Self::from_id(vmem_reader, type_information, tid, virtual_address)
         } else {
-            Err(SystemError::new(
-                SystemErrorKind::TypeInformationError,
+            Err(CoreError::new(
+                CoreErrorKind::TypeInformationError,
                 &format!("Invalid virtual struct type name: {}", name),
             ))
         }
@@ -84,16 +85,23 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Traverses the current type using the specified path
-    pub fn traverse(&self, path: &str) -> SystemResult<Self> {
+    pub fn traverse(&self, path: &str) -> CoreResult<Self> {
         let (destination_tid, destination_offset) =
-            self.type_information.offset_of(self.tid, path)?;
+            self.type_information.offset_of(self.tid, path).map_err(
+              |error| {
+                CoreError::new(
+                  CoreErrorKind::TypeTraversalError,
+                  &format!("The following path could not be used to traverse type #{}: {}. BTF error: {:?}", self.tid, path, error),
+                )
+              }
+            )?;
 
         let virtual_address = self.virtual_address
             + match destination_offset {
                 Offset::ByteOffset(offset) => offset as u64,
                 _ => {
-                    return Err(SystemError::new(
-                        SystemErrorKind::TypeInformationError,
+                    return Err(CoreError::new(
+                        CoreErrorKind::TypeInformationError,
                         &format!("Invalid offset: {:?}", destination_offset),
                     ))
                 }
@@ -108,8 +116,20 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Dereferences the current pointer
-    pub fn dereference(&self) -> SystemResult<Self> {
-        let pointee_tid = self.type_information.pointee_tid(self.tid)?;
+    pub fn dereference(&self) -> CoreResult<Self> {
+        let pointee_tid = self
+            .type_information
+            .pointee_tid(self.tid)
+            .map_err(|error| {
+                CoreError::new(
+                    CoreErrorKind::TypeTraversalError,
+                    &format!(
+                        "Failed to get the pointee type id for type #{}. BTF error: {:?}",
+                        self.tid, error
+                    ),
+                )
+            })?;
+
         let virtual_address = self.read_vaddr()?;
 
         Ok(Self {
@@ -121,22 +141,22 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Reads a virtual address from the current position
-    pub fn read_vaddr(&self) -> SystemResult<VirtualAddress> {
+    pub fn read_vaddr(&self) -> CoreResult<VirtualAddress> {
         self.vmem_reader.read_vaddr(self.virtual_address)
     }
 
     /// Reads a u32 from the current position
-    pub fn read_u32(&self) -> SystemResult<u32> {
+    pub fn read_u32(&self) -> CoreResult<u32> {
         self.vmem_reader.read_u32(self.virtual_address)
     }
 
     /// Reads a u64 from the current position
-    pub fn read_u64(&self) -> SystemResult<u64> {
+    pub fn read_u64(&self) -> CoreResult<u64> {
         self.vmem_reader.read_u64(self.virtual_address)
     }
 
     /// Reads a string from the current position
-    pub fn read_string(&self, max_size: Option<usize>, lossy: bool) -> SystemResult<String> {
+    pub fn read_string(&self, max_size: Option<usize>, lossy: bool) -> CoreResult<String> {
         let mut buffer = Vec::new();
 
         for offset in 0.. {
@@ -161,8 +181,8 @@ impl<'a> VirtualStruct<'a> {
             String::from_utf8_lossy(&buffer).to_string()
         } else {
             String::from_utf8(buffer.to_vec()).map_err(|_| {
-                SystemError::new(
-                    SystemErrorKind::InvalidData,
+                CoreError::new(
+                    CoreErrorKind::InvalidData,
                     "Failed to convert the comm string to UTF-8",
                 )
             })?
@@ -172,7 +192,7 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Reads a byte vector from the current position
-    pub fn read_bytes(&self, size: usize) -> SystemResult<Vec<u8>> {
+    pub fn read_bytes(&self, size: usize) -> CoreResult<Vec<u8>> {
         let mut buffer = Vec::new();
 
         for offset in 0..size {

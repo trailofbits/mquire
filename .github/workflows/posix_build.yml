@@ -67,7 +67,7 @@ jobs:
             ${{ steps.build_parameter.outputs.VALUE }}
 
       - name: Build the packages
-        if: ${{ inputs.build_type == 'Release' }}
+        if: ${{ runner.os == 'Linux' && inputs.build_type == 'Release' }}
         run: |
           find target -type f | sort -u
 
@@ -101,11 +101,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-tgz-package
-          path: package-build/*.tar.gz
-
-      - name: Find and upload the .tar.gz macOS package
-        if: ${{ runner.os == 'macOS' && inputs.build_type == 'Release' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-tgz-package
           path: package-build/*.tar.gz

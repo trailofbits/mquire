@@ -1,0 +1,507 @@
+//
+// Copyright (c) 2025-present, Trail of Bits, Inc.
+// All rights reserved.
+//
+// This source code is licensed in accordance with the terms specified in
+// the LICENSE file found in the root directory of this source tree.
+//
+
+use crate::{
+    architecture::intel::page_table_entry::{PageTableEntry, PageTableLevel},
+    core::{
+        architecture::{Architecture, Bitness, Endianness, PhysicalAddressRange},
+        error::{Error, ErrorKind, Result},
+    },
+    memory::{
+        primitives::{PhysicalAddress, RawVirtualAddress},
+        readable::Readable,
+        virtual_address::VirtualAddress,
+    },
+    utils::reader::Reader,
+};
+
+use std::rc::Rc;
+
+/// The size, in bytes, of a page directory
+const PAGE_DIRECTORY_SIZE: u64 = 4096;
+
+/// Implements the Intel x86_64 architecture features for the Architecture trait
+#[derive(Default)]
+pub struct IntelArchitecture {}
+
+impl IntelArchitecture {
+    /// Creates a new IntelArchitecture instance
+    pub fn new() -> Rc<Self> {
+        Rc::new(Self {})
+    }
+
+    /// Returns the table entries for a given table offset
+    fn get_table_entries(
+        readable: &dyn Readable,
+        mut table_offset: PhysicalAddress,
+        table_level: PageTableLevel,
+    ) -> Result<Vec<PageTableEntry>> {
+        let reader = Reader::new(readable, true);
+        let mut page_table = Vec::with_capacity(512);
+
+        for _ in 0..512 {
+            let qword = reader.read_u64(table_offset)?;
+            page_table.push(PageTableEntry::new(table_level, qword)?);
+
+            table_offset = table_offset + 8usize;
+        }
+
+        Ok(page_table)
+    }
+
+    /// Returns the physical address range for a given virtual address
+    fn virtual_address_to_physical_address(
+        readable: &dyn Readable,
+        virtual_address: VirtualAddress,
+    ) -> Result<PhysicalAddressRange> {
+        let raw_virtual_addr = virtual_address.value();
+        let decomposed_vaddr = PageTableEntry::decompose_virtual_address(raw_virtual_addr.value());
+
+        let reader = Reader::new(readable, true);
+        let raw_table_entry = reader.read_u64(
+            virtual_address.root_page_table() + decomposed_vaddr.pml4.page_table_index * 8,
+        )?;
+
+        let page_directory = if let PageTableEntry::PageDirectory(page_directory) =
+            PageTableEntry::new(PageTableLevel::Pml4, raw_table_entry)?
+        {
+            page_directory
+        } else {
+            return Err(Error::new(
+                ErrorKind::InvalidPageTableEntry,
+                "The PML4 table entry does not point to a page directory",
+            ));
+        };
+
+        if !page_directory.present {
+            return Err(Error::new(
+                ErrorKind::MemoryNotMapped,
+                "The page directory pointed to by the PML4 table is not mapped",
+            ));
+        }
+
+        let directory_address: PhysicalAddress = page_directory.physical_address.into();
+        let raw_table_entry =
+            reader.read_u64(directory_address + decomposed_vaddr.pdpt.page_table_index * 8)?;
+
+        let page_table_entry = PageTableEntry::new(PageTableLevel::Pdpt, raw_table_entry)?;
+        if !page_table_entry.present() {
+            return Err(Error::new(
+                ErrorKind::MemoryNotMapped,
+                "The page or page directory pointed to by the PDPT table is not mapped",
+            ));
+        }
+
+        let raw_table_entry = match page_table_entry {
+            PageTableEntry::Page(page) => {
+                let page_section = decomposed_vaddr.pdpt.page_section.ok_or(Error::new(
+                    ErrorKind::MemoryNotMapped,
+                    "Missing page section data in the decomposed PDPT entry",
+                ))?;
+
+                let page_address: PhysicalAddress = page.physical_address.into();
+
+                return Ok(PhysicalAddressRange::new(
+                    page_address + page_section.offset,
+                    page_section.size,
+                ));
+            }
+
+            PageTableEntry::PageDirectory(directory) => {
+                let directory_address: PhysicalAddress = directory.physical_address.into();
+                reader.read_u64(directory_address + decomposed_vaddr.pd.page_table_index * 8)?
+            }
+        };
+
+        let page_table_entry = PageTableEntry::new(PageTableLevel::Pd, raw_table_entry)?;
+        if !page_table_entry.present() {
+            return Err(Error::new(
+                ErrorKind::MemoryNotMapped,
+                "The page or page directory pointed to by the PD table is not mapped",
+            ));
+        }
+
+        let raw_table_entry = match page_table_entry {
+            PageTableEntry::Page(page) => {
+                let page_section = decomposed_vaddr.pd.page_section.ok_or(Error::new(
+                    ErrorKind::MemoryNotMapped,
+                    "Missing page section data in the decomposed PD entry",
+                ))?;
+
+                let page_address: PhysicalAddress = page.physical_address.into();
+
+                return Ok(PhysicalAddressRange::new(
+                    page_address + page_section.offset,
+                    page_section.size,
+                ));
+            }
+
+            PageTableEntry::PageDirectory(directory) => {
+                let directory_address: PhysicalAddress = directory.physical_address.into();
+                reader.read_u64(directory_address + decomposed_vaddr.pt.page_table_index * 8)?
+            }
+        };
+
+        let page_table_entry = PageTableEntry::new(PageTableLevel::Pt, raw_table_entry)?;
+        if !page_table_entry.present() {
+            return Err(Error::new(
+                ErrorKind::MemoryNotMapped,
+                "The page pointed to by the PT table is not mapped",
+            ));
+        }
+
+        match page_table_entry {
+            PageTableEntry::PageDirectory(_) => Err(Error::new(
+                ErrorKind::InvalidPageTableEntry,
+                "Unexpected page directory entry found in PT table",
+            )),
+
+            PageTableEntry::Page(page) => {
+                let page_section = decomposed_vaddr.pt.page_section.ok_or(Error::new(
+                    ErrorKind::MemoryNotMapped,
+                    "Missing page section data in the decomposed PT entry",
+                ))?;
+
+                let page_address: PhysicalAddress = page.physical_address.into();
+
+                Ok(PhysicalAddressRange::new(
+                    page_address + page_section.offset,
+                    page_section.size,
+                ))
+            }
+        }
+    }
+}
+
+impl Architecture for IntelArchitecture {
+    /// Returns the endianness of the architecture
+    fn endianness(&self) -> Endianness {
+        Endianness::Little
+    }
+
+    /// Returns the bitness of the architecture
+    fn bitness(&self) -> Bitness {
+        Bitness::Bit64
+    }
+
+    /// Searches the memory for a page table that can correctly translate physical_address to raw_virtual_address
+    fn locate_page_table_for_virtual_address(
+        &self,
+        readable: &dyn Readable,
+        physical_address: PhysicalAddress,
+        raw_virtual_address: RawVirtualAddress,
+    ) -> Result<PhysicalAddress> {
+        let decomposed_vaddr =
+            PageTableEntry::decompose_virtual_address(raw_virtual_address.value());
+
+        let max_table_index = readable.len()? / PAGE_DIRECTORY_SIZE;
+
+        for table_index in 0..max_table_index {
+            let page_table_offset = PhysicalAddress::new(table_index * PAGE_DIRECTORY_SIZE);
+            let pml4_page_table =
+                Self::get_table_entries(readable, page_table_offset, PageTableLevel::Pml4)?;
+
+            let page_directory = if let Some(PageTableEntry::PageDirectory(page_directory)) =
+                pml4_page_table.get(decomposed_vaddr.pml4.page_table_index)
+            {
+                page_directory
+            } else {
+                continue;
+            };
+
+            if !page_directory.present {
+                continue;
+            }
+
+            let mut user_mode_count = 0;
+            for (pml4_index, pml4_entry) in pml4_page_table.iter().enumerate() {
+                let present = match pml4_entry {
+                    PageTableEntry::Page(page) => page.present,
+                    PageTableEntry::PageDirectory(directory) => directory.present,
+                };
+
+                if !present {
+                    continue;
+                }
+
+                if pml4_index <= 0xFF {
+                    user_mode_count += 1;
+                }
+            }
+
+            if user_mode_count != 0 {
+                continue;
+            }
+
+            let virtual_address = VirtualAddress::new(page_table_offset, raw_virtual_address);
+            let physical_address_range =
+                match Self::virtual_address_to_physical_address(readable, virtual_address) {
+                    Ok(physical_address) => physical_address,
+                    Err(_) => continue,
+                };
+
+            if physical_address_range.address().value() == physical_address.value() {
+                return Ok(page_table_offset);
+            }
+        }
+
+        Err(Error::new(
+            ErrorKind::NoRootPageDirectoryFound,
+            &format!(
+                "No PML4 table found to translate {} => {} ",
+                raw_virtual_address, physical_address
+            ),
+        ))
+    }
+
+    /// Translates a virtual address to a physical address range
+    fn translate_virtual_address(
+        &self,
+        readable: &dyn Readable,
+        virtual_address: VirtualAddress,
+    ) -> Result<PhysicalAddressRange> {
+        Self::virtual_address_to_physical_address(readable, virtual_address)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::memory::error::Result as MemoryResult;
+
+    use super::*;
+
+    #[derive(Clone, Copy, Debug)]
+    enum PageSize {
+        Normal,
+        Large2Mb,
+        Large1Gb,
+    }
+
+    struct MockedPageTable {
+        page_size: PageSize,
+        unmapped: bool,
+    }
+
+    impl MockedPageTable {
+        pub fn new(page_size: PageSize, unmapped: bool) -> Self {
+            Self {
+                page_size,
+                unmapped,
+            }
+        }
+    }
+
+    impl Readable for MockedPageTable {
+        fn read(&self, buffer: &mut [u8], offset: PhysicalAddress) -> MemoryResult<()> {
+            match self.page_size {
+                PageSize::Normal => {
+                    assert!(
+                        offset.value() == 0x1008
+                            || offset.value() == 0x2008
+                            || offset.value() == 0x3008
+                            || offset.value() == 0x4008
+                    );
+
+                    if offset.value() == 0x1008 {
+                        buffer.copy_from_slice(&[0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    } else if offset.value() == 0x2008 {
+                        buffer.copy_from_slice(&[0x01, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    } else if offset.value() == 0x3008 {
+                        buffer.copy_from_slice(&[0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    } else if offset.value() == 0x4008 {
+                        if self.unmapped {
+                            buffer
+                                .copy_from_slice(&[0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                        } else {
+                            buffer
+                                .copy_from_slice(&[0x01, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                        }
+                    }
+
+                    Ok(())
+                }
+
+                PageSize::Large2Mb => {
+                    assert!(
+                        offset.value() == 0x1008
+                            || offset.value() == 0x2008
+                            || offset.value() == 0x3008
+                    );
+
+                    if offset.value() == 0x1008 {
+                        buffer.copy_from_slice(&[0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    } else if offset.value() == 0x2008 {
+                        buffer.copy_from_slice(&[0x01, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    } else if offset.value() == 0x3008 {
+                        if self.unmapped {
+                            buffer
+                                .copy_from_slice(&[0x80, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                        } else {
+                            buffer
+                                .copy_from_slice(&[0x81, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                        }
+                    }
+
+                    Ok(())
+                }
+
+                PageSize::Large1Gb => {
+                    assert!(offset.value() == 0x1008 || offset.value() == 0x2008);
+
+                    if offset.value() == 0x1008 {
+                        buffer.copy_from_slice(&[0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    } else if offset.value() == 0x2008 {
+                        if self.unmapped {
+                            buffer
+                                .copy_from_slice(&[0x80, 0x30, 0x00, 0x00, 0xAA, 0x00, 0x00, 0x00]);
+                        } else {
+                            buffer
+                                .copy_from_slice(&[0x81, 0x30, 0x00, 0x00, 0xAA, 0x00, 0x00, 0x00]);
+                        }
+                    }
+
+                    Ok(())
+                }
+            }
+        }
+
+        fn len(&self) -> MemoryResult<u64> {
+            Ok(0xFFFFFFFF)
+        }
+
+        fn is_empty(&self) -> MemoryResult<bool> {
+            Ok(false)
+        }
+    }
+
+    #[test]
+    fn test_normal_page_size_vaddr_translation() {
+        let mocked_page_table = MockedPageTable::new(PageSize::Normal, false);
+        let virtual_address = VirtualAddress::new(
+            PhysicalAddress::new(0x1000),
+            RawVirtualAddress::new(0x0000008040201000),
+        );
+
+        let physical_address_range = IntelArchitecture::virtual_address_to_physical_address(
+            &mocked_page_table,
+            virtual_address,
+        )
+        .unwrap();
+
+        assert_eq!(
+            physical_address_range.address(),
+            PhysicalAddress::new(0x5000)
+        );
+
+        assert_eq!(physical_address_range.len(), 0x1000);
+    }
+
+    #[test]
+    fn test_huge_2mb_page_size_vaddr_translation() {
+        let mocked_page_table = MockedPageTable::new(PageSize::Large2Mb, false);
+        let virtual_address = VirtualAddress::new(
+            PhysicalAddress::new(0x1000),
+            RawVirtualAddress::new(0x0000008040201000),
+        );
+
+        let physical_address_range = IntelArchitecture::virtual_address_to_physical_address(
+            &mocked_page_table,
+            virtual_address,
+        )
+        .unwrap();
+
+        assert_eq!(
+            physical_address_range.address(),
+            PhysicalAddress::new(0x201000)
+        );
+
+        assert_eq!(physical_address_range.len(), 0x1FF000);
+    }
+
+    #[test]
+    fn test_huge_1gb_page_size_vaddr_translation() {
+        let mocked_page_table = MockedPageTable::new(PageSize::Large1Gb, false);
+        let virtual_address = VirtualAddress::new(
+            PhysicalAddress::new(0x1000),
+            RawVirtualAddress::new(0x0000008040201000),
+        );
+
+        let physical_address_range = IntelArchitecture::virtual_address_to_physical_address(
+            &mocked_page_table,
+            virtual_address,
+        )
+        .unwrap();
+
+        assert_eq!(
+            physical_address_range.address(),
+            PhysicalAddress::new(0xAA00201000)
+        );
+
+        assert_eq!(physical_address_range.len(), 0x3FDFF000);
+    }
+
+    #[test]
+    fn test_normal_page_size_vaddr_translation_with_page_fault() {
+        let mocked_page_table = MockedPageTable::new(PageSize::Normal, true);
+        let virtual_address = VirtualAddress::new(
+            PhysicalAddress::new(0x1000),
+            RawVirtualAddress::new(0x0000008040201000),
+        );
+
+        let physical_address_range_res = IntelArchitecture::virtual_address_to_physical_address(
+            &mocked_page_table,
+            virtual_address,
+        );
+
+        assert!(physical_address_range_res.is_err());
+        assert_eq!(
+            physical_address_range_res.unwrap_err().kind(),
+            ErrorKind::MemoryNotMapped
+        );
+    }
+
+    #[test]
+    fn test_huge_2mb_page_size_vaddr_translation_with_page_fault() {
+        let mocked_page_table = MockedPageTable::new(PageSize::Large2Mb, true);
+        let virtual_address = VirtualAddress::new(
+            PhysicalAddress::new(0x1000),
+            RawVirtualAddress::new(0x0000008040201000),
+        );
+
+        let physical_address_range_res = IntelArchitecture::virtual_address_to_physical_address(
+            &mocked_page_table,
+            virtual_address,
+        );
+
+        assert!(physical_address_range_res.is_err());
+        assert_eq!(
+            physical_address_range_res.unwrap_err().kind(),
+            ErrorKind::MemoryNotMapped
+        );
+    }
+
+    #[test]
+    fn test_huge_1gb_page_size_vaddr_translation_with_page_fault() {
+        let mocked_page_table = MockedPageTable::new(PageSize::Large1Gb, true);
+        let virtual_address = VirtualAddress::new(
+            PhysicalAddress::new(0x1000),
+            RawVirtualAddress::new(0x0000008040201000),
+        );
+
+        let physical_address_range_res = IntelArchitecture::virtual_address_to_physical_address(
+            &mocked_page_table,
+            virtual_address,
+        );
+
+        assert!(physical_address_range_res.is_err());
+        assert_eq!(
+            physical_address_range_res.unwrap_err().kind(),
+            ErrorKind::MemoryNotMapped
+        );
+    }
+}

@@ -6,322 +6,252 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::{fmt, ops};
+use crate::memory::{
+    error::{Error, ErrorKind, Result},
+    primitives::{PhysicalAddress, RawVirtualAddress},
+};
 
-use crate::memory::{Error, ErrorKind, PhysicalAddress, Result};
+use std::{
+    cmp::Ordering,
+    {fmt, ops},
+};
 
-/// A raw virtual address, either 32-bit or 64-bit
-#[derive(Clone, Copy, PartialEq)]
-pub enum RawVirtualAddress {
-    /// A 32-bit unsigned integer
-    U32(u32),
-
-    /// A 64-bit unsigned integer
-    U64(u64),
-}
-
-/// Prints the virtual address in hexadecimal format with leading zeroes
-impl fmt::Debug for RawVirtualAddress {
-    /// Formats the virtual address for debugging purposes
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            RawVirtualAddress::U32(value) => {
-                write!(f, "0x{:08x}", value,)
-            }
-
-            RawVirtualAddress::U64(value) => {
-                write!(f, "0x{:16x}", value,)
-            }
-        }
-    }
-}
-
-/// A virtual address, along with the required page table address
-#[derive(Clone, Copy, PartialEq)]
+/// A virtual address, containing the physical address for the root page table.
+#[derive(Clone, Copy, Default)]
 pub struct VirtualAddress {
-    /// The address of the table table used to for paging operations
-    page_table: PhysicalAddress,
+    /// The physical address for the root page table.
+    root_page_table: PhysicalAddress,
 
-    /// The virtual address
+    /// The raw virtual address.
     raw_virtual_address: RawVirtualAddress,
 }
 
 impl VirtualAddress {
-    /// Creates a new virtual address
-    pub fn new(
+    /// Creates a new virtual address.
+    pub const fn new(
         page_table: PhysicalAddress,
-        raw_virtual_address: RawVirtualAddress,
+        raw_virtual_addr: RawVirtualAddress,
     ) -> VirtualAddress {
-        Self {
-            page_table,
-            raw_virtual_address,
+        VirtualAddress {
+            root_page_table: page_table,
+            raw_virtual_address: raw_virtual_addr,
         }
     }
 
-    /// Returns the address of the page table
-    pub fn page_table(&self) -> PhysicalAddress {
-        self.page_table
+    /// Returns the physical address of the root page table.
+    pub fn root_page_table(&self) -> PhysicalAddress {
+        self.root_page_table
     }
 
-    /// Returns the raw virtual address
-    pub fn get(&self) -> RawVirtualAddress {
+    /// Returns the raw virtual address value.
+    pub fn value(&self) -> RawVirtualAddress {
         self.raw_virtual_address
     }
 
-    /// Returns true if this ptr is null
+    /// Returns true if the raw virtual address is zero.
     pub fn is_null(&self) -> bool {
-        match self.raw_virtual_address {
-            RawVirtualAddress::U32(value) => value == 0,
-            RawVirtualAddress::U64(value) => value == 0,
+        self.raw_virtual_address.value() == 0
+    }
+
+    /// Compares two virtual addresses.
+    fn try_cmp(&self, rhs: &Self) -> Result<Ordering> {
+        if self.root_page_table != rhs.root_page_table {
+            return Err(Error::new(
+                ErrorKind::InvalidAddressSpace,
+                &format!(
+                    "Page table mismatch in compare operation: {:?}, {:?}",
+                    self, rhs
+                ),
+            ));
         }
+
+        Ok(self.raw_virtual_address.cmp(&rhs.raw_virtual_address))
     }
 }
 
-impl fmt::Debug for VirtualAddress {
-    /// Formats the virtual address for debugging purposes
+impl fmt::Display for VirtualAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "VirtualAddress {{ page_table: {:?}, address: {:?} }}",
-            self.page_table, self.raw_virtual_address,
+            "VirtualAddress {{ root_page_table: {}, raw_virtual_address: {} }}",
+            self.root_page_table, self.raw_virtual_address
         )
     }
 }
 
-impl ops::Add<u32> for VirtualAddress {
-    /// The output type of the addition operation
-    type Output = VirtualAddress;
-
-    /// Adds the specified u32 value to the virtual address
-    fn add(self, rhs: u32) -> Self::Output {
-        self + (rhs as u64)
-    }
-}
-
-impl ops::Add<usize> for VirtualAddress {
-    /// The output type of the addition operation
-    type Output = VirtualAddress;
-
-    /// Adds the specified usize value to the virtual address
-    fn add(self, rhs: usize) -> Self::Output {
-        self + (rhs as u64)
-    }
-}
-
-impl ops::Add<u64> for VirtualAddress {
-    /// The output type of the addition operation
-    type Output = VirtualAddress;
-
-    /// Adds the specified u64 value to the virtual address
-    fn add(self, rhs: u64) -> Self::Output {
-        let raw_virtual_address = match self.raw_virtual_address {
-            RawVirtualAddress::U32(value) => RawVirtualAddress::U32(value.wrapping_add(rhs as u32)),
-            RawVirtualAddress::U64(value) => RawVirtualAddress::U64(value.wrapping_add(rhs)),
-        };
-
-        VirtualAddress::new(self.page_table, raw_virtual_address)
-    }
-}
-
-impl ops::Sub<u32> for VirtualAddress {
-    /// The output type of the subtraction operation
-    type Output = VirtualAddress;
-
-    /// Subtracts the specified u32 value from the virtual address
-    fn sub(self, rhs: u32) -> Self::Output {
-        self - (rhs as u64)
-    }
-}
-
-impl ops::Sub<usize> for VirtualAddress {
-    /// The output type of the subtraction operation
-    type Output = VirtualAddress;
-
-    /// Subtracts the specified usize value from the virtual address
-    fn sub(self, rhs: usize) -> Self::Output {
-        self - (rhs as u64)
-    }
-}
-
-impl ops::Sub<u64> for VirtualAddress {
-    /// The output type of the addition operation
-    type Output = VirtualAddress;
-
-    /// Subtracts the specified u64 value from the virtual address
-    fn sub(self, rhs: u64) -> Self::Output {
-        let raw_virtual_address = match self.raw_virtual_address {
-            RawVirtualAddress::U32(value) => RawVirtualAddress::U32(value.wrapping_sub(rhs as u32)),
-            RawVirtualAddress::U64(value) => RawVirtualAddress::U64(value.wrapping_sub(rhs)),
-        };
-
-        VirtualAddress::new(self.page_table, raw_virtual_address)
+impl fmt::Debug for VirtualAddress {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
 impl ops::Sub<VirtualAddress> for VirtualAddress {
-    /// The output type of the subtraction operation
-    type Output = Result<usize>;
+    type Output = Result<u64>;
 
-    /// Subtracts one VirtualAddress value from the other
+    /// Subtracts two virtual address and get an offset.
     fn sub(self, rhs: VirtualAddress) -> Self::Output {
-        if self.page_table != rhs.page_table {
+        if self.root_page_table != rhs.root_page_table {
             return Err(Error::new(
                 ErrorKind::InvalidAddressSpace,
-                "The page tables are different",
+                &format!(
+                    "Page table mismatch in subtraction operation: {:?}, {:?}",
+                    self, rhs
+                ),
             ));
         }
 
-        let diff = match (self.raw_virtual_address, rhs.raw_virtual_address) {
-            (RawVirtualAddress::U32(lhs), RawVirtualAddress::U32(rhs)) => {
-                lhs.wrapping_sub(rhs) as usize
-            }
-
-            (RawVirtualAddress::U64(lhs), RawVirtualAddress::U64(rhs)) => {
-                lhs.wrapping_sub(rhs) as usize
-            }
-
-            _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidAddressSpace,
-                    "The bitness settings are different",
-                ))
-            }
-        };
-
-        Ok(diff)
+        Ok(self.raw_virtual_address - rhs.raw_virtual_address)
     }
 }
+
+impl PartialEq for VirtualAddress {
+    fn eq(&self, other: &Self) -> bool {
+        self.try_cmp(other)
+            .map(|o| o == Ordering::Equal)
+            .unwrap_or(false)
+    }
+}
+
+impl PartialOrd for VirtualAddress {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.try_cmp(other).ok()
+    }
+}
+
+macro_rules! generate_arithmetic_ops {
+    ("main", $($primitive_type:ty),*) => {
+        $(
+            impl ops::Add<$primitive_type> for VirtualAddress {
+                type Output = VirtualAddress;
+
+                fn add(self, rhs: $primitive_type) -> Self::Output {
+                    Self::new(self.root_page_table, self.raw_virtual_address + rhs)
+                }
+            }
+
+            impl ops::Sub<$primitive_type> for VirtualAddress {
+                type Output = VirtualAddress;
+
+                fn sub(self, rhs: $primitive_type) -> Self::Output {
+                    Self::new(self.root_page_table, self.raw_virtual_address - rhs)
+                }
+            }
+        )*
+    };
+
+    () => {
+        generate_arithmetic_ops!("main", u8, u16, u32, u64, usize);
+    };
+}
+
+generate_arithmetic_ops!();
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_virtual_address() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        assert_eq!(virtual_address.page_table().get(), 0x01);
-        assert_eq!(virtual_address.get(), RawVirtualAddress::U32(0x02));
+    fn test_new_and_value() {
+        let addr = VirtualAddress::new(
+            PhysicalAddress::new(0xAAAAAAAA),
+            RawVirtualAddress::new(0xBBBBBBBB),
+        );
 
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        assert_eq!(virtual_address.page_table().get(), 0x01);
-        assert_eq!(virtual_address.get(), RawVirtualAddress::U64(0x02));
+        assert_eq!(addr.root_page_table(), PhysicalAddress::new(0xAAAAAAAA));
+        assert_eq!(addr.value(), RawVirtualAddress::new(0xBBBBBBBB));
     }
 
     #[test]
-    fn test_virtual_address_u32_addition() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let result = virtual_address + 0x01u32;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U32(0x03));
+    fn test_display_format() {
+        let expected_output = format!(
+            "{}{}",
+            "VirtualAddress { root_page_table: PhysicalAddress(0x0000000000000000), ",
+            "raw_virtual_address: RawVirtualAddress(0x0000000000000000) }"
+        );
 
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let result = virtual_address + 0x01u32;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U64(0x03));
+        let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::default());
+        assert_eq!(format!("{}", addr), expected_output);
     }
 
     #[test]
-    fn test_virtual_address_usize_addition() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let result = virtual_address + 0x01usize;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U32(0x03));
+    fn test_debug_format() {
+        let expected_output = format!(
+            "{}{}",
+            "VirtualAddress { root_page_table: PhysicalAddress(0x0000000000000000), ",
+            "raw_virtual_address: RawVirtualAddress(0x0000000000000000) }"
+        );
 
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let result = virtual_address + 0x01usize;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U64(0x03));
+        let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::default());
+        assert_eq!(format!("{:?}", addr), expected_output);
     }
 
     #[test]
-    fn test_virtual_address_u64_addition() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let result = virtual_address + 0x01u64;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U32(0x03));
+    fn test_equality_and_ordering() {
+        let a = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::default());
+        let b = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(1));
 
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let result = virtual_address + 0x01u64;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U64(0x03));
+        assert!(a < b);
+        assert!(b > a);
+        assert!(a == a);
+
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+        assert_eq!(b.partial_cmp(&a), Some(Ordering::Greater));
+        assert_eq!(a.partial_cmp(&a), Some(Ordering::Equal));
+
+        let c = VirtualAddress::new(PhysicalAddress::new(1), RawVirtualAddress::new(1));
+
+        assert!(a.partial_cmp(&c).is_none());
+        assert!(c.partial_cmp(&a).is_none());
     }
 
     #[test]
-    fn test_virtual_address_u32_subtraction() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let result = virtual_address - 0x01u32;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U32(0x01));
-
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let result = virtual_address - 0x01u32;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U64(0x01));
+    fn test_default() {
+        let addr = VirtualAddress::default();
+        assert_eq!(addr.root_page_table(), PhysicalAddress::default());
+        assert_eq!(addr.value(), RawVirtualAddress::default());
     }
 
     #[test]
-    fn test_virtual_address_usize_subtraction() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let result = virtual_address - 0x01usize;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U32(0x01));
+    fn test_is_null() {
+        let null_addr = VirtualAddress::default();
+        assert!(null_addr.is_null());
 
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let result = virtual_address - 0x01usize;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U64(0x01));
+        let non_null_addr =
+            VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(1));
+
+        assert!(!non_null_addr.is_null());
     }
 
     #[test]
-    fn test_virtual_address_u64_subtraction() {
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let result = virtual_address - 0x01u64;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U32(0x01));
+    fn test_addition() {
+        let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(100));
+        let result = addr + 1u64;
 
-        let virtual_address =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let result = virtual_address - 0x01u64;
-        assert_eq!(result.page_table().get(), 0x01);
-        assert_eq!(result.get(), RawVirtualAddress::U64(0x01));
+        assert_eq!(result.value(), RawVirtualAddress::new(101));
     }
 
     #[test]
-    fn test_virtual_address_subtraction() {
-        let virtual_address32 =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U32(0x02));
-        let diff = (virtual_address32 - virtual_address32).unwrap();
-        assert_eq!(diff, 0usize);
+    fn test_subtraction() {
+        let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(100));
+        let result = addr - 1u64;
 
-        let virtual_address64 =
-            VirtualAddress::new(PhysicalAddress::new(0x01), RawVirtualAddress::U64(0x02));
-        let diff = (virtual_address64 - virtual_address64).unwrap();
-        assert_eq!(diff, 0usize);
+        assert_eq!(result.value(), RawVirtualAddress::new(99));
+    }
 
-        let error = (virtual_address32 - virtual_address64).unwrap_err();
-        assert_eq!(*error.kind(), ErrorKind::InvalidAddressSpace);
+    #[test]
+    fn test_wrapping_add() {
+        let addr =
+            VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(u64::MAX));
+        let result = addr + 1u64;
 
-        let error = (virtual_address32
-            - VirtualAddress::new(PhysicalAddress::new(0x02), RawVirtualAddress::U32(0x02)))
-        .unwrap_err();
-        assert_eq!(*error.kind(), ErrorKind::InvalidAddressSpace);
+        assert_eq!(result.value(), RawVirtualAddress::default());
+    }
 
-        let error = (virtual_address64
-            - VirtualAddress::new(PhysicalAddress::new(0x02), RawVirtualAddress::U64(0x02)))
-        .unwrap_err();
-        assert_eq!(*error.kind(), ErrorKind::InvalidAddressSpace);
+    #[test]
+    fn test_wrapping_sub() {
+        let addr = VirtualAddress::default();
+        let result = addr - 1u64;
+
+        assert_eq!(result.value(), RawVirtualAddress::new(u64::MAX));
     }
 }

@@ -6,7 +6,10 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod libsqlite3;
+
+#[allow(dead_code)]
 pub mod error;
-pub mod primitives;
-pub mod readable;
-pub mod virtual_address;
+
+pub mod database;
+pub mod table_plugin;

@@ -6,11 +6,6 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod linux_operating_system;
-pub use linux_operating_system::*;
-
-mod btfparse_readable_adapter;
-use btfparse_readable_adapter::*;
-
+mod btf;
+pub mod operating_system;
 mod virtual_struct;
-use virtual_struct::*;
