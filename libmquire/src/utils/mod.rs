@@ -6,5 +6,4 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod reader;
-pub use reader::*;
+pub mod reader;

@@ -6,7 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::{io, result};
+use std::{io, result::Result as StandardResult};
 
 /// Error kinds for memory operations
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -29,7 +29,7 @@ pub struct Error {
 }
 
 /// A result type for memory operations
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T> = StandardResult<T, Error>;
 
 impl Error {
     /// Creates a new memory error
@@ -41,8 +41,8 @@ impl Error {
     }
 
     /// Returns the error kind
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
     }
 
     /// Returns the error message

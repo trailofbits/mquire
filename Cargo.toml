@@ -9,7 +9,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "sqlite",
     "libmquire",
-    "mquire"
+    "mq",
 ]

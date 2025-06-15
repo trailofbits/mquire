@@ -6,7 +6,11 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-pub mod error;
-pub mod primitives;
-pub mod readable;
-pub mod virtual_address;
+/// System information entity.
+pub struct SystemInformation {
+    /// Hostname.
+    pub hostname: String,
+
+    /// Domain.
+    pub domain: Option<String>,
+}

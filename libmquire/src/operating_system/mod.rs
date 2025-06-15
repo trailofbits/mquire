@@ -6,5 +6,4 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod linux;
-pub use linux::*;
+pub mod linux;

@@ -6,5 +6,4 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod intel;
-pub use intel::*;
+pub mod intel;

@@ -6,7 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use crate::memory::{PhysicalAddress, Result};
+use crate::memory::{error::Result, primitives::PhysicalAddress};
 
 /// A trait used for the (physical) memory backing store
 pub trait Readable {
