@@ -27,7 +27,7 @@ impl<'a> Reader<'a> {
     }
 
     /// Reads the specified number of bytes from the given physical address
-    pub fn read(&self, physical_address: PhysicalAddress, buffer: &mut [u8]) -> Result<()> {
+    pub fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize> {
         self.readable.read(buffer, physical_address)
     }
 
@@ -44,14 +44,14 @@ impl<'a> Reader<'a> {
     /// Reads a single unsigned byte from the given physical address
     pub fn read_u8(&self, physical_address: PhysicalAddress) -> Result<u8> {
         let mut buffer = [0; 1];
-        self.readable.read(&mut buffer, physical_address)?;
+        self.readable.read_exact(&mut buffer, physical_address)?;
         Ok(buffer[0])
     }
 
     /// Reads a 16-bit unsigned integer from the given physical address
     pub fn read_u16(&self, physical_address: PhysicalAddress) -> Result<u16> {
         let mut buffer = [0; 2];
-        self.readable.read(&mut buffer, physical_address)?;
+        self.readable.read_exact(&mut buffer, physical_address)?;
 
         match self.little_endian {
             true => Ok(u16::from_le_bytes(buffer)),
@@ -62,7 +62,7 @@ impl<'a> Reader<'a> {
     /// Reads a 32-bit unsigned integer from the given physical address
     pub fn read_u32(&self, physical_address: PhysicalAddress) -> Result<u32> {
         let mut buffer = [0; 4];
-        self.readable.read(&mut buffer, physical_address)?;
+        self.readable.read_exact(&mut buffer, physical_address)?;
 
         match self.little_endian {
             true => Ok(u32::from_le_bytes(buffer)),
@@ -73,7 +73,7 @@ impl<'a> Reader<'a> {
     /// Reads a 64-bit unsigned integer from the given physical address
     pub fn read_u64(&self, physical_address: PhysicalAddress) -> Result<u64> {
         let mut buffer = [0; 8];
-        self.readable.read(&mut buffer, physical_address)?;
+        self.readable.read_exact(&mut buffer, physical_address)?;
 
         match self.little_endian {
             true => Ok(u64::from_le_bytes(buffer)),
@@ -122,7 +122,7 @@ mod tests {
     }
 
     impl Readable for ReadableBuffer {
-        fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<()> {
+        fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize> {
             let offset = physical_address.value() as usize;
             if offset + buffer.len() > self.data.len() {
                 return Err(Error::new(
@@ -132,15 +132,11 @@ mod tests {
             }
 
             buffer.copy_from_slice(&self.data[offset..offset + buffer.len()]);
-            Ok(())
+            Ok(buffer.len())
         }
 
         fn len(&self) -> Result<u64> {
             Ok(self.data.len() as u64)
-        }
-
-        fn is_empty(&self) -> Result<bool> {
-            Ok(self.data.is_empty())
         }
     }
 
@@ -374,25 +370,25 @@ mod tests {
 
         let mut buffer = [0u8; 4];
         reader
-            .read(PhysicalAddress::default(), &mut buffer)
+            .read(&mut buffer, PhysicalAddress::default())
             .unwrap();
 
         assert_eq!(buffer, [0x11, 0x22, 0x33, 0x44]);
 
         let mut buffer = [0u8; 2];
         reader
-            .read(PhysicalAddress::default(), &mut buffer)
+            .read(&mut buffer, PhysicalAddress::default())
             .unwrap();
 
         assert_eq!(buffer, [0x11, 0x22]);
 
         let mut buffer = [0u8; 2];
-        reader.read(PhysicalAddress::from(2), &mut buffer).unwrap();
+        reader.read(&mut buffer, PhysicalAddress::from(2)).unwrap();
         assert_eq!(buffer, [0x33, 0x44]);
 
         let mut buffer = [0u8; 8];
         let err = reader
-            .read(PhysicalAddress::default(), &mut buffer)
+            .read(&mut buffer, PhysicalAddress::default())
             .unwrap_err();
 
         assert_eq!(err.kind(), ErrorKind::IOError);

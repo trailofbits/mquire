@@ -13,7 +13,7 @@ use crate::{
             file::File, system_information::SystemInformation, system_version::SystemVersion,
             task::Task,
         },
-        error::{Error as CoreError, ErrorKind as CoreErrorKind, Result as CoreResult},
+        error::{Error, ErrorKind, Result},
         operating_system::OperatingSystem,
         virtual_memory_reader::VirtualMemoryReader,
     },
@@ -28,34 +28,24 @@ use crate::{
 
 use btfparse::{Error as BtfparseError, Offset as BtfparseOffset, TypeInformation};
 
-use std::{collections::BTreeMap, ops::Sub, path::PathBuf, rc::Rc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ops::{Range, Sub},
+    path::PathBuf,
+    rc::Rc,
+};
 
-/// Chunk size used to search the memory dump for kernel data
-const CHUNK_SIZE: u64 = 4 * 1024 * 1024;
+/// Buffer size used for initial data discovery
+const SCAN_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Swapper process comm string
-const SWAPPER_PROCESS_COMM: &str = "swapper/0\x00\x00\x00\x00\x00\x00\x00";
+const SWAPPER_PROCESS_COMM: &str = "swapper/0";
 
 /// BTF signature for little endian machines
-const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 12] = [
+const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 3] = [
     0x9F, 0xEB, // Magic number
     0x01, // Version
-    0x00, // Flags
-    0x18, 0x00, 0x00, 0x00, // Header size
-    0x00, 0x00, 0x00, 0x00, // Type offset section
 ];
-
-/// Minimum size of the BTF type section, used to skip BTF data for kernel modules
-const MIN_BTF_TYPE_SECTION_SIZE: u32 = 2 * 1024 * 1024;
-
-/// A task entity, along with the linked task list
-struct TaskSnapshot {
-    /// The task entity
-    pub task: Task,
-
-    /// The linked task list (children, siblings, parents)
-    pub linked_task_list: Vec<VirtualAddress>,
-}
 
 /// Implements the OperatingSystem trait for Linux
 pub struct LinuxOperatingSystem {
@@ -77,7 +67,7 @@ impl LinuxOperatingSystem {
     pub fn new(
         memory_dump: Rc<dyn Readable>,
         architecture: Rc<dyn Architecture>,
-    ) -> CoreResult<Rc<Self>> {
+    ) -> Result<Rc<Self>> {
         let kernel_type_info = Self::get_kernel_type_info(memory_dump.as_ref())?;
         let swapper_task_struct_vaddr = Self::get_swapper_struct_virtual_addr(
             memory_dump.as_ref(),
@@ -93,43 +83,142 @@ impl LinuxOperatingSystem {
         }))
     }
 
-    /// Scans the given `Readable` object for the kernel BTF debug symbols
-    fn get_kernel_type_info(readable: &dyn Readable) -> CoreResult<TypeInformation> {
-        let chunk_count = readable.len()? / CHUNK_SIZE;
-        let mut chunk_buffer = [0; CHUNK_SIZE as usize];
+    /// Enumerate the task struct virtual addresses in memory
+    fn get_task_struct_vaddr_list(&self) -> Result<Vec<VirtualAddress>> {
+        let mut visited_vaddr_set = BTreeSet::new();
+        let mut visited_phys_addr_set = BTreeSet::new();
 
-        for chunk_index in 0..chunk_count {
-            let physical_chunk_address = PhysicalAddress::new(chunk_index * CHUNK_SIZE);
-            readable.read(&mut chunk_buffer, physical_chunk_address)?;
+        let mut next_vaddr_queue = vec![self.swapper_task_struct_vaddr];
 
-            for offset in chunk_buffer
-                .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
-                .enumerate()
-                .filter_map(|(offset, window)| {
-                    if window == BTF_LITTLE_ENDIAN_SIGNATURE {
-                        Some(offset)
-                    } else {
-                        None
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        while !next_vaddr_queue.is_empty() {
+            let virtual_address_queue = next_vaddr_queue.clone();
+            next_vaddr_queue.clear();
+
+            for virtual_address in virtual_address_queue {
+                let physical_address = match self
+                    .architecture
+                    .translate_virtual_address(self.memory_dump.as_ref(), virtual_address)
+                {
+                    Ok(physical_address_range) => physical_address_range.address(),
+                    Err(_) => {
+                        continue;
                     }
-                })
-            {
-                let type_section_size_offset = offset + BTF_LITTLE_ENDIAN_SIGNATURE.len();
-                let type_section_size = u32::from_le_bytes([
-                    chunk_buffer[type_section_size_offset],
-                    chunk_buffer[type_section_size_offset + 1],
-                    chunk_buffer[type_section_size_offset + 2],
-                    chunk_buffer[type_section_size_offset + 3],
-                ]);
+                };
 
-                if type_section_size >= MIN_BTF_TYPE_SECTION_SIZE {
-                    let btf_offset = physical_chunk_address + (offset as u64);
-                    let readable_adapter =
-                        BtfparseReadableAdapter::new(readable, btf_offset.value());
+                if visited_phys_addr_set.contains(&physical_address.value()) {
+                    continue;
+                }
 
-                    let type_information = match TypeInformation::new(&readable_adapter) {
-                        Ok(ti) => ti,
-                        Err(_) => continue,
+                visited_phys_addr_set.insert(physical_address.value());
+                visited_vaddr_set.insert(virtual_address);
+
+                let task_struct = VirtualStruct::from_name(
+                    &vmem_reader,
+                    &self.kernel_type_info,
+                    "task_struct",
+                    &virtual_address,
+                )?;
+
+                for field_path in ["parent", "real_parent"] {
+                    // TODO: Log this error
+                    let _ = task_struct
+                        .traverse(field_path)?
+                        .read_vaddr()
+                        .inspect(|vaddr| next_vaddr_queue.push(*vaddr));
+                }
+
+                let sibling_offset = Self::get_struct_member_byte_offset(
+                    &self.kernel_type_info,
+                    task_struct.tid(),
+                    "sibling",
+                )?;
+
+                for field_path in [
+                    "children.prev",
+                    "children.next",
+                    "sibling.prev",
+                    "sibling.next",
+                ] {
+                    // TODO: Log this error
+                    let _ = task_struct
+                        .traverse(field_path)?
+                        .read_vaddr()
+                        .inspect(|vaddr| next_vaddr_queue.push(*vaddr - sibling_offset));
+                }
+            }
+        }
+
+        Ok(visited_vaddr_set.into_iter().collect())
+    }
+
+    /// Generates a list of ranges based on the specified parameters
+    fn generate_ranges(
+        starting_address: PhysicalAddress,
+        ending_address: PhysicalAddress,
+        range_size: usize,
+        overlap: usize,
+    ) -> Vec<Range<u64>> {
+        let mut current_address = starting_address.value();
+        let ending_address = ending_address.value();
+
+        let mut range_list = Vec::new();
+
+        while current_address < ending_address {
+            if current_address + range_size as u64 >= ending_address {
+                break;
+            }
+
+            let start = current_address;
+            let end = start + range_size as u64;
+
+            range_list.push(Range { start, end });
+            current_address += (range_size - overlap) as u64;
+        }
+
+        range_list
+    }
+
+    /// Scans the given `Readable` object for the kernel BTF debug symbols
+    fn get_kernel_type_info(readable: &dyn Readable) -> Result<TypeInformation> {
+        let mut read_buffer = [0; SCAN_BUFFER_SIZE];
+
+        for region in readable.regions()? {
+            for range in Self::generate_ranges(
+                region.start,
+                region.end,
+                read_buffer.len(),
+                BTF_LITTLE_ENDIAN_SIGNATURE.len(),
+            ) {
+                let read_size =
+                    if let Ok(read_size) = readable.read(&mut read_buffer, range.start.into()) {
+                        read_size
+                    } else {
+                        continue;
                     };
+
+                for offset in read_buffer[..read_size]
+                    .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
+                    .enumerate()
+                    .filter_map(|(offset, window)| {
+                        if window == BTF_LITTLE_ENDIAN_SIGNATURE {
+                            Some(offset)
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    let btf_offset = range.start + (offset as u64);
+                    let readable_adapter = BtfparseReadableAdapter::new(readable, btf_offset);
+
+                    let type_information =
+                        if let Ok(type_information) = TypeInformation::new(&readable_adapter) {
+                            type_information
+                        } else {
+                            continue;
+                        };
 
                     if type_information.id_of("task_struct").is_some() {
                         return Ok(type_information);
@@ -138,8 +227,8 @@ impl LinuxOperatingSystem {
             }
         }
 
-        Err(CoreError::new(
-            CoreErrorKind::OperatingSystemInitializationFailed,
+        Err(Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
             "Failed to locate the BTF debug symbols",
         ))
     }
@@ -149,14 +238,14 @@ impl LinuxOperatingSystem {
         type_information: &TypeInformation,
         tid: u32,
         member_name: &str,
-    ) -> CoreResult<u64> {
+    ) -> Result<u64> {
         if let (_, BtfparseOffset::ByteOffset(byte_offset)) =
             type_information.offset_of(tid, member_name)?
         {
             Ok(byte_offset as u64)
         } else {
-            Err(CoreError::new(
-                CoreErrorKind::OperatingSystemInitializationFailed,
+            Err(Error::new(
+                ErrorKind::OperatingSystemInitializationFailed,
                 "Unexpected bitfield offset found when retrieving the task_struct::comm offset",
             ))
         }
@@ -167,64 +256,88 @@ impl LinuxOperatingSystem {
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
-    ) -> CoreResult<(PhysicalAddress, RawVirtualAddress)> {
-        let task_struct_tid = kernel_type_info.id_of("task_struct").ok_or(CoreError::new(
-            CoreErrorKind::OperatingSystemInitializationFailed,
+    ) -> Result<(PhysicalAddress, RawVirtualAddress)> {
+        let task_struct_tid = kernel_type_info.id_of("task_struct").ok_or(Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
             "Failed to locate the task_struct type",
         ))?;
 
-        let chunk_count = readable.len()? / CHUNK_SIZE;
-        let mut chunk_buffer = [0; CHUNK_SIZE as usize];
-
         let reader = Reader::new(readable, architecture.endianness() == Endianness::Little);
 
-        for chunk_index in 0..chunk_count {
-            let page_physical_address = PhysicalAddress::new(chunk_index * CHUNK_SIZE);
-            reader.read(page_physical_address, &mut chunk_buffer)?;
+        let mut read_buffer = [0; SCAN_BUFFER_SIZE];
+        let task_struct_size = kernel_type_info.size_of(task_struct_tid)?;
 
-            if let Some(offset) = chunk_buffer
-                .windows(SWAPPER_PROCESS_COMM.len())
-                .position(|window| window == SWAPPER_PROCESS_COMM.as_bytes())
-            {
-                let swapper_comm_physical_address = page_physical_address + (offset as u64);
-                let swapper_task_physical_address = swapper_comm_physical_address
-                    - Self::get_struct_member_byte_offset(
-                        kernel_type_info,
-                        task_struct_tid,
-                        "comm",
-                    )?;
-
-                let swapper_struct_parent_field = reader.read_u64(
-                    swapper_task_physical_address
-                        + Self::get_struct_member_byte_offset(
-                            kernel_type_info,
-                            task_struct_tid,
-                            "parent",
-                        )?,
-                )?;
-
-                let swapper_struct_real_parent_field = reader.read_u64(
-                    swapper_task_physical_address
-                        + Self::get_struct_member_byte_offset(
-                            kernel_type_info,
-                            task_struct_tid,
-                            "real_parent",
-                        )?,
-                )?;
-
-                let swapper_struct_raw_vaddr =
-                    if swapper_struct_parent_field == swapper_struct_real_parent_field {
-                        RawVirtualAddress::new(swapper_struct_parent_field)
+        for region in readable.regions()? {
+            for range in Self::generate_ranges(
+                region.start,
+                region.end,
+                read_buffer.len(),
+                task_struct_size,
+            ) {
+                let read_size =
+                    if let Ok(read_size) = readable.read(&mut read_buffer, range.start.into()) {
+                        read_size
                     } else {
                         continue;
                     };
 
-                return Ok((swapper_task_physical_address, swapper_struct_raw_vaddr));
+                if read_size < SWAPPER_PROCESS_COMM.len() {
+                    continue;
+                }
+
+                for offset in read_buffer[..read_size]
+                    .windows(SWAPPER_PROCESS_COMM.len())
+                    .enumerate()
+                    .filter_map(|(offset, window)| {
+                        if window == SWAPPER_PROCESS_COMM.as_bytes() {
+                            Some(offset)
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    let swapper_comm_physical_address =
+                        PhysicalAddress::new(range.start) + (offset as u64);
+
+                    let swapper_task_physical_address = swapper_comm_physical_address
+                        - Self::get_struct_member_byte_offset(
+                            kernel_type_info,
+                            task_struct_tid,
+                            "comm",
+                        )?;
+
+                    let swapper_struct_parent_field = reader.read_u64(
+                        swapper_task_physical_address
+                            + Self::get_struct_member_byte_offset(
+                                kernel_type_info,
+                                task_struct_tid,
+                                "parent",
+                            )?,
+                    )?;
+
+                    let swapper_struct_real_parent_field = reader.read_u64(
+                        swapper_task_physical_address
+                            + Self::get_struct_member_byte_offset(
+                                kernel_type_info,
+                                task_struct_tid,
+                                "real_parent",
+                            )?,
+                    )?;
+
+                    let swapper_struct_raw_vaddr =
+                        if swapper_struct_parent_field == swapper_struct_real_parent_field {
+                            RawVirtualAddress::new(swapper_struct_parent_field)
+                        } else {
+                            continue;
+                        };
+
+                    return Ok((swapper_task_physical_address, swapper_struct_raw_vaddr));
+                }
             }
         }
 
-        Err(CoreError::new(
-            CoreErrorKind::OperatingSystemInitializationFailed,
+        Err(Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
             "Failed to locate the swapper task_struct",
         ))
     }
@@ -234,7 +347,7 @@ impl LinuxOperatingSystem {
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
-    ) -> CoreResult<VirtualAddress> {
+    ) -> Result<VirtualAddress> {
         let (swapper_struct_physical_addr, swapper_struct_raw_vaddr) =
             Self::get_swapper_struct_location(readable, architecture, kernel_type_info)?;
 
@@ -247,91 +360,13 @@ impl LinuxOperatingSystem {
         Ok(VirtualAddress::new(page_table, swapper_struct_raw_vaddr))
     }
 
-    fn get_os_version(
-        readable: &dyn Readable,
-        architecture: &dyn Architecture,
-        kernel_type_info: &TypeInformation,
-        swapper_task_struct_vaddr: VirtualAddress,
-    ) -> CoreResult<SystemVersion> {
-        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
-        let swapper_task_struct = VirtualStruct::from_name(
-            &vmem_reader,
-            kernel_type_info,
-            "task_struct",
-            &swapper_task_struct_vaddr,
-        )?;
-
-        let new_utsname = swapper_task_struct
-            .traverse("nsproxy")?
-            .dereference()?
-            .traverse("uts_ns")?
-            .dereference()?
-            .traverse("name")?;
-
-        let kernel_version = new_utsname
-            .traverse("release")?
-            .read_string(Some(65), true)?;
-
-        let system_version = new_utsname
-            .traverse("version")?
-            .read_string(Some(65), true)?;
-
-        let arch = new_utsname
-            .traverse("machine")?
-            .read_string(Some(65), true)?;
-
-        Ok(SystemVersion {
-            system_version,
-            kernel_version,
-            arch,
-        })
-    }
-
-    fn get_system_information(
-        readable: &dyn Readable,
-        architecture: &dyn Architecture,
-        kernel_type_info: &TypeInformation,
-        swapper_task_struct_vaddr: VirtualAddress,
-    ) -> CoreResult<SystemInformation> {
-        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
-        let swapper_task_struct = VirtualStruct::from_name(
-            &vmem_reader,
-            kernel_type_info,
-            "task_struct",
-            &swapper_task_struct_vaddr,
-        )?;
-
-        let new_utsname = swapper_task_struct
-            .traverse("nsproxy")?
-            .dereference()?
-            .traverse("uts_ns")?
-            .dereference()?
-            .traverse("name")?;
-
-        let hostname = new_utsname
-            .traverse("nodename")?
-            .read_string(Some(65), true)?;
-
-        let domain = new_utsname
-            .traverse("domainname")?
-            .read_string(Some(65), true)?;
-
-        let domain = if domain.is_empty() {
-            None
-        } else {
-            Some(domain)
-        };
-
-        Ok(SystemInformation { hostname, domain })
-    }
-
     /// Reconstructs the path from a dentry structure
     fn read_path(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
         virtual_address: VirtualAddress,
-    ) -> CoreResult<String> {
+    ) -> Result<String> {
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
         let path_struct =
             VirtualStruct::from_name(&vmem_reader, kernel_type_info, "path", &virtual_address)?;
@@ -371,12 +406,12 @@ impl LinuxOperatingSystem {
     }
 
     /// Returns a snapshot for the task entity at the given VirtualAddress
-    fn get_task_snapshot(
+    fn get_task_from_vaddr(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
         virtual_address: VirtualAddress,
-    ) -> CoreResult<TaskSnapshot> {
+    ) -> Result<Task> {
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
         let task_struct = VirtualStruct::from_name(
             &vmem_reader,
@@ -387,16 +422,6 @@ impl LinuxOperatingSystem {
 
         let comm = task_struct.traverse("comm")?.read_string(Some(16), false)?;
         let tgid = task_struct.traverse("tgid")?.read_u32()?;
-        let parent = task_struct.traverse("parent")?.read_vaddr()?;
-        let real_parent = task_struct.traverse("real_parent")?.read_vaddr()?;
-
-        let sibling_offset =
-            Self::get_struct_member_byte_offset(kernel_type_info, task_struct.tid(), "sibling")?;
-
-        let prev_child = task_struct.traverse("children.prev")?.read_vaddr()? - sibling_offset;
-        let next_child = task_struct.traverse("children.next")?.read_vaddr()? - sibling_offset;
-        let prev_sibling = task_struct.traverse("sibling.prev")?.read_vaddr()? - sibling_offset;
-        let next_sibling = task_struct.traverse("sibling.next")?.read_vaddr()? - sibling_offset;
 
         let cred = task_struct.traverse("cred")?.dereference()?;
         let uid = cred.traverse("uid")?.read_u32()?;
@@ -524,97 +549,110 @@ impl LinuxOperatingSystem {
             }
         }
 
-        Ok(TaskSnapshot {
-            task: Task {
-                virtual_address,
-                page_table,
-                binary_path,
-                name: Some(comm),
-                command_line,
-                environment_variable_map,
-                pid: tgid,
-                uid,
-                gid,
-            },
-
-            linked_task_list: vec![
-                next_child,
-                prev_child,
-                next_sibling,
-                prev_sibling,
-                parent,
-                real_parent,
-            ],
+        Ok(Task {
+            virtual_address,
+            page_table,
+            binary_path,
+            name: Some(comm),
+            command_line,
+            environment_variable_map,
+            pid: tgid,
+            uid,
+            gid,
         })
     }
 }
 
 impl OperatingSystem for LinuxOperatingSystem {
     /// Returns the OS version
-    fn get_os_version(&self) -> CoreResult<SystemVersion> {
-        Self::get_os_version(
-            self.memory_dump.as_ref(),
-            self.architecture.as_ref(),
+    fn get_os_version(&self) -> Result<SystemVersion> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+        let swapper_task_struct = VirtualStruct::from_name(
+            &vmem_reader,
             &self.kernel_type_info,
-            self.swapper_task_struct_vaddr,
-        )
+            "task_struct",
+            &self.swapper_task_struct_vaddr,
+        )?;
+
+        let new_utsname = swapper_task_struct
+            .traverse("nsproxy")?
+            .dereference()?
+            .traverse("uts_ns")?
+            .dereference()?
+            .traverse("name")?;
+
+        let kernel_version = new_utsname
+            .traverse("release")?
+            .read_string(Some(65), true)?;
+
+        let system_version = new_utsname
+            .traverse("version")?
+            .read_string(Some(65), true)?;
+
+        let arch = new_utsname
+            .traverse("machine")?
+            .read_string(Some(65), true)?;
+
+        Ok(SystemVersion {
+            system_version,
+            kernel_version,
+            arch,
+        })
     }
 
     /// Returns the system information
-    fn get_system_information(&self) -> CoreResult<SystemInformation> {
-        Self::get_system_information(
-            self.memory_dump.as_ref(),
-            self.architecture.as_ref(),
+    fn get_system_information(&self) -> Result<SystemInformation> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+        let swapper_task_struct = VirtualStruct::from_name(
+            &vmem_reader,
             &self.kernel_type_info,
-            self.swapper_task_struct_vaddr,
-        )
+            "task_struct",
+            &self.swapper_task_struct_vaddr,
+        )?;
+
+        let new_utsname = swapper_task_struct
+            .traverse("nsproxy")?
+            .dereference()?
+            .traverse("uts_ns")?
+            .dereference()?
+            .traverse("name")?;
+
+        let hostname = new_utsname
+            .traverse("nodename")?
+            .read_string(Some(65), true)?;
+
+        let domain = new_utsname
+            .traverse("domainname")?
+            .read_string(Some(65), true)?;
+
+        let domain = if domain.is_empty() {
+            None
+        } else {
+            Some(domain)
+        };
+
+        Ok(SystemInformation { hostname, domain })
     }
 
     /// Returns the list of tasks
-    fn get_task_list(&self) -> CoreResult<Vec<Task>> {
+    fn get_task_list(&self) -> Result<Vec<Task>> {
         let mut task_list = Vec::new();
 
-        let mut visited_physical_address_list = Vec::new();
-        let mut next_virtual_address_queue = vec![self.swapper_task_struct_vaddr];
-
-        while !next_virtual_address_queue.is_empty() {
-            let virtual_address_queue = next_virtual_address_queue.clone();
-            next_virtual_address_queue.clear();
-
-            for virtual_address in virtual_address_queue {
-                let physical_address = match self
-                    .architecture
-                    .translate_virtual_address(self.memory_dump.as_ref(), virtual_address)
-                {
-                    Ok(physical_address_range) => physical_address_range.address(),
-                    Err(_) => {
-                        continue;
-                    }
-                };
-
-                if visited_physical_address_list.contains(&physical_address.value()) {
-                    continue;
+        for virtual_address in self.get_task_struct_vaddr_list()? {
+            match Self::get_task_from_vaddr(
+                self.memory_dump.as_ref(),
+                self.architecture.as_ref(),
+                &self.kernel_type_info,
+                virtual_address,
+            ) {
+                Ok(task) => {
+                    task_list.push(task);
                 }
 
-                visited_physical_address_list.push(physical_address.value());
-
-                match Self::get_task_snapshot(
-                    self.memory_dump.as_ref(),
-                    self.architecture.as_ref(),
-                    &self.kernel_type_info,
-                    virtual_address,
-                ) {
-                    Ok(task_snapshot) => {
-                        task_list.push(task_snapshot.task);
-
-                        for linked_task in task_snapshot.linked_task_list {
-                            next_virtual_address_queue.push(linked_task);
-                        }
-                    }
-
-                    Err(_) => {
-                        continue;
-                    }
+                Err(_) => {
+                    // TODO: Log this error
                 }
             }
         }
@@ -623,12 +661,13 @@ impl OperatingSystem for LinuxOperatingSystem {
     }
 
     /// Returns the list of files opened by the given task
-    fn get_task_open_file_list(&self) -> CoreResult<Vec<File>> {
+    fn get_task_open_file_list(&self) -> Result<Vec<File>> {
         let mut open_file_list = Vec::new();
 
         for task in self.get_task_list()? {
             let vmem_reader =
                 VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
             let task_struct = VirtualStruct::from_name(
                 &vmem_reader,
                 &self.kernel_type_info,
@@ -685,12 +724,12 @@ impl OperatingSystem for LinuxOperatingSystem {
     }
 }
 
-impl From<BtfparseError> for CoreError {
+impl From<BtfparseError> for Error {
     /// Converts a btfparse error into a System error
     fn from(error: BtfparseError) -> Self {
-        CoreError::new(
-            CoreErrorKind::OperatingSystemInitializationFailed,
-            &format!("btfparse has returned the following error: {:?}", error),
+        Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
+            &format!("btfparse has returned the following error: {error:?}"),
         )
     }
 }

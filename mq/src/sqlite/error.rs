@@ -76,7 +76,7 @@ impl From<CoreError> for Error {
     fn from(memory_error: CoreError) -> Self {
         Self::new(
             ErrorKind::CoreError,
-            &format!("Core error: {:?}", memory_error),
+            &format!("Core error: {memory_error:?}"),
         )
     }
 }
@@ -86,7 +86,7 @@ impl From<MemoryError> for Error {
     fn from(memory_error: MemoryError) -> Self {
         Self::new(
             ErrorKind::CoreError,
-            &format!("Memory error: {:?}", memory_error),
+            &format!("Memory error: {memory_error:?}"),
         )
     }
 }

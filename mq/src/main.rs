@@ -36,7 +36,7 @@ fn display_query_data(query_data: &QueryData) -> Result<(), io::Error> {
                 },
             };
 
-            print!("{}:\"{}\" ", column_name, printable_column_value);
+            print!("{column_name}:\"{printable_column_value}\" ");
         }
 
         println!();
@@ -71,7 +71,7 @@ fn run_interactive_shell(database: &Database) -> io::Result<()> {
             Ok(query_data) => display_query_data(&query_data)?,
 
             Err(error) => {
-                println!("Failed to query the mquire database: {:?}", error);
+                println!("Failed to query the mquire database: {error:?}");
             }
         }
 
@@ -88,14 +88,14 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    let memory_dump = Path::new(&argument_list[1]);
-    if !memory_dump.exists() {
+    let memory_dump_path = Path::new(&argument_list[1]);
+    if !memory_dump_path.exists() {
         println!("The specified memory dump file does not exist.");
         return Ok(());
     }
 
-    let database = Database::new(memory_dump).map_err(|error| {
-        io::Error::other(format!("Failed to create the mquire database: {:?}", error))
+    let database = Database::new(memory_dump_path).map_err(|error| {
+        io::Error::other(format!("Failed to create the mquire database: {error:?}"))
     })?;
 
     if argument_list.len() == 3 {
@@ -104,10 +104,10 @@ fn main() -> io::Result<()> {
         ))?;
 
         let json = database.json(query).map_err(|error| {
-            io::Error::other(format!("Failed to query the mquire database: {:?}", error))
+            io::Error::other(format!("Failed to query the mquire database: {error:?}"))
         })?;
 
-        println!("{}", json);
+        println!("{json}");
     } else {
         run_interactive_shell(&database)?;
     }

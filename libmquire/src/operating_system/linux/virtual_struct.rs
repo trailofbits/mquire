@@ -45,7 +45,7 @@ impl<'a> VirtualStruct<'a> {
         if type_information.from_id(tid).is_none() {
             Err(CoreError::new(
                 CoreErrorKind::TypeInformationError,
-                &format!("Invalid virtual struct ID: {}", tid),
+                &format!("Invalid virtual struct ID: {tid}"),
             ))
         } else {
             Ok(Self {
@@ -69,7 +69,7 @@ impl<'a> VirtualStruct<'a> {
         } else {
             Err(CoreError::new(
                 CoreErrorKind::TypeInformationError,
-                &format!("Invalid virtual struct type name: {}", name),
+                &format!("Invalid virtual struct type name: {name}"),
             ))
         }
     }
@@ -86,12 +86,13 @@ impl<'a> VirtualStruct<'a> {
 
     /// Traverses the current type using the specified path
     pub fn traverse(&self, path: &str) -> CoreResult<Self> {
+        // TODO: This will fail if there's a ptr
         let (destination_tid, destination_offset) =
             self.type_information.offset_of(self.tid, path).map_err(
               |error| {
                 CoreError::new(
                   CoreErrorKind::TypeTraversalError,
-                  &format!("The following path could not be used to traverse type #{}: {}. BTF error: {:?}", self.tid, path, error),
+                  &format!("The following path could not be used to traverse type #{}: {path}. BTF error: {error:?}", self.tid),
                 )
               }
             )?;
@@ -102,7 +103,7 @@ impl<'a> VirtualStruct<'a> {
                 _ => {
                     return Err(CoreError::new(
                         CoreErrorKind::TypeInformationError,
-                        &format!("Invalid offset: {:?}", destination_offset),
+                        &format!("Invalid offset: {destination_offset:?}"),
                     ))
                 }
             };
@@ -183,7 +184,7 @@ impl<'a> VirtualStruct<'a> {
             String::from_utf8(buffer.to_vec()).map_err(|_| {
                 CoreError::new(
                     CoreErrorKind::InvalidData,
-                    "Failed to convert the comm string to UTF-8",
+                    "Failed to convert the string to UTF-8",
                 )
             })?
         };

@@ -6,4 +6,5 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod lime_snapshot;
 pub mod raw_snapshot;

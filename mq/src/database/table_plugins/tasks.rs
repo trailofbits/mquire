@@ -74,7 +74,7 @@ impl TablePlugin for TasksTablePlugin {
 
             let mut environment = String::new();
             for (key, value) in task.environment_variable_map {
-                environment.push_str(&format!("{}={}, ", key, value));
+                environment.push_str(&format!("{key}={value}, "));
             }
 
             let environment = match environment.is_empty() {
