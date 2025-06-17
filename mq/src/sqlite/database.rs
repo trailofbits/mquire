@@ -107,7 +107,7 @@ impl Database {
 
             return Err(Error::new(
                 ErrorKind::InvalidSqlStatement,
-                &format!("The sqlite library returned error {} when trying to compile the following SQL statement: {}. Error message: {}", error, query, error_message),
+                &format!("The sqlite library returned error {error} when trying to compile the following SQL statement: {query}. Error message: {error_message}"),
             ));
         }
 
@@ -130,8 +130,7 @@ impl Database {
                 return Err(Error::new(
                     ErrorKind::TablePluginError,
                     &format!(
-                        "The table plugin has failed to generate the next row. Error message: {}",
-                        error_message
+                        "The table plugin has failed to generate the next row. Error message: {error_message}",
                     ),
                 ));
             }
@@ -442,7 +441,7 @@ unsafe extern "C" fn sqlite_xfilter_callback(
     table_cursor.current_row = 0;
     table_cursor.row_list = match table_plugin.generate() {
         Err(error) => {
-            set_vtab_error_message(&mut virtual_table.sqlite_vtab, format!("{:?}", error));
+            set_vtab_error_message(&mut virtual_table.sqlite_vtab, format!("{error:?}"));
             return SQLITE_ERROR as os::raw::c_int;
         }
 
@@ -513,37 +512,35 @@ unsafe extern "C" fn sqlite_xcolumn_callback(
             libsqlite3::sqlite3_result_null(arg2);
         }
 
-        Some(value) => {
-            match value {
-                ColumnValue::Double(value) => {
-                    libsqlite3::sqlite3_result_double(arg2, *value);
-                }
-
-                ColumnValue::SignedInteger(value) => {
-                    libsqlite3::sqlite3_result_int64(arg2, *value);
-                }
-
-                ColumnValue::String(value) => {
-                    let c_string = match CString::new(&value[..]) {
-                        Ok(c_string) => c_string.into_raw(),
-                        Err(error) => {
-                            let virtual_table =
-                                &mut *(table_cursor.sqlite_vtab_cursor.pVtab as *mut VirtualTable);
-
-                            set_vtab_error_message(&mut virtual_table.sqlite_vtab, format!("The table plugin has generated an invalid text column value. {:?}", error));
-                            return SQLITE_ERROR as os::raw::c_int;
-                        }
-                    };
-
-                    libsqlite3::sqlite3_result_text(
-                        arg2,
-                        c_string,
-                        value.len() as i32,
-                        Some(release_cstring),
-                    );
-                }
+        Some(value) => match value {
+            ColumnValue::Double(value) => {
+                libsqlite3::sqlite3_result_double(arg2, *value);
             }
-        }
+
+            ColumnValue::SignedInteger(value) => {
+                libsqlite3::sqlite3_result_int64(arg2, *value);
+            }
+
+            ColumnValue::String(value) => {
+                let c_string = match CString::new(&value[..]) {
+                    Ok(c_string) => c_string.into_raw(),
+                    Err(error) => {
+                        let virtual_table =
+                            &mut *(table_cursor.sqlite_vtab_cursor.pVtab as *mut VirtualTable);
+
+                        set_vtab_error_message(&mut virtual_table.sqlite_vtab, format!("The table plugin has generated an invalid text column value. {error:?}"));
+                        return SQLITE_ERROR as os::raw::c_int;
+                    }
+                };
+
+                libsqlite3::sqlite3_result_text(
+                    arg2,
+                    c_string,
+                    value.len() as i32,
+                    Some(release_cstring),
+                );
+            }
+        },
     };
 
     SQLITE_OK as os::raw::c_int

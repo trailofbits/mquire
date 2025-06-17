@@ -27,17 +27,12 @@ impl RawSnapshot {
 
 impl Readable for RawSnapshot {
     /// Reads the specified number of bytes from the given physical address
-    fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<()> {
-        Ok(self.file.read_exact_at(buffer, physical_address.into())?)
+    fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize> {
+        Ok(self.file.read_at(buffer, physical_address.into())?)
     }
 
     /// Returns the size of the snapshot
     fn len(&self) -> Result<u64> {
         Ok(self.file.metadata().map(|metadata| metadata.len())?)
-    }
-
-    /// Returns true if the snapshot is empty
-    fn is_empty(&self) -> Result<bool> {
-        self.len().map(|len| len == 0)
     }
 }

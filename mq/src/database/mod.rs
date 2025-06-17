@@ -21,19 +21,34 @@ use crate::{
 
 use mquire::{
     architecture::intel::architecture::IntelArchitecture,
+    memory::readable::Readable,
     operating_system::linux::operating_system::LinuxOperatingSystem,
-    snapshot::raw_snapshot::RawSnapshot,
+    snapshot::{lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot},
 };
 
-use std::path::Path;
+use std::{path::Path, rc::Rc};
 
 pub struct Database {
     sqlite_db: SqliteDatabase,
 }
 
 impl Database {
-    pub fn new(memory_dump: &Path) -> Result<Self> {
-        let memory_dump = RawSnapshot::new(memory_dump)?;
+    pub fn new(memory_dump_path: &Path) -> Result<Self> {
+        let memory_dump: Rc<dyn Readable> = match memory_dump_path
+            .extension()
+            .and_then(|extension| extension.to_str())
+        {
+            Some("raw") => RawSnapshot::new(memory_dump_path)?,
+            Some("lime") => LimeSnapshot::new(memory_dump_path)?,
+
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::InternalError,
+                    "Unsupported memory dump format",
+                ));
+            }
+        };
+
         let system = LinuxOperatingSystem::new(memory_dump, IntelArchitecture::new())?;
 
         let mut sqlite_db = SqliteDatabase::new()?;
@@ -54,7 +69,7 @@ impl Database {
         let json_query_data = serde_json::to_string_pretty(&query_data).map_err(|error| {
             Error::new(
                 ErrorKind::InternalError,
-                &format!("JSON serialization error: {:?}", error),
+                &format!("JSON serialization error: {error:?}"),
             )
         })?;
 

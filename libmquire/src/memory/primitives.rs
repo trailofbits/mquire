@@ -27,6 +27,42 @@ macro_rules! define_address_type {
             pub const fn is_null(&self) -> bool {
                 self.0 == 0
             }
+
+            pub const fn aligned_to(&self, size: $inner_type) -> Self {
+                if size == 0 {
+                    *self
+                } else {
+                    Self::new((self.0 + size - 1) & !(size - 1))
+                }
+            }
+
+            pub fn range_step(
+                &self,
+                end: $name,
+                step: $inner_type,
+            ) -> impl Iterator<Item = $name> {
+                let mut curr = *self;
+                let mut yielded = false;
+
+                std::iter::from_fn(move || {
+                    if step == 0 {
+                        if !yielded && curr < end {
+                            yielded = true;
+                            Some(curr)
+                        } else {
+                            None
+                        }
+
+                    } else if curr < end {
+                        let ret = curr;
+                        curr = curr + step;
+                        Some(ret)
+
+                    } else {
+                        None
+                    }
+                })
+            }
         }
 
         impl From<$inner_type> for $name {
@@ -90,6 +126,77 @@ macro_rules! define_address_type {
         #[cfg(test)]
         mod $test_module {
             use super::*;
+
+            #[test]
+            fn test_range_step_zero() {
+                let start = <$name>::new(0x1000);
+                let end = <$name>::new(0x1005);
+                let step = 0u64;
+
+                let collected: Vec<_> = start.range_step(end, step).map(|a| a.value()).collect();
+                assert_eq!(collected, vec![0x1000]);
+            }
+
+            #[test]
+            fn test_range_step_one() {
+                let start = <$name>::new(0x1000);
+                let end = <$name>::new(0x1005);
+                let step = 1u64;
+
+                let collected: Vec<_> = start.range_step(end, step).map(|a| a.value()).collect();
+                assert_eq!(collected, vec![0x1000, 0x1001, 0x1002, 0x1003, 0x1004]);
+            }
+
+            #[test]
+            fn test_range_step_four() {
+                let start = <$name>::new(0x1000);
+                let end = <$name>::new(0x1010);
+                let step = 4u64;
+
+                let collected: Vec<_> = start.range_step(end, step).map(|a| a.value()).collect();
+                assert_eq!(collected, vec![0x1000, 0x1004, 0x1008, 0x100C]);
+            }
+
+            #[test]
+            fn test_range_step_large() {
+                let start = <$name>::new(0x1000);
+                let end = <$name>::new(0x1005);
+                let step = 1000u64;
+
+                let collected: Vec<_> = start.range_step(end, step).map(|a| a.value()).collect();
+                assert_eq!(collected, vec![0x1000]);
+            }
+
+            #[test]
+            fn test_aligned_to_zero() {
+                let addr = <$name>::new(0x1234);
+                assert_eq!(addr.aligned_to(0).value(), 0x1234);
+            }
+
+            #[test]
+            fn test_aligned_to_one() {
+                let addr = <$name>::new(0x1234);
+                assert_eq!(addr.aligned_to(1).value(), 0x1234);
+            }
+
+            #[test]
+            fn test_aligned_to_power_of_two() {
+                let addr = <$name>::new(0x1003);
+                assert_eq!(addr.aligned_to(0x1000).value(), 0x2000);
+            }
+
+            #[test]
+            fn test_aligned_to_already_aligned() {
+                let addr = <$name>::new(0x4000);
+                assert_eq!(addr.aligned_to(0x1000).value(), 0x4000);
+            }
+
+            #[test]
+            fn test_aligned_to_non_power_of_two() {
+                let addr = <$name>::new(0x1234);
+                let expected = (0x1234 + 0x123 - 1) & !(0x123 - 1);
+                assert_eq!(addr.aligned_to(0x123).value(), expected);
+            }
 
             #[test]
             fn test_new_and_value() {

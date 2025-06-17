@@ -32,7 +32,7 @@ impl<'a> BtfparseReadableAdapter<'a> {
 impl From<MemoryError> for BTFParseError {
     /// Converts a MemoryError into a BTFParseError
     fn from(error: MemoryError) -> Self {
-        BTFParseError::new(BTFParseErrorKind::IOError, &format!("{:?}", error))
+        BTFParseError::new(BTFParseErrorKind::IOError, &format!("{error:?}"))
     }
 }
 
@@ -41,8 +41,18 @@ impl<'a> BTFParseReadable for BtfparseReadableAdapter<'a> {
     fn read(&self, offset: u64, buffer: &mut [u8]) -> BTFParseResult<()> {
         let physical_address = PhysicalAddress::new(self.base_offset + offset);
 
-        self.readable
-            .read(buffer, physical_address)
-            .map_err(|memory_error| memory_error.into())
+        let bytes_read = self.readable.read(buffer, physical_address)?;
+        if bytes_read != buffer.len() {
+            Err(BTFParseError::new(
+                BTFParseErrorKind::IOError,
+                &format!(
+                    "Only {} bytes were available out of the requested {}",
+                    bytes_read,
+                    buffer.len()
+                ),
+            ))
+        } else {
+            Ok(())
+        }
     }
 }

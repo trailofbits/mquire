@@ -16,6 +16,9 @@ pub enum ErrorKind {
 
     /// The operations could not be completed because the page tables are different
     InvalidAddressSpace,
+
+    /// The snapshot format is invalid or not supported
+    InvalidSnapshotFormat,
 }
 
 /// Error type for memory operations

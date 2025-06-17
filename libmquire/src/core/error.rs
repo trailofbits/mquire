@@ -80,6 +80,6 @@ impl Error {
 impl From<MemoryError> for Error {
     /// Converts a MemoryError into a core Error.
     fn from(memory_error: MemoryError) -> Self {
-        Self::new(ErrorKind::MemoryError, &format!("{:?}", memory_error))
+        Self::new(ErrorKind::MemoryError, &format!("{memory_error:?}"))
     }
 }

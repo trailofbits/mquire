@@ -17,7 +17,7 @@ use std::{
 };
 
 /// A virtual address, containing the physical address for the root page table.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Eq, PartialOrd, Ord, Default)]
 pub struct VirtualAddress {
     /// The physical address for the root page table.
     root_page_table: PhysicalAddress,
@@ -58,10 +58,7 @@ impl VirtualAddress {
         if self.root_page_table != rhs.root_page_table {
             return Err(Error::new(
                 ErrorKind::InvalidAddressSpace,
-                &format!(
-                    "Page table mismatch in compare operation: {:?}, {:?}",
-                    self, rhs
-                ),
+                &format!("Page table mismatch in compare operation: {self:?}, {rhs:?}",),
             ));
         }
 
@@ -93,10 +90,7 @@ impl ops::Sub<VirtualAddress> for VirtualAddress {
         if self.root_page_table != rhs.root_page_table {
             return Err(Error::new(
                 ErrorKind::InvalidAddressSpace,
-                &format!(
-                    "Page table mismatch in subtraction operation: {:?}, {:?}",
-                    self, rhs
-                ),
+                &format!("Page table mismatch in subtraction operation: {self:?}, {rhs:?}",),
             ));
         }
 
@@ -109,12 +103,6 @@ impl PartialEq for VirtualAddress {
         self.try_cmp(other)
             .map(|o| o == Ordering::Equal)
             .unwrap_or(false)
-    }
-}
-
-impl PartialOrd for VirtualAddress {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.try_cmp(other).ok()
     }
 }
 
@@ -170,7 +158,7 @@ mod tests {
         );
 
         let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::default());
-        assert_eq!(format!("{}", addr), expected_output);
+        assert_eq!(format!("{addr}"), expected_output);
     }
 
     #[test]
@@ -182,7 +170,7 @@ mod tests {
         );
 
         let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::default());
-        assert_eq!(format!("{:?}", addr), expected_output);
+        assert_eq!(format!("{addr:?}"), expected_output);
     }
 
     #[test]
