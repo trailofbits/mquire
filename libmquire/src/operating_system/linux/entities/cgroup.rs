@@ -6,7 +6,12 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod btf;
-pub mod entities;
-pub mod operating_system;
-mod virtual_struct;
+use crate::memory::virtual_address::VirtualAddress;
+
+pub struct Cgroup {
+    /// The (kernel) virtual address of the task_struct
+    pub task: VirtualAddress,
+
+    /// The cgroup name
+    pub name: String,
+}
