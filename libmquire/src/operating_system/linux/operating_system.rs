@@ -22,11 +22,15 @@ use crate::{
         readable::Readable,
         virtual_address::VirtualAddress,
     },
-    operating_system::linux::{btf::BtfparseReadableAdapter, virtual_struct::VirtualStruct},
+    operating_system::linux::{
+        btf::BtfparseReadableAdapter, entities::cgroup::Cgroup, virtual_struct::VirtualStruct,
+    },
     utils::reader::Reader,
 };
 
-use btfparse::{Error as BtfparseError, Offset as BtfparseOffset, TypeInformation};
+use btfparse::{
+    Error as BtfparseError, Integer32Value, Offset as BtfparseOffset, TypeInformation, TypeVariant,
+};
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -81,6 +85,156 @@ impl LinuxOperatingSystem {
             kernel_type_info,
             swapper_task_struct_vaddr,
         }))
+    }
+
+    /// Returns the cgroup list
+    pub fn get_cgroup_list(&self) -> Result<Vec<Cgroup>> {
+        let cpuset_cgrp_id = self
+            .kernel_type_info
+            .id_of("cgroup_subsys_id")
+            .and_then(|type_id| self.kernel_type_info.from_id(type_id))
+            .and_then(|type_variant| {
+                if let TypeVariant::Enum(enum_type) = type_variant {
+                    enum_type.named_value_list().iter().find_map(|named_value| {
+                        if named_value.name == "cpuset_cgrp_id" {
+                            Some(named_value.value)
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            })
+            .map(|integer_value| match integer_value {
+                Integer32Value::Signed(value) => value as u32,
+                Integer32Value::Unsigned(value) => value,
+            })
+            .ok_or(Error::new(
+                ErrorKind::TypeInformationError,
+                "Failed to acquire the cgroup_subsys_id::cpuset_cgrp_id enum value",
+            ))?;
+
+        let css_type = self
+            .kernel_type_info
+            .id_of("css_set")
+            .and_then(|type_id| self.kernel_type_info.from_id(type_id))
+            .and_then(|type_variant| {
+                if let TypeVariant::Struct(struct_type) = type_variant {
+                    Some(struct_type)
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::new(
+                ErrorKind::TypeInformationError,
+                "No `struct css_set` found",
+            ))?;
+
+        let subsys_field = css_type
+            .member_list()
+            .iter()
+            .find(|member| member.name().map(|name| name == "subsys").unwrap_or(false))
+            .ok_or(Error::new(
+                ErrorKind::TypeInformationError,
+                "No field `subsys` found inside the `struct css_set` structure",
+            ))?;
+
+        let subsys_array_type = self
+            .kernel_type_info
+            .from_id(subsys_field.tid())
+            .and_then(|type_variant| {
+                if let TypeVariant::Array(array_type) = type_variant {
+                    Some(array_type)
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::new(
+                ErrorKind::TypeInformationError,
+                "The `subsys` field inside the `struct css_set` structure is not an array",
+            ))?;
+
+        if cpuset_cgrp_id >= *subsys_array_type.element_count() {
+            return Err(Error::new(
+                ErrorKind::TypeInformationError,
+                "The `cpuset_cgrp_id` index is outside of the subsys array size",
+            ));
+        }
+
+        let mut cgroup_list = Vec::new();
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        for task_vaddr in self.get_task_struct_vaddr_list()? {
+            let task_struct = VirtualStruct::from_name(
+                &vmem_reader,
+                &self.kernel_type_info,
+                "task_struct",
+                &task_vaddr,
+            )?;
+
+            let mut kn = if let Ok(kn) = task_struct
+                .traverse("cgroups")
+                .and_then(|obj| obj.dereference())
+                .and_then(|obj| obj.traverse(&format!("subsys[{cpuset_cgrp_id}]")))
+                .and_then(|obj| obj.dereference())
+                .and_then(|obj| obj.traverse("cgroup"))
+                .and_then(|obj| obj.dereference())
+                .and_then(|obj| obj.traverse("kn"))
+                .and_then(|obj| obj.dereference())
+            {
+                kn
+            } else {
+                continue;
+            };
+
+            let mut visited_address_list = BTreeSet::new();
+            let mut name_list = Vec::new();
+
+            while !kn.virtual_address().is_null() {
+                if !visited_address_list.insert(kn.virtual_address()) {
+                    break;
+                }
+
+                let parent_kn = if let Ok(parent_kn) =
+                    kn.traverse("parent").and_then(|obj| obj.dereference())
+                {
+                    parent_kn
+                } else {
+                    break;
+                };
+
+                if parent_kn.virtual_address().is_null() {
+                    break;
+                }
+
+                if let Some(name) = kn
+                    .traverse("name")
+                    .and_then(|obj| obj.dereference())
+                    .and_then(|obj| obj.read_string(None, true))
+                    .ok()
+                    .filter(|buffer| {
+                        !buffer.is_empty() && buffer.as_bytes().first().cloned() != Some(0)
+                    })
+                {
+                    name_list.push(name);
+                } else {
+                    break;
+                }
+
+                kn = parent_kn;
+            }
+
+            if !name_list.is_empty() {
+                cgroup_list.push(Cgroup {
+                    task: task_vaddr,
+                    name: name_list.into_iter().rev().collect::<Vec<_>>().join("/"),
+                });
+            }
+        }
+
+        Ok(cgroup_list)
     }
 
     /// Enumerate the task struct virtual addresses in memory

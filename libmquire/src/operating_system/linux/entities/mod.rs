@@ -6,7 +6,4 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod btf;
-pub mod entities;
-pub mod operating_system;
-mod virtual_struct;
+pub mod cgroup;
