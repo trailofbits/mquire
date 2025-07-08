@@ -6,6 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod cgroups;
 pub mod os_version;
 pub mod system_info;
 pub mod task_open_files;
