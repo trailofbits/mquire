@@ -10,8 +10,9 @@ mod table_plugins;
 
 use crate::{
     database::table_plugins::{
-        os_version::OSVersionTablePlugin, system_info::SystemInfoTablePlugin,
-        task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
+        cgroups::CgroupsTablePlugin, os_version::OSVersionTablePlugin,
+        system_info::SystemInfoTablePlugin, task_open_files::TaskOpenFilesTablePlugin,
+        tasks::TasksTablePlugin,
     },
     sqlite::{
         database::{Database as SqliteDatabase, QueryData},
@@ -56,6 +57,7 @@ impl Database {
         sqlite_db.register_table_plugin(SystemInfoTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(TaskOpenFilesTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(TasksTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(CgroupsTablePlugin::new(system.clone()))?;
 
         Ok(Self { sqlite_db })
     }
