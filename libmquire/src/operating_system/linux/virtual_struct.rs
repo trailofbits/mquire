@@ -8,7 +8,7 @@
 
 use crate::{
     core::{
-        error::{Error as CoreError, ErrorKind as CoreErrorKind, Result as CoreResult},
+        error::{Error, ErrorKind, Result},
         virtual_memory_reader::VirtualMemoryReader,
     },
     memory::virtual_address::VirtualAddress,
@@ -41,10 +41,10 @@ impl<'a> VirtualStruct<'a> {
         type_information: &'a TypeInformation,
         tid: u32,
         virtual_address: &VirtualAddress,
-    ) -> CoreResult<Self> {
+    ) -> Result<Self> {
         if type_information.from_id(tid).is_none() {
-            Err(CoreError::new(
-                CoreErrorKind::TypeInformationError,
+            Err(Error::new(
+                ErrorKind::TypeInformationError,
                 &format!("Invalid virtual struct ID: {tid}"),
             ))
         } else {
@@ -63,12 +63,12 @@ impl<'a> VirtualStruct<'a> {
         type_information: &'a TypeInformation,
         name: &str,
         virtual_address: &VirtualAddress,
-    ) -> CoreResult<Self> {
+    ) -> Result<Self> {
         if let Some(tid) = type_information.id_of(name) {
             Self::from_id(vmem_reader, type_information, tid, virtual_address)
         } else {
-            Err(CoreError::new(
-                CoreErrorKind::TypeInformationError,
+            Err(Error::new(
+                ErrorKind::TypeInformationError,
                 &format!("Invalid virtual struct type name: {name}"),
             ))
         }
@@ -85,13 +85,13 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Traverses the current type using the specified path
-    pub fn traverse(&self, path: &str) -> CoreResult<Self> {
+    pub fn traverse(&self, path: &str) -> Result<Self> {
         // TODO: This will fail if there's a ptr
         let (destination_tid, destination_offset) =
             self.type_information.offset_of(self.tid, path).map_err(
               |error| {
-                CoreError::new(
-                  CoreErrorKind::TypeTraversalError,
+                Error::new(
+                  ErrorKind::TypeTraversalError,
                   &format!("The following path could not be used to traverse type #{}: {path}. BTF error: {error:?}", self.tid),
                 )
               }
@@ -101,8 +101,8 @@ impl<'a> VirtualStruct<'a> {
             + match destination_offset {
                 Offset::ByteOffset(offset) => offset as u64,
                 _ => {
-                    return Err(CoreError::new(
-                        CoreErrorKind::TypeInformationError,
+                    return Err(Error::new(
+                        ErrorKind::TypeInformationError,
                         &format!("Invalid offset: {destination_offset:?}"),
                     ))
                 }
@@ -117,13 +117,13 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Dereferences the current pointer
-    pub fn dereference(&self) -> CoreResult<Self> {
+    pub fn dereference(&self) -> Result<Self> {
         let pointee_tid = self
             .type_information
             .pointee_tid(self.tid)
             .map_err(|error| {
-                CoreError::new(
-                    CoreErrorKind::TypeTraversalError,
+                Error::new(
+                    ErrorKind::TypeTraversalError,
                     &format!(
                         "Failed to get the pointee type id for type #{}. BTF error: {:?}",
                         self.tid, error
@@ -142,22 +142,22 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Reads a virtual address from the current position
-    pub fn read_vaddr(&self) -> CoreResult<VirtualAddress> {
+    pub fn read_vaddr(&self) -> Result<VirtualAddress> {
         self.vmem_reader.read_vaddr(self.virtual_address)
     }
 
     /// Reads a u32 from the current position
-    pub fn read_u32(&self) -> CoreResult<u32> {
+    pub fn read_u32(&self) -> Result<u32> {
         self.vmem_reader.read_u32(self.virtual_address)
     }
 
     /// Reads a u64 from the current position
-    pub fn read_u64(&self) -> CoreResult<u64> {
+    pub fn read_u64(&self) -> Result<u64> {
         self.vmem_reader.read_u64(self.virtual_address)
     }
 
     /// Reads a string from the current position
-    pub fn read_string(&self, max_size: Option<usize>, lossy: bool) -> CoreResult<String> {
+    pub fn read_string(&self, max_size: Option<usize>, lossy: bool) -> Result<String> {
         let mut buffer = Vec::new();
 
         for offset in 0.. {
@@ -182,8 +182,8 @@ impl<'a> VirtualStruct<'a> {
             String::from_utf8_lossy(&buffer).to_string()
         } else {
             String::from_utf8(buffer.to_vec()).map_err(|_| {
-                CoreError::new(
-                    CoreErrorKind::InvalidData,
+                Error::new(
+                    ErrorKind::InvalidData,
                     "Failed to convert the string to UTF-8",
                 )
             })?
@@ -193,7 +193,7 @@ impl<'a> VirtualStruct<'a> {
     }
 
     /// Reads a byte vector from the current position
-    pub fn read_bytes(&self, size: usize) -> CoreResult<Vec<u8>> {
+    pub fn read_bytes(&self, size: usize) -> Result<Vec<u8>> {
         let mut buffer = Vec::new();
 
         for offset in 0..size {
