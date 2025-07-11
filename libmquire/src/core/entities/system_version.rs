@@ -9,11 +9,11 @@
 /// Represents the operating system version information.
 pub struct SystemVersion {
     /// System version.
-    pub system_version: String,
+    pub system_version: Option<String>,
 
     /// Kernel version.
-    pub kernel_version: String,
+    pub kernel_version: Option<String>,
 
     /// Kernel architecture.
-    pub arch: String,
+    pub arch: Option<String>,
 }

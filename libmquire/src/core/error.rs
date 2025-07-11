@@ -10,7 +10,7 @@ use crate::memory::error::Error as MemoryError;
 
 use std::result::Result as StandardResult;
 
-/// Error kinds for architecture operations.
+/// Error kinds for core operations.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
     /// A memory error has occurred.
@@ -44,7 +44,7 @@ pub enum ErrorKind {
     NoRootPageDirectoryFound,
 }
 
-/// Error type for architecture operations
+/// Error type for core operations
 #[derive(Debug)]
 pub struct Error {
     /// Error kind.
@@ -54,11 +54,11 @@ pub struct Error {
     message: String,
 }
 
-/// A result type for architecture operations.
+/// A result type for core operations.
 pub type Result<T> = StandardResult<T, Error>;
 
 impl Error {
-    /// Creates a new architecture error.
+    /// Creates a new core error.
     pub fn new(kind: ErrorKind, message: &str) -> Error {
         Error {
             kind,

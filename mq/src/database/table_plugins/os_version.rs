@@ -46,17 +46,17 @@ impl TablePlugin for OSVersionTablePlugin {
         let mut row = BTreeMap::<String, OptionalColumnValue>::new();
         row.insert(
             String::from("kernel_version"),
-            Some(ColumnValue::String(os_version.kernel_version)),
+            os_version.kernel_version.map(ColumnValue::String),
         );
 
         row.insert(
             String::from("system_version"),
-            Some(ColumnValue::String(os_version.system_version)),
+            os_version.system_version.map(ColumnValue::String),
         );
 
         row.insert(
             String::from("arch"),
-            Some(ColumnValue::String(os_version.arch)),
+            os_version.arch.map(ColumnValue::String),
         );
 
         Ok(vec![row])
