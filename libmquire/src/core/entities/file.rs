@@ -11,8 +11,11 @@ use crate::memory::virtual_address::VirtualAddress;
 /// Represents a file in memory.
 #[derive(Debug)]
 pub struct File {
-    /// The (kernel) virtual address of this task entity.
+    /// The (kernel) virtual address of this file entity.
     pub virtual_address: VirtualAddress,
+
+    /// That task virtual address
+    pub task: VirtualAddress,
 
     /// The file path.
     pub path: String,

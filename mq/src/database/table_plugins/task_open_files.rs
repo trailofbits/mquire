@@ -33,6 +33,7 @@ impl TablePlugin for TaskOpenFilesTablePlugin {
 
         schema.insert(String::from("pid"), ColumnType::String);
         schema.insert(String::from("virtual_address"), ColumnType::String);
+        schema.insert(String::from("task"), ColumnType::String);
         schema.insert(String::from("path"), ColumnType::String);
 
         schema
@@ -61,6 +62,11 @@ impl TablePlugin for TaskOpenFilesTablePlugin {
                     "{:?}",
                     task_open_file.virtual_address
                 ))),
+            );
+
+            row.insert(
+                String::from("task"),
+                Some(ColumnValue::String(format!("{:?}", task_open_file.task))),
             );
 
             row.insert(
