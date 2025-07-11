@@ -15,11 +15,13 @@ use mquire::core::operating_system::OperatingSystem;
 
 use std::{collections::BTreeMap, rc::Rc};
 
+/// A table plugin that outputs the system hostname and domain name
 pub struct SystemInfoTablePlugin {
     system: Rc<dyn OperatingSystem>,
 }
 
 impl SystemInfoTablePlugin {
+    /// Creates a new table plugin instance
     pub fn new(system: Rc<dyn OperatingSystem>) -> Rc<Self> {
         Rc::new(Self { system })
     }

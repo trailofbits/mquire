@@ -6,12 +6,17 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::sync::{Mutex, OnceLock};
+use std::{
+    io::Write,
+    sync::{Mutex, OnceLock},
+};
 
 use chrono::Utc;
 
+/// The global logger instance
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 
+/// Represents a single logged message
 #[derive(Clone)]
 pub struct LogEntry {
     pub time: chrono::DateTime<Utc>,
@@ -20,12 +25,14 @@ pub struct LogEntry {
     pub message: String,
 }
 
+/// A logger that saves messages and optionally outputs to stderr
 pub struct Logger {
     log_entry_list: Mutex<Vec<LogEntry>>,
     enable_stderr_logging: bool,
 }
 
 impl Logger {
+    /// Creates a new logger instance
     fn new(enable_stderr_logging: bool) -> Self {
         Self {
             log_entry_list: Mutex::new(Vec::new()),
@@ -33,6 +40,7 @@ impl Logger {
         }
     }
 
+    /// Initializes the global logger
     pub fn initialize(enable_stderr_logging: bool) {
         log::set_logger(LOGGER.get_or_init(|| Logger::new(enable_stderr_logging))).unwrap();
 
@@ -45,6 +53,7 @@ impl Logger {
         log::set_max_level(max_level);
     }
 
+    /// Retrieves a vector containing all log entries collected by the logger.
     pub fn get_messages() -> Vec<LogEntry> {
         if let Some(logger) = LOGGER.get() {
             if let Ok(logs) = logger.log_entry_list.lock() {
@@ -90,5 +99,9 @@ impl log::Log for Logger {
         }
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        if self.enable_stderr_logging {
+            let _ = std::io::stderr().flush();
+        }
+    }
 }

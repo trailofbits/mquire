@@ -16,9 +16,11 @@ use crate::{
 
 use std::{collections::BTreeMap, rc::Rc};
 
+/// A table plugin that exports the internal logger output
 pub struct LogMessages;
 
 impl LogMessages {
+    /// Creates a new table plugin instance
     pub fn new() -> Rc<Self> {
         Rc::new(Self {})
     }

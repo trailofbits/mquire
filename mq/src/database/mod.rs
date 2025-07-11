@@ -29,11 +29,13 @@ use mquire::{
 
 use std::{path::Path, rc::Rc};
 
+/// Provides database-like access to an mquire OperatingSystem object
 pub struct Database {
     sqlite_db: SqliteDatabase,
 }
 
 impl Database {
+    /// Creates a new database instance by opening the specified memory dump
     pub fn new(memory_dump_path: &Path) -> Result<Self> {
         let memory_dump: Rc<dyn Readable> = match memory_dump_path
             .extension()
@@ -63,10 +65,12 @@ impl Database {
         Ok(Self { sqlite_db })
     }
 
+    /// Executes the given SQL query, returning raw query data
     pub fn query(&self, query: &str) -> Result<QueryData> {
         self.sqlite_db.query(query)
     }
 
+    /// Executes the given SQL query, returning serialized JSON
     pub fn json(&self, query: &str) -> Result<String> {
         let query_data = self.sqlite_db.query(query)?;
         let json_query_data = serde_json::to_string_pretty(&query_data).map_err(|error| {

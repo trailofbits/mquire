@@ -15,11 +15,13 @@ use mquire::core::operating_system::OperatingSystem;
 
 use std::{collections::BTreeMap, rc::Rc};
 
+/// A table plugin that lists active tasks
 pub struct TasksTablePlugin {
     system: Rc<dyn OperatingSystem>,
 }
 
 impl TasksTablePlugin {
+    /// Creates a new table plugin instance
     pub fn new(system: Rc<dyn OperatingSystem>) -> Rc<Self> {
         Rc::new(Self { system })
     }
