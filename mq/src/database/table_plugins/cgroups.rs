@@ -15,11 +15,13 @@ use mquire::operating_system::linux::operating_system::LinuxOperatingSystem;
 
 use std::{collections::BTreeMap, rc::Rc};
 
+/// A table plugin that lists the task cgroups
 pub struct CgroupsTablePlugin {
     system: Rc<LinuxOperatingSystem>,
 }
 
 impl CgroupsTablePlugin {
+    /// Creates a new table plugin instance
     pub fn new(system: Rc<LinuxOperatingSystem>) -> Rc<Self> {
         Rc::new(Self { system })
     }
