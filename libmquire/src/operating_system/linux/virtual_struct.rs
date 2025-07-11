@@ -156,8 +156,8 @@ impl<'a> VirtualStruct<'a> {
         self.vmem_reader.read_u64(self.virtual_address)
     }
 
-    /// Reads a string from the current position
-    pub fn read_string(&self, max_size: Option<usize>, lossy: bool) -> Result<String> {
+    // Helper function for read_string and read_string_lossy
+    fn read_string_bytes(&self, max_size: Option<usize>) -> Result<Vec<u8>> {
         let mut buffer = Vec::new();
 
         for offset in 0.. {
@@ -178,16 +178,17 @@ impl<'a> VirtualStruct<'a> {
             buffer.push(byte);
         }
 
-        let string = if lossy {
-            String::from_utf8_lossy(&buffer).to_string()
-        } else {
-            String::from_utf8(buffer.to_vec()).map_err(|_| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    "Failed to convert the string to UTF-8",
-                )
-            })?
-        };
+        Ok(buffer)
+    }
+
+    /// Reads a string from the current position
+    pub fn read_string_lossy(&self, max_size: Option<usize>) -> Result<String> {
+        let buffer = self.read_string_bytes(max_size)?;
+
+        let mut string = String::from_utf8_lossy(&buffer).to_string();
+        if let Some(0) = string.as_bytes().first().cloned() {
+            string.clear();
+        }
 
         Ok(string)
     }

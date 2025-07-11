@@ -230,9 +230,9 @@ impl LinuxOperatingSystem {
                 match kn
                     .traverse("name")
                     .and_then(|obj| obj.dereference())
-                    .and_then(|obj| obj.read_string(None, true))
+                    .and_then(|obj| obj.read_string_lossy(None))
                     .and_then(|buffer| {
-                        if buffer.is_empty() || buffer.as_bytes().first().cloned() == Some(0) {
+                        if buffer.is_empty() {
                             Err(Error::new(
                                 ErrorKind::InvalidData,
                                 "Found an empty kn node name",
@@ -630,9 +630,9 @@ impl LinuxOperatingSystem {
                 dentry
                     .traverse("d_name.name")?
                     .dereference()?
-                    .read_string(Some(dname_length as usize), true)?
+                    .read_string_lossy(Some(dname_length as usize))?
             } else {
-                dentry.traverse("d_iname")?.read_string(Some(16), true)?
+                dentry.traverse("d_iname")?.read_string_lossy(Some(16))?
             };
 
             path_component_list.push(name);
@@ -670,7 +670,7 @@ impl LinuxOperatingSystem {
             &virtual_address,
         )?;
 
-        let comm = task_struct.traverse("comm")?.read_string(Some(16), false)?;
+        let comm = task_struct.traverse("comm")?.read_string_lossy(Some(16))?;
         let tgid = task_struct.traverse("tgid")?.read_u32()?;
 
         let cred = task_struct.traverse("cred")?.dereference()?;
@@ -849,21 +849,21 @@ impl OperatingSystem for LinuxOperatingSystem {
 
         let kernel_version = try_chain!(new_utsname
             .traverse("release")?
-            .read_string(Some(release_array_len), true))
+            .read_string_lossy(Some(release_array_len)))
         .inspect_err(|err| error!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
         let system_version = try_chain!(new_utsname
             .traverse("version")?
-            .read_string(Some(version_array_len), true))
+            .read_string_lossy(Some(version_array_len)))
         .inspect_err(|err| error!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
         let arch = try_chain!(new_utsname
             .traverse("machine")?
-            .read_string(Some(machine_array_len), true))
+            .read_string_lossy(Some(machine_array_len)))
         .inspect_err(|err| error!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
@@ -906,14 +906,14 @@ impl OperatingSystem for LinuxOperatingSystem {
 
         let hostname = try_chain!(new_utsname
             .traverse("nodename")?
-            .read_string(Some(nodename_array_len), true))
+            .read_string_lossy(Some(nodename_array_len)))
         .inspect_err(|err| error!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
         let domain = try_chain!(new_utsname
             .traverse("domainname")?
-            .read_string(Some(domainname_array_len), true))
+            .read_string_lossy(Some(domainname_array_len)))
         .inspect_err(|err| error!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
