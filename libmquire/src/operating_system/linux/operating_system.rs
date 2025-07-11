@@ -1018,6 +1018,7 @@ impl OperatingSystem for LinuxOperatingSystem {
 
                 let file_entity = File {
                     virtual_address: file.virtual_address(),
+                    task: task.virtual_address,
                     path,
                     pid: task.pid,
                 };
