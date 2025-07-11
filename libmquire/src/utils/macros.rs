@@ -6,9 +6,9 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-pub mod cgroups;
-pub mod log_messages;
-pub mod os_version;
-pub mod system_info;
-pub mod task_open_files;
-pub mod tasks;
+#[macro_export]
+macro_rules! try_chain {
+    ($expr:expr) => {
+        (|| $expr)()
+    };
+}

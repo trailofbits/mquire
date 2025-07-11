@@ -45,7 +45,7 @@ impl TablePlugin for SystemInfoTablePlugin {
         let mut row = BTreeMap::<String, OptionalColumnValue>::new();
         row.insert(
             String::from("hostname"),
-            Some(ColumnValue::String(system_information.hostname)),
+            system_information.hostname.map(ColumnValue::String),
         );
 
         row.insert(

@@ -9,7 +9,7 @@
 /// System information entity.
 pub struct SystemInformation {
     /// Hostname.
-    pub hostname: String,
+    pub hostname: Option<String>,
 
     /// Domain.
     pub domain: Option<String>,
