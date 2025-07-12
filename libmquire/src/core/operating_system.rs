@@ -25,6 +25,6 @@ pub trait OperatingSystem {
     /// Returns the task list.
     fn get_task_list(&self) -> Result<Vec<Task>>;
 
-    /// Returns the list of files opened by the given task.
+    /// Returns the list of open files.
     fn get_task_open_file_list(&self) -> Result<Vec<File>>;
 }
