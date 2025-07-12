@@ -65,8 +65,8 @@ pub struct LinuxOperatingSystem {
     /// Kernel debug symbols
     pub kernel_type_info: TypeInformation,
 
-    /// The virtual address of the swapper task_struct
-    pub swapper_task_struct_vaddr: VirtualAddress,
+    /// The virtual address of the init task
+    pub init_task_vaddr: VirtualAddress,
 }
 
 impl LinuxOperatingSystem {
@@ -78,7 +78,7 @@ impl LinuxOperatingSystem {
         let kernel_type_info = Self::get_kernel_type_info(memory_dump.as_ref())
             .inspect_err(|err| error!("{err:?}"))?;
 
-        let swapper_task_struct_vaddr = Self::get_swapper_struct_virtual_addr(
+        let init_task_vaddr = Self::get_init_task_vaddr(
             memory_dump.as_ref(),
             architecture.as_ref(),
             &kernel_type_info,
@@ -88,7 +88,7 @@ impl LinuxOperatingSystem {
             memory_dump,
             architecture,
             kernel_type_info,
-            swapper_task_struct_vaddr,
+            init_task_vaddr,
         }))
     }
 
@@ -180,7 +180,12 @@ impl LinuxOperatingSystem {
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        for task_vaddr in self.get_task_struct_vaddr_list()? {
+        for task_vaddr in Self::enumerate_related_task_struct_vaddrs(
+            &self.kernel_type_info,
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            self.init_task_vaddr,
+        )? {
             let task_struct = match VirtualStruct::from_name(
                 &vmem_reader,
                 &self.kernel_type_info,
@@ -331,31 +336,33 @@ impl LinuxOperatingSystem {
         }
     }
 
-    /// Enumerate the task struct virtual addresses in memory
-    fn get_task_struct_vaddr_list(&self) -> Result<Vec<VirtualAddress>> {
+    /// Enumerates the virtual addresses of task structs related to the given one
+    fn enumerate_related_task_struct_vaddrs(
+        kernel_type_info: &TypeInformation,
+        memory_dump: &dyn Readable,
+        architecture: &dyn Architecture,
+        task_struct: VirtualAddress,
+    ) -> Result<Vec<VirtualAddress>> {
         let mut task_struct_vaddr_set = BTreeSet::new();
 
         let mut visited_physical_addresses = BTreeSet::new();
-        let mut next_vaddr_queue = vec![self.swapper_task_struct_vaddr];
+        let mut next_vaddr_queue = vec![task_struct];
 
-        let vmem_reader =
-            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+        let vmem_reader = VirtualMemoryReader::new(memory_dump, architecture);
 
         while !next_vaddr_queue.is_empty() {
             let virtual_address_queue = next_vaddr_queue.clone();
             next_vaddr_queue.clear();
 
             for virtual_address in virtual_address_queue {
-                let physical_address = match self
-                    .architecture
-                    .translate_virtual_address(self.memory_dump.as_ref(), virtual_address)
-                {
-                    Ok(physical_address_range) => physical_address_range.address(),
-                    Err(err) => {
-                        error!("{err:?}");
-                        continue;
-                    }
-                };
+                let physical_address =
+                    match architecture.translate_virtual_address(memory_dump, virtual_address) {
+                        Ok(physical_address_range) => physical_address_range.address(),
+                        Err(err) => {
+                            error!("{err:?}");
+                            continue;
+                        }
+                    };
 
                 if !visited_physical_addresses.insert(physical_address.value()) {
                     continue;
@@ -367,7 +374,7 @@ impl LinuxOperatingSystem {
                 // propagate the error
                 let task_struct = VirtualStruct::from_name(
                     &vmem_reader,
-                    &self.kernel_type_info,
+                    kernel_type_info,
                     "task_struct",
                     &virtual_address,
                 )?;
@@ -381,7 +388,7 @@ impl LinuxOperatingSystem {
 
                 // Same as before, if there's a type issue we'll just propagate the error
                 let sibling_offset = Self::get_struct_member_byte_offset(
-                    &self.kernel_type_info,
+                    kernel_type_info,
                     task_struct.tid(),
                     "sibling",
                 )?;
@@ -593,7 +600,7 @@ impl LinuxOperatingSystem {
     }
 
     /// Returns the virtual address of the swapper task_struct
-    fn get_swapper_struct_virtual_addr(
+    fn get_init_task_vaddr(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
@@ -601,13 +608,45 @@ impl LinuxOperatingSystem {
         let (swapper_struct_physical_addr, swapper_struct_raw_vaddr) =
             Self::get_swapper_struct_location(readable, architecture, kernel_type_info)?;
 
-        let page_table = architecture.locate_page_table_for_virtual_address(
+        let discovered_page_table = architecture.locate_page_table_for_virtual_address(
             readable,
             swapper_struct_physical_addr,
             swapper_struct_raw_vaddr,
         )?;
 
-        Ok(VirtualAddress::new(page_table, swapper_struct_raw_vaddr))
+        let task_vaddr_list = Self::enumerate_related_task_struct_vaddrs(
+            kernel_type_info,
+            readable,
+            architecture,
+            VirtualAddress::new(discovered_page_table, swapper_struct_raw_vaddr),
+        )?;
+
+        let init_task =
+            task_vaddr_list.into_iter().find_map(
+                |virtual_address| match Self::get_task_from_vaddr(
+                    readable,
+                    architecture,
+                    kernel_type_info,
+                    virtual_address,
+                ) {
+                    Ok(task_struct) => {
+                        if task_struct.pid == 1 {
+                            Some(task_struct)
+                        } else {
+                            None
+                        }
+                    }
+
+                    Err(_) => None,
+                },
+            );
+
+        init_task
+            .map(|task_struct| task_struct.virtual_address)
+            .ok_or(Error::new(
+                ErrorKind::OperatingSystemInitializationFailed,
+                "Failed to locate the init task struct",
+            ))
     }
 
     /// Reconstructs the path from a dentry structure
@@ -831,15 +870,15 @@ impl OperatingSystem for LinuxOperatingSystem {
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        let swapper_task_struct = VirtualStruct::from_name(
+        let init_task_struct = VirtualStruct::from_name(
             &vmem_reader,
             &self.kernel_type_info,
             "task_struct",
-            &self.swapper_task_struct_vaddr,
+            &self.init_task_vaddr,
         )
         .inspect_err(|err| error!("{err:?}"))?;
 
-        let new_utsname = try_chain!(swapper_task_struct
+        let new_utsname = try_chain!(init_task_struct
             .traverse("nsproxy")?
             .dereference()?
             .traverse("uts_ns")?
@@ -888,15 +927,15 @@ impl OperatingSystem for LinuxOperatingSystem {
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        let swapper_task_struct = VirtualStruct::from_name(
+        let init_task_struct = VirtualStruct::from_name(
             &vmem_reader,
             &self.kernel_type_info,
             "task_struct",
-            &self.swapper_task_struct_vaddr,
+            &self.init_task_vaddr,
         )
         .inspect_err(|err| error!("{err:?}"))?;
 
-        let new_utsname = try_chain!(swapper_task_struct
+        let new_utsname = try_chain!(init_task_struct
             .traverse("nsproxy")?
             .dereference()?
             .traverse("uts_ns")?
@@ -925,7 +964,12 @@ impl OperatingSystem for LinuxOperatingSystem {
     fn get_task_list(&self) -> Result<Vec<Task>> {
         let mut task_list = Vec::new();
 
-        for virtual_address in self.get_task_struct_vaddr_list()? {
+        for virtual_address in Self::enumerate_related_task_struct_vaddrs(
+            &self.kernel_type_info,
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            self.init_task_vaddr,
+        )? {
             match Self::get_task_from_vaddr(
                 self.memory_dump.as_ref(),
                 self.architecture.as_ref(),
