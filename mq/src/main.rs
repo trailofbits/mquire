@@ -84,6 +84,8 @@ fn run_interactive_shell(database: &Database) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
+    Logger::initialize();
+
     let argument_list: Vec<String> = env::args().collect();
     if argument_list.len() != 2 && argument_list.len() != 3 {
         println!("Usage:\n\tmquire /path/raw/linux/memory/dump.bin [SQL query]\n");
@@ -95,9 +97,6 @@ fn main() -> io::Result<()> {
         println!("The specified memory dump file does not exist.");
         return Ok(());
     }
-
-    let enable_stderr_logging = argument_list.len() == 3;
-    Logger::initialize(enable_stderr_logging);
 
     let database = Database::new(memory_dump_path).map_err(|error| {
         io::Error::other(format!("Failed to create the mquire database: {error:?}"))
