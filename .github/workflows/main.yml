@@ -25,41 +25,13 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  format:
+  posix_check:
     strategy:
       matrix:
         runner_image: [ubuntu-24.04]
+        build_type: [Debug]
 
-    uses: ./.github/workflows/format.yml
-    secrets: inherit
-
-    with:
-      runner_image: ${{ matrix.runner_image }}
-
-  clippy:
-    needs: [format]
-
-    strategy:
-      matrix:
-        runner_image: [ubuntu-24.04]
-        build_type: [Release, Debug]
-
-    uses: ./.github/workflows/clippy.yml
-    secrets: inherit
-
-    with:
-      runner_image: ${{ matrix.runner_image }}
-      build_type: ${{ matrix.build_type }}
-
-  check:
-    needs: [format]
-
-    strategy:
-      matrix:
-        runner_image: [ubuntu-24.04]
-        build_type: [Release, Debug]
-
-    uses: ./.github/workflows/check.yml
+    uses: ./.github/workflows/posix_check.yml
     secrets: inherit
 
     with:
@@ -67,7 +39,7 @@ jobs:
       build_type: ${{ matrix.build_type }}
 
   linux:
-    needs: [clippy, check]
+    needs: [posix_check]
 
     strategy:
       matrix:
@@ -82,7 +54,7 @@ jobs:
       build_type: ${{ matrix.build_type }}
 
   macos:
-    needs: [clippy, check]
+    needs: [posix_check]
 
     strategy:
       matrix:
