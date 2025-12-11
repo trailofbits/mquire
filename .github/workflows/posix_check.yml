@@ -6,7 +6,7 @@
 # the LICENSE file found in the root directory of this source tree.
 #
 
-name: check
+name: posix_check
 
 on:
   workflow_call:
@@ -20,12 +20,14 @@ on:
         type: string
 
 jobs:
-  check:
+  posix_check:
     runs-on: ${{ inputs.runner_image }}
 
     steps:
       - name: Clone the source code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Update Rust
         run: |
@@ -34,9 +36,22 @@ jobs:
       - name: Setup the command line build arguments
         id: build_type
         run: |
-          if [[ "${{ matrix.build_type }}" == "Release" ]]; then
+          if [[ "${{ inputs.build_type }}" == "Release" ]]; then
             echo "VALUE=--release" >> $GITHUB_OUTPUT
           fi
+
+      - name: Run cargo fmt
+        run: |
+          cargo fmt --all --check
+
+      - name: Run cargo clippy
+        run: |
+          cargo clippy \
+            ${{ steps.build_type.outputs.VALUE }} \
+            --all-targets \
+            --all-features \
+            --examples \
+            -- -D warnings
 
       - name: Run cargo check
         run: |
