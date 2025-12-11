@@ -17,13 +17,24 @@ use crate::{
         operating_system::OperatingSystem,
         virtual_memory_reader::VirtualMemoryReader,
     },
+    generate_address_ranges,
     memory::{
+        error::{Error as MemoryError, ErrorKind as MemoryErrorKind, Result as MemoryResult},
         primitives::{PhysicalAddress, RawVirtualAddress},
         readable::Readable,
         virtual_address::VirtualAddress,
     },
     operating_system::linux::{
-        btf::BtfparseReadableAdapter, entities::cgroup::Cgroup, virtual_struct::VirtualStruct,
+        btf::BtfparseReadableAdapter,
+        entities::{
+            cgroup::Cgroup,
+            memory_mapping::{MemoryMapping, MemoryProtection},
+            syslog::{Syslog, SyslogRegion},
+        },
+        kallsyms::Kallsyms,
+        maple_tree::{MapleTree, MapleTreeValue},
+        virtual_struct::VirtualStruct,
+        xarray::XArray,
     },
     try_chain,
     utils::reader::Reader,
@@ -33,7 +44,7 @@ use btfparse::{
     Error as BtfparseError, Integer32Value, Offset as BtfparseOffset, TypeInformation, TypeVariant,
 };
 
-use log::{debug, error};
+use log::debug;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -42,8 +53,17 @@ use std::{
     rc::Rc,
 };
 
+/// Standard page size
+const PAGE_SIZE: u64 = 4096;
+
 /// Buffer size used for initial data discovery
 const SCAN_BUFFER_SIZE: usize = 4 * 1024 * 1024;
+
+/// VM flag constants
+const VM_READ: u64 = 0x00000001;
+const VM_WRITE: u64 = 0x00000002;
+const VM_EXEC: u64 = 0x00000004;
+const VM_SHARED: u64 = 0x00000008;
 
 /// Swapper process comm string
 const SWAPPER_PROCESS_COMM: &str = "swapper/0";
@@ -54,6 +74,67 @@ const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 3] = [
     0x01, // Version
 ];
 
+#[derive(Debug, Clone, Copy)]
+pub struct VmAreaStructBackingFile {
+    /// File backing information
+    pub file: VirtualAddress,
+
+    /// Page offset within the file (in PAGE_SIZE units)
+    pub offset: u64,
+}
+
+/// A representation of a vm_area_struct object
+#[derive(Debug, Clone)]
+pub struct VmAreaStruct {
+    /// Virtual address of the vm_area_struct
+    pub virtual_address: VirtualAddress,
+
+    /// Memory region
+    pub region: Range<u64>,
+
+    /// VMA flags
+    pub flags: u64,
+
+    /// Backing file information
+    pub backing_file: Option<VmAreaStructBackingFile>,
+}
+
+impl MapleTreeValue for VmAreaStruct {
+    fn from_vaddr(
+        readable: &dyn Readable,
+        architecture: &dyn Architecture,
+        type_information: &TypeInformation,
+        virtual_address: VirtualAddress,
+    ) -> Result<Self> {
+        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
+        let vm_area_struct = VirtualStruct::from_name(
+            &vmem_reader,
+            type_information,
+            "vm_area_struct",
+            &virtual_address,
+        )?;
+
+        let start = vm_area_struct.traverse("vm_start")?.read_u64()?;
+        let end = vm_area_struct.traverse("vm_end")?.read_u64()?;
+        let flags = vm_area_struct.traverse("vm_flags")?.read_u64()?;
+        let offset = vm_area_struct.traverse("vm_pgoff")?.read_u64()?;
+
+        let file = vm_area_struct.traverse("vm_file")?.read_vaddr()?;
+        let backing_file = if file.is_null() {
+            None
+        } else {
+            Some(VmAreaStructBackingFile { file, offset })
+        };
+
+        Ok(VmAreaStruct {
+            virtual_address,
+            region: Range { start, end },
+            flags,
+            backing_file,
+        })
+    }
+}
+
 /// Implements the OperatingSystem trait for Linux
 pub struct LinuxOperatingSystem {
     /// The memory dump
@@ -63,10 +144,13 @@ pub struct LinuxOperatingSystem {
     architecture: Rc<dyn Architecture>,
 
     /// Kernel debug symbols
-    pub kernel_type_info: TypeInformation,
+    kernel_type_info: TypeInformation,
 
     /// The virtual address of the init task
-    pub init_task_vaddr: VirtualAddress,
+    init_task_vaddr: VirtualAddress,
+
+    /// The kernel symbol table
+    kallsyms: Option<Kallsyms>,
 }
 
 impl LinuxOperatingSystem {
@@ -76,7 +160,7 @@ impl LinuxOperatingSystem {
         architecture: Rc<dyn Architecture>,
     ) -> Result<Rc<Self>> {
         let kernel_type_info = Self::get_kernel_type_info(memory_dump.as_ref())
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
         let init_task_vaddr = Self::get_init_task_vaddr(
             memory_dump.as_ref(),
@@ -84,11 +168,28 @@ impl LinuxOperatingSystem {
             &kernel_type_info,
         )?;
 
+        let system_version = Self::get_system_version(
+            memory_dump.as_ref(),
+            architecture.as_ref(),
+            &kernel_type_info,
+            &init_task_vaddr,
+        )?;
+
+        let kallsyms = Kallsyms::new(
+            memory_dump.as_ref(),
+            architecture.as_ref(),
+            init_task_vaddr.root_page_table(),
+            &system_version.kernel_version,
+        )
+        .inspect_err(|err| debug!("{err:?}"))
+        .ok();
+
         Ok(Rc::new(Self {
             memory_dump,
             architecture,
             kernel_type_info,
             init_task_vaddr,
+            kallsyms,
         }))
     }
 
@@ -120,7 +221,7 @@ impl LinuxOperatingSystem {
                 ErrorKind::TypeInformationError,
                 "Failed to acquire the cgroup_subsys_id::cpuset_cgrp_id enum value",
             ))
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
         let css_type = self
             .kernel_type_info
@@ -137,7 +238,7 @@ impl LinuxOperatingSystem {
                 ErrorKind::TypeInformationError,
                 "No `struct css_set` found",
             ))
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
         let subsys_field = css_type
             .member_list()
@@ -147,7 +248,7 @@ impl LinuxOperatingSystem {
                 ErrorKind::TypeInformationError,
                 "No field `subsys` found inside the `struct css_set` structure",
             ))
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
         let subsys_array_type = self
             .kernel_type_info
@@ -163,7 +264,7 @@ impl LinuxOperatingSystem {
                 ErrorKind::TypeInformationError,
                 "The `subsys` field inside the `struct css_set` structure is not an array",
             ))
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
         if cpuset_cgrp_id >= *subsys_array_type.element_count() {
             let err = Error::new(
@@ -171,7 +272,7 @@ impl LinuxOperatingSystem {
                 "The `cpuset_cgrp_id` index is outside of the subsys array size",
             );
 
-            error!("{err:?}");
+            debug!("{err:?}");
             return Err(err);
         }
 
@@ -194,7 +295,7 @@ impl LinuxOperatingSystem {
             ) {
                 Ok(task_struct) => task_struct,
                 Err(err) => {
-                    error!("{err:?}");
+                    debug!("{err:?}");
                     continue;
                 }
             };
@@ -211,7 +312,7 @@ impl LinuxOperatingSystem {
             {
                 Ok(kn) => kn,
                 Err(err) => {
-                    error!("{err:?}");
+                    debug!("{err:?}");
                     continue;
                 }
             };
@@ -227,7 +328,7 @@ impl LinuxOperatingSystem {
                 let parent_kn = match try_chain!(kn.traverse("parent")?.dereference()) {
                     Ok(parent_kn) => parent_kn,
                     Err(err) => {
-                        error!("{err:?}");
+                        debug!("{err:?}");
                         continue;
                     }
                 };
@@ -251,7 +352,7 @@ impl LinuxOperatingSystem {
                     }
 
                     Err(err) => {
-                        error!("{err:?}");
+                        debug!("{err:?}");
                         break;
                     }
                 };
@@ -270,6 +371,206 @@ impl LinuxOperatingSystem {
         Ok(cgroup_list)
     }
 
+    /// Returns the list of memory mappings in the given task
+    pub fn get_task_memory_mappings(&self) -> Result<Vec<MemoryMapping>> {
+        let mut memory_mapping_list = Vec::new();
+
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        for task in self.get_task_list()? {
+            let task_struct = VirtualStruct::from_name(
+                &vmem_reader,
+                &self.kernel_type_info,
+                "task_struct",
+                &task.virtual_address,
+            )
+            .inspect_err(|err| debug!("{err:?}"))?;
+
+            match try_chain!(task_struct.traverse("mm")?.read_vaddr()) {
+                Ok(mm_virtual_address) => {
+                    if mm_virtual_address.is_null() {
+                        continue;
+                    }
+                }
+
+                Err(err) => {
+                    debug!("{err:?}");
+                    continue;
+                }
+            };
+
+            let mm_mt =
+                match try_chain!(task_struct.traverse("mm")?.dereference()?.traverse("mm_mt")) {
+                    Ok(obj) => obj,
+                    Err(err) => {
+                        debug!("{err:?}");
+                        continue;
+                    }
+                };
+
+            let maple_tree = MapleTree::<VmAreaStruct>::new(
+                self.memory_dump.as_ref(),
+                self.architecture.as_ref(),
+                &self.kernel_type_info,
+                mm_mt.virtual_address(),
+            )?;
+
+            for entry in maple_tree.entries() {
+                let vma_info = &entry.value;
+
+                // Parse protection flags from vm_flags
+                let protection = MemoryProtection::new(
+                    vma_info.flags & VM_READ != 0,
+                    vma_info.flags & VM_WRITE != 0,
+                    vma_info.flags & VM_EXEC != 0,
+                );
+
+                // Determine if this is a shared mapping
+                let shared = vma_info.flags & VM_SHARED != 0;
+
+                // Get the file path if this is a file-backed mapping
+                let file_path = if let Some(backing_file) = vma_info.backing_file {
+                    VirtualStruct::from_name(
+                        &vmem_reader,
+                        &self.kernel_type_info,
+                        "file",
+                        &backing_file.file,
+                    )
+                    .inspect_err(|err| debug!("{err:?}"))
+                    .ok()
+                    .and_then(|file| {
+                        let f_path_vaddr = match file.traverse("f_path") {
+                            Ok(f_path) => f_path.virtual_address(),
+                            Err(err) => {
+                                debug!("{err:?}");
+                                return None;
+                            }
+                        };
+
+                        Self::read_path(
+                            self.memory_dump.as_ref(),
+                            self.architecture.as_ref(),
+                            &self.kernel_type_info,
+                            f_path_vaddr,
+                        )
+                        .map(PathBuf::from)
+                        .inspect_err(|err| debug!("{err:?}"))
+                        .ok()
+                    })
+                } else {
+                    None
+                };
+
+                // Create the memory region
+                let vm_start = VirtualAddress::new(
+                    task.page_table,
+                    RawVirtualAddress::new(vma_info.region.start),
+                );
+
+                let vm_end = VirtualAddress::new(
+                    task.page_table,
+                    RawVirtualAddress::new(vma_info.region.end),
+                );
+
+                memory_mapping_list.push(MemoryMapping {
+                    task: task.virtual_address,
+                    region: vm_start..vm_end,
+                    protection,
+                    shared,
+                    file_path,
+                });
+            }
+        }
+
+        Ok(memory_mapping_list)
+    }
+
+    /// Returns the syslog
+    pub fn get_syslog_regions(&self) -> Result<Vec<Syslog>> {
+        const SYSLOG_PATH: &str = "/var/log/syslog";
+
+        // It is possible for multiple file entities to exist, for example if
+        // the `/var/log/syslog` file is deleted while still being held open by
+        // a process.
+        let file_list: Vec<File> = self
+            .get_task_open_file_list()?
+            .into_iter()
+            .filter(|file_entity| file_entity.path == SYSLOG_PATH)
+            .map(|file_entity| (file_entity.virtual_address, file_entity))
+            .collect::<BTreeMap<_, _>>()
+            .into_values()
+            .collect();
+
+        let syslog_entity_list: Vec<Syslog> = file_list
+            .iter()
+            .filter_map(|file| {
+                let reader = match self.get_file_reader(file.virtual_address) {
+                    Ok(reader) => reader,
+
+                    Err(err) => {
+                        debug!(
+                            "Failed to create file reader for {SYSLOG_PATH} at {:?}: {err:?}",
+                            file.virtual_address
+                        );
+
+                        return None;
+                    }
+                };
+
+                let file_region_list = match reader.regions() {
+                    Ok(region_list) => region_list,
+
+                    Err(err) => {
+                        debug!(
+                            "Failed to enumerate regions for {SYSLOG_PATH} at {:?}: {err:?}",
+                            file.virtual_address
+                        );
+                        return None;
+                    }
+                };
+
+                let syslog_region_list: Vec<SyslogRegion> = file_region_list
+                    .iter()
+                    .filter_map(|region| {
+                        let region_size = region.end - region.start;
+                        let mut buffer = vec![0; region_size as usize];
+
+                        let buffer =
+                            match reader.read(&mut buffer, region.start).map(|bytes_read| {
+                                buffer.truncate(bytes_read);
+                                buffer
+                            }) {
+                                Ok(buffer) => buffer,
+
+                                Err(err) => {
+                                    debug!(
+                                "Failed to read region {:?} for {SYSLOG_PATH} at {:?}: {err:?}",
+                                region, file.virtual_address
+                            );
+                                    return None;
+                                }
+                            };
+
+                        Some(SyslogRegion {
+                            offset_range: region.clone(),
+                            buffer,
+                        })
+                    })
+                    .collect();
+
+                Some(Syslog {
+                    virtual_address: file.virtual_address,
+                    task: file.task,
+                    pid: file.pid,
+                    region_list: syslog_region_list,
+                })
+            })
+            .collect();
+
+        Ok(syslog_entity_list)
+    }
+
     // Returns the length of an array located in a structure
     fn get_struct_array_member_len(
         kernel_type_info: &TypeInformation,
@@ -282,14 +583,14 @@ impl LinuxOperatingSystem {
                 ErrorKind::TypeInformationError,
                 "Failed to acquire the type definition of `struct {struct_name}`",
             ))
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
         let struct_type_var = kernel_type_info.from_id(tid).ok_or(
             Error::new(
                 ErrorKind::TypeInformationError,
                 &format!("Failed to acquire the type information for `struct {struct_name}` from tid {tid}"),
             )
-        ).inspect_err(|err| error!("{err:?}"))?;
+        ).inspect_err(|err| debug!("{err:?}"))?;
 
         let struct_type = match struct_type_var {
             TypeVariant::Struct(struct_type) => struct_type,
@@ -299,7 +600,7 @@ impl LinuxOperatingSystem {
                     &format!("Failed to acquire the type information for `struct {struct_name}` from tid {tid}"),
                 );
 
-                error!("{err:?}");
+                debug!("{err:?}");
                 return Err(err);
             }
         };
@@ -359,7 +660,7 @@ impl LinuxOperatingSystem {
                     match architecture.translate_virtual_address(memory_dump, virtual_address) {
                         Ok(physical_address_range) => physical_address_range.address(),
                         Err(err) => {
-                            error!("{err:?}");
+                            debug!("{err:?}");
                             continue;
                         }
                     };
@@ -382,7 +683,7 @@ impl LinuxOperatingSystem {
                 for field_path in ["parent", "real_parent"] {
                     match try_chain!(task_struct.traverse(field_path)?.read_vaddr()) {
                         Ok(vaddr) => next_vaddr_queue.push(vaddr),
-                        Err(err) => error!("{err:?}"),
+                        Err(err) => debug!("{err:?}"),
                     }
                 }
 
@@ -401,7 +702,7 @@ impl LinuxOperatingSystem {
                 ] {
                     match try_chain!(task_struct.traverse(field_path)?.read_vaddr()) {
                         Ok(vaddr) => next_vaddr_queue.push(vaddr - sibling_offset),
-                        Err(err) => error!("{err:?}"),
+                        Err(err) => debug!("{err:?}"),
                     }
                 }
             }
@@ -410,52 +711,26 @@ impl LinuxOperatingSystem {
         Ok(task_struct_vaddr_set.into_iter().collect())
     }
 
-    /// Generates a list of ranges based on the specified parameters
-    fn generate_ranges(
-        starting_address: PhysicalAddress,
-        ending_address: PhysicalAddress,
-        range_size: usize,
-        overlap: usize,
-    ) -> Vec<Range<u64>> {
-        let mut current_address = starting_address.value();
-        let ending_address = ending_address.value();
-
-        let mut range_list = Vec::new();
-
-        while current_address < ending_address {
-            if current_address + range_size as u64 >= ending_address {
-                break;
-            }
-
-            let start = current_address;
-            let end = start + range_size as u64;
-
-            range_list.push(Range { start, end });
-            current_address += (range_size - overlap) as u64;
-        }
-
-        range_list
-    }
-
     /// Scans the given `Readable` object for the kernel BTF debug symbols
     fn get_kernel_type_info(readable: &dyn Readable) -> Result<TypeInformation> {
         let mut read_buffer = [0; SCAN_BUFFER_SIZE];
 
         for region in readable.regions()? {
-            for range in Self::generate_ranges(
+            for range in generate_address_ranges!(
                 region.start,
                 region.end,
                 read_buffer.len(),
-                BTF_LITTLE_ENDIAN_SIGNATURE.len(),
+                BTF_LITTLE_ENDIAN_SIGNATURE.len()
             ) {
-                let read_size =
-                    if let Ok(read_size) = readable.read(&mut read_buffer, range.start.into()) {
-                        read_size
+                let bytes_read =
+                    if let Ok(bytes_read) = readable.read(&mut read_buffer, range.start.into()) {
+                        bytes_read
                     } else {
+                        debug!("Failed to read buffer during BTF scan at {:?}", range.start);
                         continue;
                     };
 
-                for offset in read_buffer[..read_size]
+                for offset in read_buffer[..bytes_read]
                     .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
                     .enumerate()
                     .filter_map(|(offset, window)| {
@@ -467,12 +742,14 @@ impl LinuxOperatingSystem {
                     })
                 {
                     let btf_offset = range.start + (offset as u64);
-                    let readable_adapter = BtfparseReadableAdapter::new(readable, btf_offset);
+                    let readable_adapter =
+                        BtfparseReadableAdapter::new(readable, btf_offset.value());
 
                     let type_information =
                         if let Ok(type_information) = TypeInformation::new(&readable_adapter) {
                             type_information
                         } else {
+                            debug!("Failed to parse BTF data at offset {}", btf_offset);
                             continue;
                         };
 
@@ -535,20 +812,25 @@ impl LinuxOperatingSystem {
         let task_struct_size = kernel_type_info.size_of(task_struct_tid)?;
 
         for region in readable.regions()? {
-            for range in Self::generate_ranges(
+            for range in generate_address_ranges!(
                 region.start,
                 region.end,
                 read_buffer.len(),
-                task_struct_size,
+                task_struct_size
             ) {
                 let read_size =
                     if let Ok(read_size) = readable.read(&mut read_buffer, range.start.into()) {
                         read_size
                     } else {
+                        debug!(
+                            "Failed to read buffer during swapper scan at {:?}",
+                            range.start
+                        );
                         continue;
                     };
 
                 if read_size < SWAPPER_PROCESS_COMM.len() {
+                    debug!("Read size {} too small for swapper comm", read_size);
                     continue;
                 }
 
@@ -563,27 +845,36 @@ impl LinuxOperatingSystem {
                         }
                     })
                 {
-                    let swapper_comm_physical_address =
-                        PhysicalAddress::new(range.start) + (offset as u64);
+                    let swapper_comm_physical_address = range.start + (offset as u64);
 
                     let swapper_task_physical_address = swapper_comm_physical_address - comm_offset;
 
                     let swapper_struct_parent_field =
                         match reader.read_u64(swapper_task_physical_address + parent_offset) {
                             Ok(value) => value,
-                            Err(_) => continue,
+                            Err(e) => {
+                                debug!("Failed to read parent field: {:?}", e);
+                                continue;
+                            }
                         };
 
                     let swapper_struct_real_parent_field =
                         match reader.read_u64(swapper_task_physical_address + real_parent_offset) {
                             Ok(value) => value,
-                            Err(_) => continue,
+                            Err(e) => {
+                                debug!("Failed to read real_parent field: {:?}", e);
+                                continue;
+                            }
                         };
 
                     let swapper_struct_raw_vaddr =
                         if swapper_struct_parent_field == swapper_struct_real_parent_field {
                             RawVirtualAddress::new(swapper_struct_parent_field)
                         } else {
+                            debug!(
+                                "Parent fields mismatch: {} != {}",
+                                swapper_struct_parent_field, swapper_struct_real_parent_field
+                            );
                             continue;
                         };
 
@@ -642,7 +933,10 @@ impl LinuxOperatingSystem {
             );
 
         init_task
-            .map(|task_struct| task_struct.virtual_address)
+            .map(|task_struct| {
+                let raw_virtual_address = task_struct.virtual_address.value();
+                VirtualAddress::new(task_struct.page_table, raw_virtual_address)
+            })
             .ok_or(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate the init task struct",
@@ -850,33 +1144,34 @@ impl LinuxOperatingSystem {
             gid,
         })
     }
-}
 
-impl OperatingSystem for LinuxOperatingSystem {
-    /// Returns the OS version
-    fn get_os_version(&self) -> Result<SystemVersion> {
+    fn get_system_version(
+        memory_dump: &dyn Readable,
+        architecture: &dyn Architecture,
+        kernel_type_info: &TypeInformation,
+        init_task_vaddr: &VirtualAddress,
+    ) -> Result<SystemVersion> {
         let release_array_len =
-            Self::get_struct_array_member_len(&self.kernel_type_info, "new_utsname", "release")
-                .inspect_err(|err| error!("{err:?}"))?;
+            Self::get_struct_array_member_len(kernel_type_info, "new_utsname", "release")
+                .inspect_err(|err| debug!("{err:?}"))?;
 
         let version_array_len =
-            Self::get_struct_array_member_len(&self.kernel_type_info, "new_utsname", "version")
-                .inspect_err(|err| error!("{err:?}"))?;
+            Self::get_struct_array_member_len(kernel_type_info, "new_utsname", "version")
+                .inspect_err(|err| debug!("{err:?}"))?;
 
         let machine_array_len =
-            Self::get_struct_array_member_len(&self.kernel_type_info, "new_utsname", "machine")
-                .inspect_err(|err| error!("{err:?}"))?;
+            Self::get_struct_array_member_len(kernel_type_info, "new_utsname", "machine")
+                .inspect_err(|err| debug!("{err:?}"))?;
 
-        let vmem_reader =
-            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+        let vmem_reader = VirtualMemoryReader::new(memory_dump, architecture);
 
         let init_task_struct = VirtualStruct::from_name(
             &vmem_reader,
-            &self.kernel_type_info,
+            kernel_type_info,
             "task_struct",
-            &self.init_task_vaddr,
+            init_task_vaddr,
         )
-        .inspect_err(|err| error!("{err:?}"))?;
+        .inspect_err(|err| debug!("{err:?}"))?;
 
         let new_utsname = try_chain!(init_task_struct
             .traverse("nsproxy")?
@@ -884,26 +1179,26 @@ impl OperatingSystem for LinuxOperatingSystem {
             .traverse("uts_ns")?
             .dereference()?
             .traverse("name"))
-        .inspect_err(|err| error!("{err:?}"))?;
+        .inspect_err(|err| debug!("{err:?}"))?;
 
         let kernel_version = try_chain!(new_utsname
             .traverse("release")?
             .read_string_lossy(Some(release_array_len)))
-        .inspect_err(|err| error!("{err:?}"))
+        .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
         let system_version = try_chain!(new_utsname
             .traverse("version")?
             .read_string_lossy(Some(version_array_len)))
-        .inspect_err(|err| error!("{err:?}"))
+        .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
         let arch = try_chain!(new_utsname
             .traverse("machine")?
             .read_string_lossy(Some(machine_array_len)))
-        .inspect_err(|err| error!("{err:?}"))
+        .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
@@ -913,16 +1208,28 @@ impl OperatingSystem for LinuxOperatingSystem {
             arch,
         })
     }
+}
+
+impl OperatingSystem for LinuxOperatingSystem {
+    /// Returns the OS version
+    fn get_os_version(&self) -> Result<SystemVersion> {
+        Self::get_system_version(
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            &self.kernel_type_info,
+            &self.init_task_vaddr,
+        )
+    }
 
     /// Returns the system information
     fn get_system_information(&self) -> Result<SystemInformation> {
         let nodename_array_len =
             Self::get_struct_array_member_len(&self.kernel_type_info, "new_utsname", "nodename")
-                .inspect_err(|err| error!("{err:?}"))?;
+                .inspect_err(|err| debug!("{err:?}"))?;
 
         let domainname_array_len =
             Self::get_struct_array_member_len(&self.kernel_type_info, "new_utsname", "domainname")
-                .inspect_err(|err| error!("{err:?}"))?;
+                .inspect_err(|err| debug!("{err:?}"))?;
 
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
@@ -933,7 +1240,7 @@ impl OperatingSystem for LinuxOperatingSystem {
             "task_struct",
             &self.init_task_vaddr,
         )
-        .inspect_err(|err| error!("{err:?}"))?;
+        .inspect_err(|err| debug!("{err:?}"))?;
 
         let new_utsname = try_chain!(init_task_struct
             .traverse("nsproxy")?
@@ -941,19 +1248,19 @@ impl OperatingSystem for LinuxOperatingSystem {
             .traverse("uts_ns")?
             .dereference()?
             .traverse("name"))
-        .inspect_err(|err| error!("{err:?}"))?;
+        .inspect_err(|err| debug!("{err:?}"))?;
 
         let hostname = try_chain!(new_utsname
             .traverse("nodename")?
             .read_string_lossy(Some(nodename_array_len)))
-        .inspect_err(|err| error!("{err:?}"))
+        .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
         let domain = try_chain!(new_utsname
             .traverse("domainname")?
             .read_string_lossy(Some(domainname_array_len)))
-        .inspect_err(|err| error!("{err:?}"))
+        .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
@@ -981,7 +1288,7 @@ impl OperatingSystem for LinuxOperatingSystem {
                 }
 
                 Err(err) => {
-                    error!("Failed to read the task_struct from vaddr {virtual_address}: {err:?}",);
+                    debug!("Failed to read the task_struct from vaddr {virtual_address}: {err:?}",);
                 }
             }
         }
@@ -997,13 +1304,18 @@ impl OperatingSystem for LinuxOperatingSystem {
             let vmem_reader =
                 VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
+            let task_struct_vaddr = VirtualAddress::new(
+                self.init_task_vaddr.root_page_table(),
+                task.virtual_address.value(),
+            );
+
             let task_struct = VirtualStruct::from_name(
                 &vmem_reader,
                 &self.kernel_type_info,
                 "task_struct",
-                &task.virtual_address,
+                &task_struct_vaddr,
             )
-            .inspect_err(|err| error!("{err:?}"))?;
+            .inspect_err(|err| debug!("{err:?}"))?;
 
             let fd_array = match try_chain!(task_struct
                 .traverse("files")?
@@ -1015,7 +1327,7 @@ impl OperatingSystem for LinuxOperatingSystem {
             {
                 Ok(fd_array) => fd_array,
                 Err(err) => {
-                    error!("{err:?}");
+                    debug!("{err:?}");
                     continue;
                 }
             };
@@ -1030,7 +1342,7 @@ impl OperatingSystem for LinuxOperatingSystem {
                 let file_vaddr = match vmem_reader.read_vaddr(fd_array_entry) {
                     Ok(file_vaddr) => file_vaddr,
                     Err(err) => {
-                        error!("{err:?}");
+                        debug!("{err:?}");
                         continue;
                     }
                 };
@@ -1045,7 +1357,7 @@ impl OperatingSystem for LinuxOperatingSystem {
                     "file",
                     &file_vaddr,
                 )
-                .inspect_err(|err| error!("{err:?}"))?;
+                .inspect_err(|err| debug!("{err:?}"))?;
 
                 let path = match Self::read_path(
                     self.memory_dump.as_ref(),
@@ -1055,7 +1367,7 @@ impl OperatingSystem for LinuxOperatingSystem {
                 ) {
                     Ok(path) => path,
                     Err(err) => {
-                        error!("{err:?}");
+                        debug!("{err:?}");
                         continue;
                     }
                 };
@@ -1072,6 +1384,228 @@ impl OperatingSystem for LinuxOperatingSystem {
         }
 
         Ok(open_file_list)
+    }
+
+    fn get_file_reader(&self, file: VirtualAddress) -> Result<Rc<dyn Readable>> {
+        let kallsyms = match self.kallsyms {
+            Some(ref kallsyms) => kallsyms,
+            None => {
+                return Err(Error::new(
+                    ErrorKind::OperatingSystemInitializationFailed,
+                    "Kallsyms not initialized",
+                ));
+            }
+        };
+
+        ReadableLinuxFileObject::new(
+            self.memory_dump.clone(),
+            self.architecture.clone(),
+            &self.kernel_type_info,
+            kallsyms,
+            file,
+        )
+    }
+}
+
+/// Implements reading from a Linux file object in memory
+struct ReadableLinuxFileObject {
+    /// Underlying memory dump
+    memory_dump: Rc<dyn Readable>,
+
+    /// Base virtual address of the vmemmap
+    vmemmap_base: VirtualAddress,
+
+    /// Size of struct page
+    page_struct_size: u64,
+
+    /// Size of the file
+    file_size: u64,
+
+    /// Page map
+    cached_page_map: BTreeMap<u64, VirtualAddress>,
+}
+
+impl ReadableLinuxFileObject {
+    /// Creates a new reader for the `struct file` object at the given vaddr
+    fn new(
+        memory_dump: Rc<dyn Readable>,
+        architecture: Rc<dyn Architecture>,
+        type_information: &TypeInformation,
+        kallsyms: &Kallsyms,
+        file_vaddr: VirtualAddress,
+    ) -> Result<Rc<dyn Readable>> {
+        let vmemmap_base_ptr = kallsyms.get("vmemmap_base").ok_or_else(|| {
+            Error::new(
+                ErrorKind::OperatingSystemInitializationFailed,
+                "Failed to find vmemmap_base symbol in kallsyms",
+            )
+        })?;
+
+        let vmem_reader = VirtualMemoryReader::new(memory_dump.as_ref(), architecture.as_ref());
+        let vmemmap_base = match vmem_reader.read_vaddr(vmemmap_base_ptr) {
+            Ok(value) => value,
+            Err(err) => {
+                return Err(Error::new(
+                    ErrorKind::OperatingSystemInitializationFailed,
+                    &format!("Failed to read vmemmap_base: {:?}", err),
+                ));
+            }
+        };
+
+        let page_tid = type_information.id_of("page").ok_or(Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
+            "Failed to find 'page' struct in BTF",
+        ))?;
+
+        let page_struct_size = type_information.size_of(page_tid)? as u64;
+        let file = VirtualStruct::from_name(&vmem_reader, type_information, "file", &file_vaddr)?;
+
+        // Parse the XArray to get all cached pages
+        let inode = file.traverse("f_inode")?.dereference()?;
+        let file_size = inode.traverse("i_size")?.read_u64()?;
+        let i_pages_vaddr = inode
+            .traverse("i_mapping")?
+            .dereference()?
+            .traverse("i_pages")?
+            .virtual_address();
+
+        let xarray = XArray::new(
+            memory_dump.as_ref(),
+            architecture.as_ref(),
+            type_information,
+            i_pages_vaddr,
+        )?;
+
+        let page_vaddrs = xarray.entries();
+        let mut cached_page_map = BTreeMap::new();
+
+        for &page_vaddr in page_vaddrs {
+            if let Ok(folio) =
+                VirtualStruct::from_name(&vmem_reader, type_information, "folio", &page_vaddr)
+            {
+                let page_index = folio.traverse("page")?.traverse("index")?.read_u64()?;
+                let nr_pages = folio
+                    .traverse("_folio_nr_pages")
+                    .and_then(|field| field.read_u32())
+                    .unwrap_or(1) as u64;
+
+                for i in 0..nr_pages {
+                    cached_page_map.insert(page_index + i, page_vaddr);
+                }
+            } else if let Ok(page) =
+                VirtualStruct::from_name(&vmem_reader, type_information, "page", &page_vaddr)
+            {
+                let page_index = page.traverse("index")?.read_u64()?;
+                cached_page_map.insert(page_index, page_vaddr);
+            } else {
+                debug!("Failed to parse page/folio at vaddr {:?}", page_vaddr);
+                continue;
+            }
+        }
+
+        Ok(Rc::new(Self {
+            memory_dump,
+            vmemmap_base,
+            page_struct_size,
+            file_size,
+            cached_page_map,
+        }))
+    }
+
+    /// Converts a `struct page` virtual address to a physical address.
+    fn page_to_phys(&self, page_vaddr: RawVirtualAddress) -> PhysicalAddress {
+        let raw_vmemmap_base_vaddr = self.vmemmap_base.value();
+        let offset_from_vmemmap = page_vaddr.value() - raw_vmemmap_base_vaddr.value();
+        let pfn = offset_from_vmemmap / self.page_struct_size;
+
+        PhysicalAddress::new(pfn * PAGE_SIZE)
+    }
+}
+
+impl Readable for ReadableLinuxFileObject {
+    fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> MemoryResult<usize> {
+        let mut total_bytes_read = 0;
+        let mut current_offset = physical_address;
+        let mut buffer_offset = 0;
+
+        while buffer_offset < buffer.len() {
+            let page_index = current_offset.value() / PAGE_SIZE;
+            let offset_in_page = (current_offset.value() % PAGE_SIZE) as usize;
+
+            let page_vaddr = self.cached_page_map.get(&page_index).ok_or_else(|| {
+                MemoryError::new(
+                    MemoryErrorKind::IOError,
+                    &format!("Page {} not in cache", page_index),
+                )
+            })?;
+
+            let phys_addr = self.page_to_phys(page_vaddr.value());
+            let read_phys_addr = PhysicalAddress::new(phys_addr.value() + offset_in_page as u64);
+
+            let remaining_in_buffer = buffer.len() - buffer_offset;
+            let remaining_in_page = PAGE_SIZE as usize - offset_in_page;
+            let bytes_to_read = remaining_in_buffer.min(remaining_in_page);
+
+            let bytes_read = self.memory_dump.read(
+                &mut buffer[buffer_offset..buffer_offset + bytes_to_read],
+                read_phys_addr,
+            )?;
+
+            if bytes_read == 0 {
+                break;
+            }
+
+            total_bytes_read += bytes_read;
+            buffer_offset += bytes_read;
+            current_offset = PhysicalAddress::new(current_offset.value() + bytes_read as u64);
+
+            if bytes_read < bytes_to_read {
+                break;
+            }
+        }
+
+        Ok(total_bytes_read)
+    }
+
+    fn len(&self) -> crate::memory::error::Result<u64> {
+        Ok(self.file_size)
+    }
+
+    fn regions(&self) -> MemoryResult<Vec<Range<PhysicalAddress>>> {
+        let page_index_list = {
+            let mut key_list = self.cached_page_map.keys().cloned().collect::<Vec<u64>>();
+            key_list.sort();
+
+            key_list
+        };
+
+        let range_list: Vec<Range<PhysicalAddress>> = page_index_list
+            .iter()
+            .map(|page_index| {
+                let page_offset = PhysicalAddress::new(page_index.wrapping_mul(PAGE_SIZE));
+
+                Range {
+                    start: page_offset,
+                    end: page_offset + PAGE_SIZE,
+                }
+            })
+            .collect();
+
+        let mut region_list: Vec<Range<PhysicalAddress>> = Vec::new();
+
+        for range in range_list {
+            if let Some(last) = region_list.last_mut() {
+                if last.end >= range.start {
+                    last.end = last.end.max(range.end);
+                } else {
+                    region_list.push(range);
+                }
+            } else {
+                region_list.push(range);
+            }
+        }
+
+        Ok(region_list)
     }
 }
 

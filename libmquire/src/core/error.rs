@@ -42,6 +42,9 @@ pub enum ErrorKind {
 
     /// Failed to locate the root page directory.
     NoRootPageDirectoryFound,
+
+    /// The requested entity was not found.
+    EntityNotFound,
 }
 
 /// Error type for core operations

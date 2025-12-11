@@ -8,7 +8,9 @@
 
 pub mod cgroups;
 pub mod log_messages;
+pub mod memory_mappings;
 pub mod os_version;
+pub mod syslog;
 pub mod system_info;
 pub mod task_open_files;
 pub mod tasks;

@@ -7,9 +7,12 @@
 //
 
 use crate::{
-    architecture::intel::page_table_entry::{PageTableEntry, PageTableLevel},
+    architecture::intel::page_table_entry::{
+        PageTableEntry, PageTableLevel, SHIFT_PDPT_INDEX, SHIFT_PD_INDEX, SHIFT_PML4_INDEX,
+        SHIFT_PT_INDEX,
+    },
     core::{
-        architecture::{Architecture, Bitness, Endianness, PhysicalAddressRange},
+        architecture::{Architecture, Bitness, Endianness, PhysicalAddressRange, Region},
         error::{Error, ErrorKind, Result},
     },
     memory::{
@@ -179,17 +182,14 @@ impl IntelArchitecture {
 }
 
 impl Architecture for IntelArchitecture {
-    /// Returns the endianness of the architecture
     fn endianness(&self) -> Endianness {
         Endianness::Little
     }
 
-    /// Returns the bitness of the architecture
     fn bitness(&self) -> Bitness {
         Bitness::Bit64
     }
 
-    /// Searches the memory for a page table that can correctly translate physical_address to raw_virtual_address
     fn locate_page_table_for_virtual_address(
         &self,
         readable: &dyn Readable,
@@ -261,13 +261,173 @@ impl Architecture for IntelArchitecture {
         ))
     }
 
-    /// Translates a virtual address to a physical address range
     fn translate_virtual_address(
         &self,
         readable: &dyn Readable,
         virtual_address: VirtualAddress,
     ) -> Result<PhysicalAddressRange> {
         Self::virtual_address_to_physical_address(readable, virtual_address)
+    }
+
+    fn enumerate_page_table_regions(
+        &self,
+        readable: &dyn Readable,
+        root_page_table: PhysicalAddress,
+    ) -> Result<Vec<Region>> {
+        let reader = Reader::new(readable, true);
+        let mut region_list = Vec::new();
+
+        for pml4_index in 0..512u64 {
+            let table_entry_offset = (pml4_index * 8) as u64;
+            let raw_table_entry = reader.read_u64(root_page_table + table_entry_offset)?;
+
+            let pml4_page_directory =
+                match PageTableEntry::new(PageTableLevel::Pml4, raw_table_entry) {
+                    Ok(PageTableEntry::PageDirectory(page_directory)) => {
+                        if !page_directory.present {
+                            continue;
+                        }
+
+                        page_directory
+                    }
+
+                    _ => continue,
+                };
+
+            for pdpt_index in 0..512u64 {
+                let table_entry_offset = (pdpt_index * 8) as u64;
+
+                let raw_table_entry = if let Ok(raw_table_entry) = reader.read_u64(
+                    PhysicalAddress::new(pml4_page_directory.physical_address + table_entry_offset),
+                ) {
+                    raw_table_entry
+                } else {
+                    continue;
+                };
+
+                let pdpt_page_directory =
+                    match PageTableEntry::new(PageTableLevel::Pdpt, raw_table_entry) {
+                        Ok(PageTableEntry::PageDirectory(page_directory)) => {
+                            if !page_directory.present {
+                                continue;
+                            }
+
+                            page_directory
+                        }
+
+                        Ok(PageTableEntry::Page(page)) => {
+                            if page.present {
+                                let raw_virtual_address = RawVirtualAddress::new(
+                                    (pml4_index << SHIFT_PML4_INDEX)
+                                        | (pdpt_index << SHIFT_PDPT_INDEX),
+                                );
+
+                                region_list.push(Region {
+                                    virtual_address: VirtualAddress::new(
+                                        root_page_table,
+                                        raw_virtual_address,
+                                    )
+                                    .canonicalized(),
+                                    physical_address: PhysicalAddress::new(page.physical_address),
+                                    size: page.size,
+                                });
+                            }
+
+                            continue;
+                        }
+
+                        _ => continue,
+                    };
+
+                for pd_index in 0..512u64 {
+                    let table_entry_offset = (pd_index * 8) as u64;
+
+                    let raw_table_entry = if let Ok(raw_table_entry) =
+                        reader.read_u64(PhysicalAddress::new(
+                            pdpt_page_directory.physical_address + table_entry_offset,
+                        )) {
+                        raw_table_entry
+                    } else {
+                        continue;
+                    };
+
+                    let pd_page_directory =
+                        match PageTableEntry::new(PageTableLevel::Pd, raw_table_entry) {
+                            Ok(PageTableEntry::PageDirectory(page_directory)) => {
+                                if !page_directory.present {
+                                    continue;
+                                }
+
+                                page_directory
+                            }
+
+                            Ok(PageTableEntry::Page(page)) => {
+                                if page.present {
+                                    let raw_virtual_address = RawVirtualAddress::new(
+                                        (pml4_index << SHIFT_PML4_INDEX)
+                                            | (pdpt_index << SHIFT_PDPT_INDEX)
+                                            | (pd_index << SHIFT_PD_INDEX),
+                                    );
+
+                                    region_list.push(Region {
+                                        virtual_address: VirtualAddress::new(
+                                            root_page_table,
+                                            raw_virtual_address,
+                                        )
+                                        .canonicalized(),
+                                        physical_address: PhysicalAddress::new(
+                                            page.physical_address,
+                                        ),
+                                        size: page.size,
+                                    });
+                                }
+
+                                continue;
+                            }
+
+                            _ => continue,
+                        };
+
+                    for pt_index in 0..512u64 {
+                        let table_entry_offset = (pt_index * 8) as u64;
+
+                        let raw_table_entry = if let Ok(raw_table_entry) =
+                            reader.read_u64(PhysicalAddress::new(
+                                pd_page_directory.physical_address + table_entry_offset,
+                            )) {
+                            raw_table_entry
+                        } else {
+                            continue;
+                        };
+
+                        if let Ok(PageTableEntry::Page(page)) =
+                            PageTableEntry::new(PageTableLevel::Pt, raw_table_entry)
+                        {
+                            if page.present {
+                                let raw_virtual_address = RawVirtualAddress::new(
+                                    (pml4_index << SHIFT_PML4_INDEX)
+                                        | (pdpt_index << SHIFT_PDPT_INDEX)
+                                        | (pd_index << SHIFT_PD_INDEX)
+                                        | (pt_index << SHIFT_PT_INDEX),
+                                );
+
+                                region_list.push(Region {
+                                    virtual_address: VirtualAddress::new(
+                                        root_page_table,
+                                        raw_virtual_address,
+                                    )
+                                    .canonicalized(),
+                                    physical_address: PhysicalAddress::new(page.physical_address),
+                                    size: page.size,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(region_list)
     }
 }
 

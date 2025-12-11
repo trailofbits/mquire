@@ -36,16 +36,16 @@ const SIZE_2MB_PAGE: u64 = 2 * 1024 * 1024;
 const SIZE_4KB_PAGE: u64 = 4 * 1024;
 
 /// PML4 index shift.
-const SHIFT_PML4_INDEX: u64 = 39;
+pub const SHIFT_PML4_INDEX: u64 = 39;
 
 /// PDPT index shift.
-const SHIFT_PDPT_INDEX: u64 = 30;
+pub const SHIFT_PDPT_INDEX: u64 = 30;
 
 /// PD index shift.
-const SHIFT_PD_INDEX: u64 = 21;
+pub const SHIFT_PD_INDEX: u64 = 21;
 
 /// PT index shift.
-const SHIFT_PT_INDEX: u64 = 12;
+pub const SHIFT_PT_INDEX: u64 = 12;
 
 /// Mask for the page table index.
 const MASK_PAGE_TABLE_INDEX: u64 = 0x1FF;

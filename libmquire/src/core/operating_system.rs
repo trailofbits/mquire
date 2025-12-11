@@ -6,13 +6,18 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use crate::core::{
-    entities::{
-        file::File, system_information::SystemInformation, system_version::SystemVersion,
-        task::Task,
+use crate::{
+    core::{
+        entities::{
+            file::File, system_information::SystemInformation, system_version::SystemVersion,
+            task::Task,
+        },
+        error::Result,
     },
-    error::Result,
+    memory::{readable::Readable, virtual_address::VirtualAddress},
 };
+
+use std::rc::Rc;
 
 /// Common interface for operating system implementations.
 pub trait OperatingSystem {
@@ -27,4 +32,7 @@ pub trait OperatingSystem {
 
     /// Returns the list of open files.
     fn get_task_open_file_list(&self) -> Result<Vec<File>>;
+
+    /// Returns a reader for the file struct at the given virtual address
+    fn get_file_reader(&self, file: VirtualAddress) -> Result<Rc<dyn Readable>>;
 }

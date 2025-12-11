@@ -63,9 +63,9 @@ checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "btfparse"
-version = "1.3.4"
+version = "1.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e60ff527d9e08b07aeacf1e2058f86657a7ac4b9ad3fa48ea82ec4a1cce4feb"
+checksum = "c55bea4508bc6b6a1e60103270762587c389130c1e33daf28f70ef61c13585c6"
 
 [[package]]
 name = "bumpalo"
@@ -277,6 +277,14 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "mq-file-dump"
+version = "0.1.0"
+dependencies = [
+ "libmquire",
+ "log",
 ]
 
 [[package]]

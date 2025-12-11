@@ -7,5 +7,6 @@
 //
 
 pub mod macros;
+pub mod memory_scanner;
 pub mod readable_file;
 pub mod reader;

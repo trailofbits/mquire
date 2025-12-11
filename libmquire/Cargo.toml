@@ -16,5 +16,5 @@ name = "mquire"
 path = "src/lib.rs"
 
 [dependencies]
-btfparse = "1.3.4"
+btfparse = "1.3.6"
 log = "0.4.27"
