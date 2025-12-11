@@ -1,2 +1,3 @@
-sqlite/library/* linguist-vendored
 package/**/* linguist-vendored
+mq/libsqlite3/*.c linguist-vendored
+mq/libsqlite3/*.h linguist-vendored
