@@ -17,4 +17,4 @@ path = "src/lib.rs"
 
 [dependencies]
 btfparse = "1.3.6"
-log = "0.4.27"
+log = "0.4.29"

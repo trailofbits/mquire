@@ -13,4 +13,4 @@ edition = "2021"
 
 [dependencies]
 libmquire = { path = "../libmquire" }
-log = "0.4.27"
+log = "0.4.29"
