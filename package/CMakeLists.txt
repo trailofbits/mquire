@@ -74,21 +74,28 @@ include(CPack)
 
 if(UNIX)
   if(APPLE)
-    set(executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mq")
+    set(mq_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mq")
+    set(mq_file_dump_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mq-file-dump")
   else()
-    set(executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mq")
+    set(mq_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mq")
+    set(mq_file_dump_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mq-file-dump")
   endif()
 else()
   message(FATAL_ERROR "MQUIRE - Currently, only Linux and macOS operating systems are supported")
 endif()
 
-if(NOT EXISTS "${executable_path}")
-    message(FATAL_ERROR "The mq binary was not found. Expected path: ${executable_path}")
+if(NOT EXISTS "${mq_executable_path}")
+    message(FATAL_ERROR "The mq binary was not found. Expected path: ${mq_executable_path}")
+endif()
+
+if(NOT EXISTS "${mq_file_dump_executable_path}")
+    message(FATAL_ERROR "The mq-file-dump binary was not found. Expected path: ${mq_file_dump_executable_path}")
 endif()
 
 install(
   FILES
-    "${executable_path}"
+    "${mq_executable_path}"
+    "${mq_file_dump_executable_path}"
 
   DESTINATION
     "bin"
