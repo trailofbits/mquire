@@ -77,8 +77,8 @@ fn create_output_path(base_dir: &Path, file_path: &str, pid: u32) -> PathBuf {
 
     output_path.push(format!("pid_{}", pid));
 
-    let cleaned_path = if file_path.starts_with('/') {
-        &file_path[1..]
+    let cleaned_path = if let Some(stripped) = file_path.strip_prefix('/') {
+        stripped
     } else {
         file_path
     };
@@ -284,19 +284,11 @@ fn dump_task_open_files(memory_dump_path: &Path, output_dir: &Path) -> io::Resul
 
     let memory_dump: Rc<dyn Readable> =
         match memory_dump_path.extension().and_then(|ext| ext.to_str()) {
-            Some("raw") => RawSnapshot::new(memory_dump_path).map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Failed to open raw snapshot: {:?}", e),
-                )
-            })?,
+            Some("raw") => RawSnapshot::new(memory_dump_path)
+                .map_err(|e| io::Error::other(format!("Failed to open raw snapshot: {:?}", e)))?,
 
-            Some("lime") => LimeSnapshot::new(memory_dump_path).map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Failed to open lime snapshot: {:?}", e),
-                )
-            })?,
+            Some("lime") => LimeSnapshot::new(memory_dump_path)
+                .map_err(|e| io::Error::other(format!("Failed to open lime snapshot: {:?}", e)))?,
 
             _ => {
                 return Err(io::Error::new(
@@ -307,20 +299,13 @@ fn dump_task_open_files(memory_dump_path: &Path, output_dir: &Path) -> io::Resul
         };
 
     log::info!("Initializing Linux operating system analyzer...");
-    let os = LinuxOperatingSystem::new(memory_dump, IntelArchitecture::new()).map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to initialize OS: {:?}", e),
-        )
-    })?;
+    let os = LinuxOperatingSystem::new(memory_dump, IntelArchitecture::new())
+        .map_err(|e| io::Error::other(format!("Failed to initialize OS: {:?}", e)))?;
 
     log::info!("Getting task open file list...");
-    let file_list = os.get_task_open_file_list().map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!("Failed to get file list: {:?}", e),
-        )
-    })?;
+    let file_list = os
+        .get_task_open_file_list()
+        .map_err(|e| io::Error::other(format!("Failed to get file list: {:?}", e)))?;
 
     log::info!("Found {} open files", file_list.len());
 
