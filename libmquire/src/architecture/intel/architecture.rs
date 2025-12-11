@@ -278,7 +278,7 @@ impl Architecture for IntelArchitecture {
         let mut region_list = Vec::new();
 
         for pml4_index in 0..512u64 {
-            let table_entry_offset = (pml4_index * 8) as u64;
+            let table_entry_offset = pml4_index * 8;
             let raw_table_entry = reader.read_u64(root_page_table + table_entry_offset)?;
 
             let pml4_page_directory =
@@ -295,7 +295,7 @@ impl Architecture for IntelArchitecture {
                 };
 
             for pdpt_index in 0..512u64 {
-                let table_entry_offset = (pdpt_index * 8) as u64;
+                let table_entry_offset = pdpt_index * 8;
 
                 let raw_table_entry = if let Ok(raw_table_entry) = reader.read_u64(
                     PhysicalAddress::new(pml4_page_directory.physical_address + table_entry_offset),
@@ -340,7 +340,7 @@ impl Architecture for IntelArchitecture {
                     };
 
                 for pd_index in 0..512u64 {
-                    let table_entry_offset = (pd_index * 8) as u64;
+                    let table_entry_offset = pd_index * 8;
 
                     let raw_table_entry = if let Ok(raw_table_entry) =
                         reader.read_u64(PhysicalAddress::new(
@@ -389,7 +389,7 @@ impl Architecture for IntelArchitecture {
                         };
 
                     for pt_index in 0..512u64 {
-                        let table_entry_offset = (pt_index * 8) as u64;
+                        let table_entry_offset = pt_index * 8;
 
                         let raw_table_entry = if let Ok(raw_table_entry) =
                             reader.read_u64(PhysicalAddress::new(

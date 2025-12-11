@@ -297,10 +297,10 @@ macro_rules! define_address_type {
 impl RawVirtualAddress {
     /// Returns the canonicalized version of this RawVirtualAddress
     pub fn canonicalized(&self) -> Self {
-        if self.0 > 0x00007FFF_FFFF_FFFF {
+        if self.0 > 0x0000_7FFF_FFFF_FFFF {
             RawVirtualAddress::new(self.0 | 0xFFFF_0000_0000_0000)
         } else {
-            self.clone()
+            *self
         }
     }
 }

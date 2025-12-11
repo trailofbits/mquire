@@ -115,17 +115,9 @@ impl PartialEq for VirtualAddress {
 }
 
 impl PartialOrd for VirtualAddress {
+    #[allow(clippy::non_canonical_partial_ord_impl)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.try_cmp(other).ok()
-    }
-}
-
-impl Ord for VirtualAddress {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // For Ord, we require page tables to match
-        // This will panic if they don't, which is acceptable for Ord
-        self.try_cmp(other)
-            .expect("Cannot compare VirtualAddresses from different page tables")
     }
 }
 

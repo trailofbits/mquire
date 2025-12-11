@@ -31,7 +31,7 @@ impl FromStr for KernelVersion {
                 let trimmed_version_field = if index == 2 {
                     version_field
                         .chars()
-                        .take_while(|c| c.is_digit(10))
+                        .take_while(|c| c.is_ascii_digit())
                         .collect::<String>()
                 } else {
                     version_field.to_string()
@@ -49,7 +49,7 @@ impl FromStr for KernelVersion {
             })
             .collect::<Result<Vec<u32>>>()?;
 
-        let major = version_field_list.get(0).copied().ok_or_else(|| {
+        let major = version_field_list.first().copied().ok_or_else(|| {
             Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 &format!("Missing major version field in: {}", version),

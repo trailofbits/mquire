@@ -321,7 +321,7 @@ impl LinuxOperatingSystem {
             let mut name_list = Vec::new();
 
             while !kn.virtual_address().is_null() {
-                if !visited_address_list.insert(kn.virtual_address()) {
+                if !visited_address_list.insert(kn.virtual_address().value()) {
                     break;
                 }
 
@@ -497,8 +497,8 @@ impl LinuxOperatingSystem {
             .get_task_open_file_list()?
             .into_iter()
             .filter(|file_entity| file_entity.path == SYSLOG_PATH)
-            .map(|file_entity| (file_entity.virtual_address, file_entity))
-            .collect::<BTreeMap<_, _>>()
+            .map(|file_entity| (file_entity.virtual_address.value(), file_entity))
+            .collect::<BTreeMap<_, _>>() // Used for deduplication
             .into_values()
             .collect();
 
@@ -669,7 +669,7 @@ impl LinuxOperatingSystem {
                     continue;
                 }
 
-                task_struct_vaddr_set.insert(virtual_address);
+                task_struct_vaddr_set.insert(virtual_address.value());
 
                 // This can only fail if the type is not present, so it's ok to
                 // propagate the error
@@ -708,7 +708,10 @@ impl LinuxOperatingSystem {
             }
         }
 
-        Ok(task_struct_vaddr_set.into_iter().collect())
+        Ok(task_struct_vaddr_set
+            .into_iter()
+            .map(|raw_vaddr| VirtualAddress::new(task_struct.root_page_table(), raw_vaddr))
+            .collect())
     }
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols
@@ -723,7 +726,7 @@ impl LinuxOperatingSystem {
                 BTF_LITTLE_ENDIAN_SIGNATURE.len()
             ) {
                 let bytes_read =
-                    if let Ok(bytes_read) = readable.read(&mut read_buffer, range.start.into()) {
+                    if let Ok(bytes_read) = readable.read(&mut read_buffer, range.start) {
                         bytes_read
                     } else {
                         debug!("Failed to read buffer during BTF scan at {:?}", range.start);
@@ -818,16 +821,16 @@ impl LinuxOperatingSystem {
                 read_buffer.len(),
                 task_struct_size
             ) {
-                let read_size =
-                    if let Ok(read_size) = readable.read(&mut read_buffer, range.start.into()) {
-                        read_size
-                    } else {
-                        debug!(
-                            "Failed to read buffer during swapper scan at {:?}",
-                            range.start
-                        );
-                        continue;
-                    };
+                let read_size = if let Ok(read_size) = readable.read(&mut read_buffer, range.start)
+                {
+                    read_size
+                } else {
+                    debug!(
+                        "Failed to read buffer during swapper scan at {:?}",
+                        range.start
+                    );
+                    continue;
+                };
 
                 if read_size < SWAPPER_PROCESS_COMM.len() {
                     debug!("Read size {} too small for swapper comm", read_size);
@@ -1397,7 +1400,7 @@ impl OperatingSystem for LinuxOperatingSystem {
             }
         };
 
-        ReadableLinuxFileObject::new(
+        ReadableLinuxFileObject::from_file_vaddr(
             self.memory_dump.clone(),
             self.architecture.clone(),
             &self.kernel_type_info,
@@ -1427,7 +1430,7 @@ struct ReadableLinuxFileObject {
 
 impl ReadableLinuxFileObject {
     /// Creates a new reader for the `struct file` object at the given vaddr
-    fn new(
+    fn from_file_vaddr(
         memory_dump: Rc<dyn Readable>,
         architecture: Rc<dyn Architecture>,
         type_information: &TypeInformation,

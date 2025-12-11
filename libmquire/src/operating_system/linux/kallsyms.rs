@@ -261,7 +261,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_token_table candidate",
@@ -276,7 +276,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_token_index candidate",
@@ -291,7 +291,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_markers candidate",
@@ -306,7 +306,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_num_syms candidate",
@@ -321,7 +321,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_offsets candidate",
@@ -336,7 +336,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_relative_base candidate",
@@ -351,7 +351,7 @@ impl Kallsyms {
             &kernel_version,
         )?;
 
-        if scan_session_list.len() == 0 {
+        if scan_session_list.is_empty() {
             return Err(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate any kallsyms_names candidate",
@@ -364,10 +364,10 @@ impl Kallsyms {
             }
         }
 
-        return Err(Error::new(
+        Err(Error::new(
             ErrorKind::OperatingSystemInitializationFailed,
             "Failed to decompress the kallsyms data structures",
-        ));
+        ))
     }
 
     /// Gets the virtual address of a symbol by its name
@@ -390,7 +390,7 @@ impl Kallsyms {
             }
 
             let symbol_name =
-                Self::decompress_symbol_name(&name_entry, &scan_session.kallsyms_token_table)?;
+                Self::decompress_symbol_name(name_entry, &scan_session.kallsyms_token_table)?;
 
             let raw_vaddr = if scan_session.kallsyms_addresses_range.is_some() {
                 RawVirtualAddress::new(scan_session.kallsyms_addresses[index] as u64)
@@ -410,14 +410,12 @@ impl Kallsyms {
 
                 if scan_session.kernel_version >= KernelVersion::new(6, 15, 0) {
                     RawVirtualAddress::new(kallsyms_relative_base.value() + offset as u32 as u64)
+                } else if offset >= 0 {
+                    RawVirtualAddress::new(offset as i64 as u64)
                 } else {
-                    if offset >= 0 {
-                        RawVirtualAddress::new(offset as i64 as u64)
-                    } else {
-                        let base_minus_1 = kallsyms_relative_base.value() - 1;
-                        let result = (base_minus_1 as i64 - offset as i64) as u64;
-                        RawVirtualAddress::new(result)
-                    }
+                    let base_minus_1 = kallsyms_relative_base.value() - 1;
+                    let result = (base_minus_1 as i64 - offset as i64) as u64;
+                    RawVirtualAddress::new(result)
                 }
             } else {
                 return Err(Error::new(
@@ -468,11 +466,14 @@ impl Kallsyms {
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         root_page_table: PhysicalAddress,
-        memory_range_list: &Vec<Range<u64>>,
+        memory_range_list: &[Range<u64>],
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!("scan_for_kallsyms_token_table is not yet implemented for kernel versions prior to 6.4");
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_token_table is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         // Locate the digits sequence, then search for the uppercase and lowercase patterns
@@ -598,10 +599,6 @@ impl Kallsyms {
             }
 
             // Skip if invalid or doesn't have exactly 256 tokens
-            if current_token_count != 256 {
-                return None;
-            }
-
             None
         }
 
@@ -749,7 +746,10 @@ impl Kallsyms {
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!("scan_for_kallsyms_token_index is not yet implemented for kernel versions prior to 6.4");
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_token_index is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         const SCAN_WINDOW_SIZE: u64 = 10 * 1024 * 1024;
@@ -786,7 +786,7 @@ impl Kallsyms {
 
                             Some((index as u16 + 1).to_le_bytes())
                         })
-                        .flat_map(|arr| arr),
+                        .flatten(),
                 )
                 .collect();
 
@@ -834,9 +834,10 @@ impl Kallsyms {
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!(
-                "scan_for_kallsyms_markers is not yet implemented for kernel versions prior to 6.4"
-            );
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_markers is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         // The markers data contains a list of 4-byte offsets pointing to the beginning
@@ -877,10 +878,9 @@ impl Kallsyms {
                     .rposition(|&byte| byte != 0)
                     .unwrap_or(read_buffer.len() - 1);
 
-                let markers_table_end =
-                    ((unaligned_markers_table_end + FIRST_TOKEN_MARKERS_ENTRY.len() - 1)
-                        / FIRST_TOKEN_MARKERS_ENTRY.len())
-                        * FIRST_TOKEN_MARKERS_ENTRY.len();
+                let markers_table_end = unaligned_markers_table_end
+                    .div_ceil(FIRST_TOKEN_MARKERS_ENTRY.len())
+                    * FIRST_TOKEN_MARKERS_ENTRY.len();
 
                 let markers_table_start = match read_buffer[..markers_table_end]
                     .windows(FIRST_TOKEN_MARKERS_ENTRY.len())
@@ -967,9 +967,10 @@ impl Kallsyms {
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!(
-                "scan_for_kallsyms_num_syms is not yet implemented for kernel versions prior to 6.4"
-            );
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_num_syms is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         // Locate kallsyms_num_syms by searching for linux_banner
@@ -1110,9 +1111,10 @@ impl Kallsyms {
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!(
-                "scan_for_kallsyms_offsets is not yet implemented for kernel versions prior to 6.4"
-            );
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_offsets is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         const KALLSYMS_OFFSET_ENTRY_SIZE: usize = 4;
@@ -1133,8 +1135,7 @@ impl Kallsyms {
             };
 
             let unaligned_offset = kallsyms_token_index_range.end.value();
-            let aligned_offset = ((unaligned_offset + (KALLSYMS_OFFSET_ENTRY_SIZE as u64 - 1))
-                / KALLSYMS_OFFSET_ENTRY_SIZE as u64)
+            let aligned_offset = unaligned_offset.div_ceil(KALLSYMS_OFFSET_ENTRY_SIZE as u64)
                 * KALLSYMS_OFFSET_ENTRY_SIZE as u64;
 
             let start = RawVirtualAddress::new(aligned_offset);
@@ -1206,9 +1207,10 @@ impl Kallsyms {
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!(
-                "scan_for_kallsyms_relative_base is not yet implemented for kernel versions prior to 6.4"
-            );
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_relative_base is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         let kallsyms_relative_base_size: usize = match architecture.bitness() {
@@ -1230,8 +1232,7 @@ impl Kallsyms {
             };
 
             let unaligned_offset = kallsyms_token_index_range.end.value();
-            let aligned_offset = ((unaligned_offset + (kallsyms_relative_base_size as u64 - 1))
-                / kallsyms_relative_base_size as u64)
+            let aligned_offset = unaligned_offset.div_ceil(kallsyms_relative_base_size as u64)
                 * kallsyms_relative_base_size as u64;
 
             let start = RawVirtualAddress::new(aligned_offset);
@@ -1242,7 +1243,7 @@ impl Kallsyms {
             let kallsyms_relative_base = match architecture.bitness() {
                 Bitness::Bit64 => match vmem_reader
                     .read_u64(kallsyms_relative_base_start)
-                    .map(|value| RawVirtualAddress::new(value))
+                    .map(RawVirtualAddress::new)
                 {
                     Ok(addr) => addr,
                     Err(_) => {
@@ -1274,9 +1275,10 @@ impl Kallsyms {
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
         if kernel_version < &KernelVersion::new(6, 4, 0) {
-            panic!(
-                "scan_for_kallsyms_names is not yet implemented for kernel versions prior to 6.4"
-            );
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_kallsyms_names is not yet implemented for kernel versions prior to 6.4",
+            ));
         }
 
         const SCAN_WINDOW_SIZE: u64 = 10 * 1024 * 1024;
@@ -1291,7 +1293,7 @@ impl Kallsyms {
             };
 
             let unaligned_offset = kallsyms_num_syms_range.end.value();
-            let aligned_offset = ((unaligned_offset + (8 as u64 - 1)) / 8 as u64) * 8 as u64;
+            let aligned_offset = unaligned_offset.div_ceil(8_u64) * 8_u64;
 
             let start = RawVirtualAddress::new(aligned_offset);
 

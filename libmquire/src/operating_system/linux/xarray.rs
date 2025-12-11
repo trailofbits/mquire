@@ -132,7 +132,7 @@ impl XArray {
         ))?;
 
         match member_type_var {
-            TypeVariant::Array(array_type) => Ok(*array_type.element_count() as u32),
+            TypeVariant::Array(array_type) => Ok(*array_type.element_count()),
 
             _ => Err(Error::new(
                 ErrorKind::TypeInformationError,
