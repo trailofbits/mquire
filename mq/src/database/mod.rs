@@ -10,9 +10,10 @@ mod table_plugins;
 
 use crate::{
     database::table_plugins::{
-        cgroups::CgroupsTablePlugin, log_messages::LogMessages, os_version::OSVersionTablePlugin,
-        system_info::SystemInfoTablePlugin, task_open_files::TaskOpenFilesTablePlugin,
-        tasks::TasksTablePlugin,
+        cgroups::CgroupsTablePlugin, log_messages::LogMessagesTablePlugin,
+        memory_mappings::MemoryMappingsTablePlugin, os_version::OSVersionTablePlugin,
+        syslog::SyslogTablePlugin, system_info::SystemInfoTablePlugin,
+        task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
     },
     sqlite::{
         database::{Database as SqliteDatabase, QueryData},
@@ -60,7 +61,9 @@ impl Database {
         sqlite_db.register_table_plugin(TaskOpenFilesTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(TasksTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(CgroupsTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(LogMessages::new())?;
+        sqlite_db.register_table_plugin(LogMessagesTablePlugin::new())?;
+        sqlite_db.register_table_plugin(SyslogTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(MemoryMappingsTablePlugin::new(system.clone()))?;
 
         Ok(Self { sqlite_db })
     }

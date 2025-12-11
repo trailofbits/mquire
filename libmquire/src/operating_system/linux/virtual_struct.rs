@@ -64,14 +64,15 @@ impl<'a> VirtualStruct<'a> {
         name: &str,
         virtual_address: &VirtualAddress,
     ) -> Result<Self> {
-        if let Some(tid) = type_information.id_of(name) {
-            Self::from_id(vmem_reader, type_information, tid, virtual_address)
-        } else {
-            Err(Error::new(
-                ErrorKind::TypeInformationError,
-                &format!("Invalid virtual struct type name: {name}"),
-            ))
-        }
+        type_information
+            .id_of(name)
+            .map(|tid| Self::from_id(vmem_reader, type_information, tid, virtual_address))
+            .unwrap_or_else(|| {
+                Err(Error::new(
+                    ErrorKind::TypeInformationError,
+                    &format!("Invalid virtual struct type name: {name}"),
+                ))
+            })
     }
 
     /// Returns the type id of the virtual struct
@@ -141,9 +142,34 @@ impl<'a> VirtualStruct<'a> {
         })
     }
 
+    /// Casts to another type
+    #[allow(unused)]
+    pub fn cast_to(&self, name: &str) -> Result<Self> {
+        self.type_information
+            .id_of(name)
+            .map(|tid| Self {
+                vmem_reader: self.vmem_reader,
+                type_information: self.type_information,
+                tid,
+                virtual_address: self.virtual_address,
+            })
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::TypeInformationError,
+                    &format!("Invalid virtual struct type name: {name}"),
+                )
+            })
+    }
+
     /// Reads a virtual address from the current position
     pub fn read_vaddr(&self) -> Result<VirtualAddress> {
         self.vmem_reader.read_vaddr(self.virtual_address)
+    }
+
+    /// Reads a u8 from the current position
+    #[allow(unused)]
+    pub fn read_u8(&self) -> Result<u8> {
+        self.vmem_reader.read_u8(self.virtual_address)
     }
 
     /// Reads a u32 from the current position

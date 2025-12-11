@@ -17,7 +17,7 @@ use std::{
 };
 
 /// A virtual address, containing the physical address for the root page table.
-#[derive(Clone, Copy, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, Eq, Default)]
 pub struct VirtualAddress {
     /// The physical address for the root page table.
     root_page_table: PhysicalAddress,
@@ -51,6 +51,14 @@ impl VirtualAddress {
     /// Returns true if the raw virtual address is zero.
     pub fn is_null(&self) -> bool {
         self.raw_virtual_address.value() == 0
+    }
+
+    /// Returns the canonicalized version of this VirtualAddress
+    pub fn canonicalized(&self) -> Self {
+        VirtualAddress::new(
+            self.root_page_table,
+            self.raw_virtual_address.canonicalized(),
+        )
     }
 
     /// Compares two virtual addresses.
@@ -103,6 +111,13 @@ impl PartialEq for VirtualAddress {
         self.try_cmp(other)
             .map(|o| o == Ordering::Equal)
             .unwrap_or(false)
+    }
+}
+
+impl PartialOrd for VirtualAddress {
+    #[allow(clippy::non_canonical_partial_ord_impl)]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.try_cmp(other).ok()
     }
 }
 

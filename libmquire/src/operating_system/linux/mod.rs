@@ -7,6 +7,11 @@
 //
 
 mod btf;
+mod kallsyms;
+mod kernel_version;
+mod maple_tree;
+mod virtual_struct;
+mod xarray;
+
 pub mod entities;
 pub mod operating_system;
-mod virtual_struct;

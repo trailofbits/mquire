@@ -67,6 +67,13 @@ impl PhysicalAddressRange {
     }
 }
 
+/// A virtual memory region
+pub struct Region {
+    pub virtual_address: VirtualAddress,
+    pub physical_address: PhysicalAddress,
+    pub size: u64,
+}
+
 pub trait Architecture {
     /// Returns the endianness of the target architecture
     fn endianness(&self) -> Endianness;
@@ -88,4 +95,11 @@ pub trait Architecture {
         readable: &dyn Readable,
         virtual_address: VirtualAddress,
     ) -> Result<PhysicalAddressRange>;
+
+    /// Returns a list of valid virtual memory regions for the given root page table
+    fn enumerate_page_table_regions(
+        &self,
+        readable: &dyn Readable,
+        root_page_table: PhysicalAddress,
+    ) -> Result<Vec<Region>>;
 }

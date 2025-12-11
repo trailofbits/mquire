@@ -17,16 +17,16 @@ use crate::{
 use std::{collections::BTreeMap, rc::Rc};
 
 /// A table plugin that exports the internal logger output
-pub struct LogMessages;
+pub struct LogMessagesTablePlugin;
 
-impl LogMessages {
+impl LogMessagesTablePlugin {
     /// Creates a new table plugin instance
     pub fn new() -> Rc<Self> {
         Rc::new(Self {})
     }
 }
 
-impl TablePlugin for LogMessages {
+impl TablePlugin for LogMessagesTablePlugin {
     fn schema(&self) -> BTreeMap<String, ColumnType> {
         let mut schema = BTreeMap::<String, ColumnType>::new();
 
