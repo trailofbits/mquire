@@ -36,6 +36,9 @@ struct MemoryRange {
 
     /// Ending address of the memory range
     e_addr: u64,
+
+    /// Whether data is present in the file (false for zero-filled regions)
+    data_present: bool,
 }
 
 impl MemoryRange {
@@ -82,6 +85,7 @@ impl MemoryRange {
                 file_offset: address.value() + LIME_MEMORY_RANGE_HEADER_SIZE as u64,
                 s_addr,
                 e_addr,
+                data_present: true,
             })
         }
     }
@@ -117,11 +121,37 @@ impl LimeSnapshot {
         loop {
             let current_memory_range = MemoryRange::from_file(&mut file, address)?;
 
-            address = address + LIME_MEMORY_RANGE_HEADER_SIZE + current_memory_range.len();
+            let next_header_position = address + LIME_MEMORY_RANGE_HEADER_SIZE;
 
-            if memory_range_list.iter().any(|memory_range| {
-                current_memory_range.s_addr < memory_range.e_addr
-                    && memory_range.s_addr < current_memory_range.e_addr
+            // Check if there's another header immediately following this one
+            let has_consecutive_header =
+                if next_header_position.value() + LIME_MEMORY_RANGE_HEADER_SIZE as u64 <= file_size
+                {
+                    let readable = ReadableFile::new(&mut file);
+                    let reader = Reader::new(&readable, true);
+                    reader.read_u32(next_header_position).ok() == Some(LIME_HEADER_MAGIC)
+                } else {
+                    false
+                };
+
+            let (memory_range, next_address) = if has_consecutive_header {
+                // Zero-filled region: data was omitted from the file
+                let range = MemoryRange {
+                    file_offset: 0, // Not used for zero-filled regions
+                    s_addr: current_memory_range.s_addr,
+                    e_addr: current_memory_range.e_addr,
+                    data_present: false,
+                };
+                (range, next_header_position)
+            } else {
+                // Data follows the header
+                size += current_memory_range.len();
+                let next_addr = next_header_position + current_memory_range.len();
+                (current_memory_range, next_addr)
+            };
+
+            if memory_range_list.iter().any(|range| {
+                memory_range.s_addr < range.e_addr && range.s_addr < memory_range.e_addr
             }) {
                 return Err(Error::new(
                     ErrorKind::InvalidSnapshotFormat,
@@ -130,11 +160,12 @@ impl LimeSnapshot {
             }
 
             let pos = memory_range_list
-                .binary_search_by(|range| range.s_addr.cmp(&current_memory_range.s_addr))
+                .binary_search_by(|range| range.s_addr.cmp(&memory_range.s_addr))
                 .unwrap_or_else(|e| e);
 
-            size += current_memory_range.len();
-            memory_range_list.insert(pos, current_memory_range);
+            memory_range_list.insert(pos, memory_range);
+
+            address = next_address;
 
             if address.value() >= file_size {
                 break;
@@ -185,7 +216,6 @@ impl Readable for LimeSnapshot {
             })?;
 
         let range_offset = physical_address.value() - memory_range.s_addr;
-        let file_offset = memory_range.file_offset + range_offset;
 
         let readable_bytes = std::cmp::min(buffer.len() as u64, memory_range.len()) as usize;
         let read_buffer = buffer.get_mut(..readable_bytes).ok_or_else(|| {
@@ -195,7 +225,15 @@ impl Readable for LimeSnapshot {
             )
         })?;
 
-        Ok(self.file.read_at(read_buffer, file_offset)?)
+        if !memory_range.data_present {
+            // Zero-filled region: fill buffer with zeros
+            read_buffer.fill(0);
+            Ok(readable_bytes)
+        } else {
+            // Normal region: read from file
+            let file_offset = memory_range.file_offset + range_offset;
+            Ok(self.file.read_at(read_buffer, file_offset)?)
+        }
     }
 
     /// Returns the size of the snapshot
