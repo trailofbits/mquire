@@ -14,7 +14,7 @@ use crate::memory::{
 use std::ops::Range;
 
 /// A trait used for the (physical) memory backing store
-pub trait Readable {
+pub trait Readable: Send + Sync {
     /// Reads data from the given physical address
     fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize>;
 

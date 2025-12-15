@@ -21,7 +21,7 @@ use std::{
     fs::{self, File},
     io::{self, Write},
     path::{Path, PathBuf},
-    rc::Rc,
+    sync::Arc,
 };
 
 /// Represents the state of a dumped file
@@ -282,7 +282,7 @@ fn dump_file(
 fn dump_task_open_files(memory_dump_path: &Path, output_dir: &Path) -> io::Result<()> {
     log::info!("Opening memory dump: {}", memory_dump_path.display());
 
-    let memory_dump: Rc<dyn Readable> =
+    let memory_dump: Arc<dyn Readable> =
         match memory_dump_path.extension().and_then(|ext| ext.to_str()) {
             Some("raw") => RawSnapshot::new(memory_dump_path)
                 .map_err(|e| io::Error::other(format!("Failed to open raw snapshot: {:?}", e)))?,

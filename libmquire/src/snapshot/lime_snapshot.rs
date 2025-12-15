@@ -15,7 +15,7 @@ use crate::{
     utils::{readable_file::ReadableFile, reader::Reader},
 };
 
-use std::{cmp::Ordering, fs::File, ops::Range, os::unix::fs::FileExt, path::Path, rc::Rc};
+use std::{cmp::Ordering, fs::File, ops::Range, os::unix::fs::FileExt, path::Path, sync::Arc};
 
 /// The magic value for LiME snapshot files
 const LIME_HEADER_MAGIC: u32 = 0x4C694D45;
@@ -109,7 +109,7 @@ pub struct LimeSnapshot {
 
 impl LimeSnapshot {
     /// Creates a new lime snapshot from the given path
-    pub fn new(file_path: &Path) -> Result<Rc<Self>> {
+    pub fn new(file_path: &Path) -> Result<Arc<Self>> {
         let mut file = File::open(file_path)?;
         let file_size = file.metadata()?.len();
 
@@ -172,7 +172,7 @@ impl LimeSnapshot {
             }
         }
 
-        Ok(Rc::new(LimeSnapshot {
+        Ok(Arc::new(LimeSnapshot {
             file,
             memory_range_list,
             size,

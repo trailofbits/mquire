@@ -18,3 +18,4 @@ path = "src/lib.rs"
 [dependencies]
 btfparse = "1.3.6"
 log = "0.4.29"
+rayon = "1.11.0"

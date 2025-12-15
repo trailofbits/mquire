@@ -74,7 +74,7 @@ pub struct Region {
     pub size: u64,
 }
 
-pub trait Architecture {
+pub trait Architecture: Send + Sync {
     /// Returns the endianness of the target architecture
     fn endianness(&self) -> Endianness;
 

@@ -13,11 +13,11 @@ use crate::sqlite::{
 
 use mquire::operating_system::linux::operating_system::LinuxOperatingSystem;
 
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that outputs the system log
 pub struct SyslogTablePlugin {
-    system: Rc<LinuxOperatingSystem>,
+    system: Arc<LinuxOperatingSystem>,
 }
 
 /// Parsed syslog line components
@@ -30,8 +30,8 @@ struct ParsedSyslogLine {
 
 impl SyslogTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new(system: Rc<LinuxOperatingSystem>) -> Rc<Self> {
-        Rc::new(Self { system })
+    pub fn new(system: Arc<LinuxOperatingSystem>) -> Arc<Self> {
+        Arc::new(Self { system })
     }
 
     fn parse_syslog_line(line: &str) -> ParsedSyslogLine {

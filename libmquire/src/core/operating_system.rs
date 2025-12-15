@@ -17,10 +17,10 @@ use crate::{
     memory::{readable::Readable, virtual_address::VirtualAddress},
 };
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// Common interface for operating system implementations.
-pub trait OperatingSystem {
+pub trait OperatingSystem: Send + Sync {
     /// Returns the OS version.
     fn get_os_version(&self) -> Result<SystemVersion>;
 
@@ -34,5 +34,5 @@ pub trait OperatingSystem {
     fn get_task_open_file_list(&self) -> Result<Vec<File>>;
 
     /// Returns a reader for the file struct at the given virtual address
-    fn get_file_reader(&self, file: VirtualAddress) -> Result<Rc<dyn Readable>>;
+    fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>>;
 }
