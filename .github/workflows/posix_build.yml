@@ -84,21 +84,21 @@ jobs:
 
       - name: Find and upload the .deb Linux package
         if: ${{ runner.os == 'Linux' && inputs.build_type == 'Release' }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: linux-deb-package
           path: package-build/*.deb
 
       - name: Find and upload the .rpm Linux package
         if: ${{ runner.os == 'Linux' && inputs.build_type == 'Release' }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: linux-rpm-package
           path: package-build/*.rpm
 
       - name: Find and upload the .tar.gz Linux package
         if: ${{ runner.os == 'Linux' && inputs.build_type == 'Release' }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: linux-tgz-package
           path: package-build/*.tar.gz
