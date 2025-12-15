@@ -107,6 +107,8 @@ use crate::{
     utils::memory_scanner::MemoryScanner,
 };
 
+use rayon::prelude::*;
+
 use std::{collections::BTreeMap, ops::Range, vec};
 
 /// The base of the kernel virtual address space
@@ -602,136 +604,147 @@ impl Kallsyms {
             None
         }
 
-        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
+        let active_scan_session_list: ScanSessionList = memory_range_list
+            .par_iter()
+            .filter(|range| range.start >= KERNEL_VIRTUAL_ADDRESS_BASE)
+            .flat_map(|region| {
+                let vmem_reader = VirtualMemoryReader::new(readable, architecture);
+                let mut backward_scan_buffer = [0u8; TOKEN_SEQUENCE_SCAN_SIZE];
+                let mut forward_scan_buffer = vec![0u8; MAX_TOKEN_TABLE_SIZE];
+                let mut results = Vec::new();
 
-        let mut backward_scan_buffer = [0u8; TOKEN_SEQUENCE_SCAN_SIZE];
-        let mut forward_scan_buffer = vec![0u8; MAX_TOKEN_TABLE_SIZE];
+                let start_vaddr = VirtualAddress::new(root_page_table, region.start.into());
+                let end_vaddr = VirtualAddress::new(root_page_table, region.end.into());
 
-        let mut active_scan_session_list = ScanSessionList::new();
-
-        for region in memory_range_list
-            .iter()
-            .skip_while(|range| range.start < KERNEL_VIRTUAL_ADDRESS_BASE)
-        {
-            let start_vaddr = VirtualAddress::new(root_page_table, region.start.into());
-            let end_vaddr = VirtualAddress::new(root_page_table, region.end.into());
-
-            let digits_vaddr_iter =
-                MemoryScanner::new(&vmem_reader, start_vaddr, end_vaddr, &DIGITS_TOKEN_SEQUENCE)?
-                    .filter_map(|r| r.ok());
-
-            for digits_vaddr in digits_vaddr_iter {
-                let start_vaddr = digits_vaddr + DIGITS_TOKEN_SEQUENCE.len() as u64;
-                let end_vaddr = digits_vaddr + TOKEN_SEQUENCE_SCAN_SIZE;
-
-                // Check for exactly one uppercase match, otherwise skip this candidate
-                let mut uppercase_scanner = MemoryScanner::new(
+                let digits_vaddr_iter = match MemoryScanner::new(
                     &vmem_reader,
                     start_vaddr,
                     end_vaddr,
-                    &UPPERCASE_TOKEN_SEQUENCE,
-                )?
-                .filter_map(|r| r.ok());
-
-                let uppercase_vaddr = match uppercase_scanner.next() {
-                    Some(addr) => {
-                        if uppercase_scanner.next().is_some() {
-                            continue;
-                        }
-                        addr
-                    }
-                    None => continue,
-                };
-
-                let start_vaddr = uppercase_vaddr + UPPERCASE_TOKEN_SEQUENCE.len() as u64;
-
-                // Check for exactly one lowercase match, otherwise skip this candidate
-                let mut lowercase_scanner = MemoryScanner::new(
-                    &vmem_reader,
-                    start_vaddr,
-                    end_vaddr,
-                    &LOWERCASE_TOKEN_SEQUENCE,
-                )?
-                .filter_map(|r| r.ok());
-
-                let _lowercase_vaddr = match lowercase_scanner.next() {
-                    Some(addr) => {
-                        if lowercase_scanner.next().is_some() {
-                            continue;
-                        }
-                        addr
-                    }
-                    None => continue,
-                };
-
-                if vmem_reader
-                    .read_exact(
-                        &mut backward_scan_buffer,
-                        digits_vaddr - TOKEN_SEQUENCE_SCAN_SIZE,
-                    )
-                    .is_err()
-                {
-                    continue;
-                }
-
-                let scan_position = match find_token_table_start(
-                    &backward_scan_buffer,
-                    backward_scan_buffer.len() - 1,
+                    &DIGITS_TOKEN_SEQUENCE,
                 ) {
-                    Some(pos) => pos,
-                    None => continue,
+                    Ok(scanner) => scanner.filter_map(|r| r.ok()),
+                    Err(_) => return results,
                 };
 
-                let token_table_start_vaddr =
-                    digits_vaddr - TOKEN_SEQUENCE_SCAN_SIZE + scan_position;
+                for digits_vaddr in digits_vaddr_iter {
+                    let start_vaddr = digits_vaddr + DIGITS_TOKEN_SEQUENCE.len() as u64;
+                    let end_vaddr = digits_vaddr + TOKEN_SEQUENCE_SCAN_SIZE;
 
-                //
-                // Scan forward to locate the end of the token table.
-                // A valid table must have exactly 256 tokens, each terminated by a single null byte.
-                // The table ends after the 256th token's null terminator.
-                //
-                // If we encounter two consecutive null bytes, the table is corrupted - skip it.
-                //
+                    // Check for exactly one uppercase match, otherwise skip this candidate
+                    let mut uppercase_scanner = match MemoryScanner::new(
+                        &vmem_reader,
+                        start_vaddr,
+                        end_vaddr,
+                        &UPPERCASE_TOKEN_SEQUENCE,
+                    ) {
+                        Ok(scanner) => scanner.filter_map(|r| r.ok()),
+                        Err(_) => continue,
+                    };
 
-                if vmem_reader
-                    .read_exact(&mut forward_scan_buffer, token_table_start_vaddr)
-                    .is_err()
-                {
-                    continue;
+                    let uppercase_vaddr = match uppercase_scanner.next() {
+                        Some(addr) => {
+                            if uppercase_scanner.next().is_some() {
+                                continue;
+                            }
+                            addr
+                        }
+                        None => continue,
+                    };
+
+                    let start_vaddr = uppercase_vaddr + UPPERCASE_TOKEN_SEQUENCE.len() as u64;
+
+                    // Check for exactly one lowercase match, otherwise skip this candidate
+                    let mut lowercase_scanner = match MemoryScanner::new(
+                        &vmem_reader,
+                        start_vaddr,
+                        end_vaddr,
+                        &LOWERCASE_TOKEN_SEQUENCE,
+                    ) {
+                        Ok(scanner) => scanner.filter_map(|r| r.ok()),
+                        Err(_) => continue,
+                    };
+
+                    let _lowercase_vaddr = match lowercase_scanner.next() {
+                        Some(addr) => {
+                            if lowercase_scanner.next().is_some() {
+                                continue;
+                            }
+                            addr
+                        }
+                        None => continue,
+                    };
+
+                    if vmem_reader
+                        .read_exact(
+                            &mut backward_scan_buffer,
+                            digits_vaddr - TOKEN_SEQUENCE_SCAN_SIZE,
+                        )
+                        .is_err()
+                    {
+                        continue;
+                    }
+
+                    let scan_position = match find_token_table_start(
+                        &backward_scan_buffer,
+                        backward_scan_buffer.len() - 1,
+                    ) {
+                        Some(pos) => pos,
+                        None => continue,
+                    };
+
+                    let token_table_start_vaddr =
+                        digits_vaddr - TOKEN_SEQUENCE_SCAN_SIZE + scan_position;
+
+                    //
+                    // Scan forward to locate the end of the token table.
+                    // A valid table must have exactly 256 tokens, each terminated by a single null byte.
+                    // The table ends after the 256th token's null terminator.
+                    //
+                    // If we encounter two consecutive null bytes, the table is corrupted - skip it.
+                    //
+
+                    if vmem_reader
+                        .read_exact(&mut forward_scan_buffer, token_table_start_vaddr)
+                        .is_err()
+                    {
+                        continue;
+                    }
+
+                    let token_table_end_pos = match find_token_table_end(&forward_scan_buffer) {
+                        Some(pos) => pos,
+                        None => continue,
+                    };
+
+                    let kallsyms_token_table_range = Range {
+                        start: token_table_start_vaddr.value(),
+                        end: token_table_start_vaddr.value() + token_table_end_pos as u64,
+                    };
+
+                    let mut read_buffer = vec![0u8; token_table_end_pos];
+                    if vmem_reader
+                        .read_exact(&mut read_buffer, token_table_start_vaddr)
+                        .is_err()
+                    {
+                        continue;
+                    }
+
+                    let kallsyms_token_table = read_buffer
+                        .split(|&byte| byte == 0)
+                        .take(256)
+                        .map(|token| String::from_utf8_lossy(token).to_string())
+                        .collect();
+
+                    results.push(ScanSession::new(
+                        root_page_table,
+                        kernel_version.clone(),
+                        kallsyms_token_table_range,
+                        kallsyms_token_table,
+                    ));
                 }
 
-                let token_table_end_pos = match find_token_table_end(&forward_scan_buffer) {
-                    Some(pos) => pos,
-                    None => continue,
-                };
-
-                let kallsyms_token_table_range = Range {
-                    start: token_table_start_vaddr.value(),
-                    end: token_table_start_vaddr.value() + token_table_end_pos as u64,
-                };
-
-                let mut read_buffer = vec![0u8; token_table_end_pos];
-                if vmem_reader
-                    .read_exact(&mut read_buffer, token_table_start_vaddr)
-                    .is_err()
-                {
-                    continue;
-                }
-
-                let kallsyms_token_table = read_buffer
-                    .split(|&byte| byte == 0)
-                    .take(256)
-                    .map(|token| String::from_utf8_lossy(token).to_string())
-                    .collect();
-
-                active_scan_session_list.push(ScanSession::new(
-                    root_page_table,
-                    kernel_version.clone(),
-                    kallsyms_token_table_range,
-                    kallsyms_token_table,
-                ));
-            }
-        }
+                results
+            })
+            .collect();
 
         Ok(active_scan_session_list)
     }

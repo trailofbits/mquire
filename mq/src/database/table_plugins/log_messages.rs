@@ -14,15 +14,15 @@ use crate::{
     },
 };
 
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that exports the internal logger output
 pub struct LogMessagesTablePlugin;
 
 impl LogMessagesTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new() -> Rc<Self> {
-        Rc::new(Self {})
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {})
     }
 }
 

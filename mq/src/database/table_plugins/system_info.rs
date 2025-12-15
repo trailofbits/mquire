@@ -13,17 +13,17 @@ use crate::sqlite::{
 
 use mquire::core::operating_system::OperatingSystem;
 
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that outputs the system hostname and domain name
 pub struct SystemInfoTablePlugin {
-    system: Rc<dyn OperatingSystem>,
+    system: Arc<dyn OperatingSystem>,
 }
 
 impl SystemInfoTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new(system: Rc<dyn OperatingSystem>) -> Rc<Self> {
-        Rc::new(Self { system })
+    pub fn new(system: Arc<dyn OperatingSystem>) -> Arc<Self> {
+        Arc::new(Self { system })
     }
 }
 

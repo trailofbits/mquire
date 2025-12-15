@@ -8,7 +8,7 @@
 
 use crate::memory::{error::Result, primitives::PhysicalAddress, readable::Readable};
 
-use std::{fs::File, os::unix::fs::FileExt, path::Path, rc::Rc};
+use std::{fs::File, os::unix::fs::FileExt, path::Path, sync::Arc};
 
 /// Represents a raw snapshot of the memory
 pub struct RawSnapshot {
@@ -18,8 +18,8 @@ pub struct RawSnapshot {
 
 impl RawSnapshot {
     /// Creates a new raw snapshot from the given path
-    pub fn new(file_path: &Path) -> Result<Rc<Self>> {
-        Ok(Rc::new(RawSnapshot {
+    pub fn new(file_path: &Path) -> Result<Arc<Self>> {
+        Ok(Arc::new(RawSnapshot {
             file: File::open(file_path)?,
         }))
     }

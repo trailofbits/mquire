@@ -28,7 +28,7 @@ use mquire::{
     snapshot::{lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot},
 };
 
-use std::{path::Path, rc::Rc};
+use std::{path::Path, sync::Arc};
 
 /// Provides database-like access to an mquire OperatingSystem object
 pub struct Database {
@@ -38,7 +38,7 @@ pub struct Database {
 impl Database {
     /// Creates a new database instance by opening the specified memory dump
     pub fn new(memory_dump_path: &Path) -> Result<Self> {
-        let memory_dump: Rc<dyn Readable> = match memory_dump_path
+        let memory_dump: Arc<dyn Readable> = match memory_dump_path
             .extension()
             .and_then(|extension| extension.to_str())
         {

@@ -21,7 +21,7 @@ use std::{
     collections::HashMap,
     ffi::{CStr, CString},
     os,
-    rc::Rc,
+    sync::Arc,
 };
 
 /// This struct is used to wrap the table plugin before it is passed to sqlite
@@ -29,7 +29,7 @@ use std::{
 /// through the ffi
 struct TablePluginWrapper {
     /// The table plugin
-    table_plugin: Rc<dyn TablePlugin>,
+    table_plugin: Arc<dyn TablePlugin>,
 }
 
 /// Query data, as returned by Database::query
@@ -201,7 +201,7 @@ impl Database {
     }
 
     /// Registers a new table plugin
-    pub fn register_table_plugin(&mut self, table_plugin: Rc<dyn TablePlugin>) -> Result<()> {
+    pub fn register_table_plugin(&mut self, table_plugin: Arc<dyn TablePlugin>) -> Result<()> {
         if self.table_plugin_map.contains_key(&table_plugin.name()) {
             return Err(Error::new(
                 ErrorKind::DuplicatedTableName,
@@ -264,7 +264,7 @@ struct VirtualTable {
     sqlite_vtab: sqlite3_vtab,
 
     /// A reference to the table plugin
-    table_plugin_ref: Rc<dyn TablePlugin>,
+    table_plugin_ref: Arc<dyn TablePlugin>,
 }
 
 /// Returns the sqlite column type
@@ -597,8 +597,8 @@ mod tests {
     }
 
     impl TestTablePlugin {
-        fn new(return_error: bool) -> Rc<Self> {
-            Rc::new(Self { return_error })
+        fn new(return_error: bool) -> Arc<Self> {
+            Arc::new(Self { return_error })
         }
     }
 

@@ -23,7 +23,7 @@ use crate::{
     utils::reader::Reader,
 };
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// The size, in bytes, of a page directory
 const PAGE_DIRECTORY_SIZE: u64 = 4096;
@@ -34,8 +34,8 @@ pub struct IntelArchitecture {}
 
 impl IntelArchitecture {
     /// Creates a new IntelArchitecture instance
-    pub fn new() -> Rc<Self> {
-        Rc::new(Self {})
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {})
     }
 
     /// Returns the table entries for a given table offset

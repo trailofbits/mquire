@@ -40,17 +40,20 @@ use crate::{
     utils::reader::Reader,
 };
 
-use btfparse::{
-    Error as BtfparseError, Integer32Value, Offset as BtfparseOffset, TypeInformation, TypeVariant,
+use {
+    btfparse::{
+        Error as BtfparseError, Integer32Value, Offset as BtfparseOffset, TypeInformation,
+        TypeVariant,
+    },
+    log::debug,
+    rayon::prelude::*,
 };
-
-use log::debug;
 
 use std::{
     collections::{BTreeMap, BTreeSet},
     ops::{Range, Sub},
     path::PathBuf,
-    rc::Rc,
+    sync::Arc,
 };
 
 /// Standard page size
@@ -138,10 +141,10 @@ impl MapleTreeValue for VmAreaStruct {
 /// Implements the OperatingSystem trait for Linux
 pub struct LinuxOperatingSystem {
     /// The memory dump
-    memory_dump: Rc<dyn Readable>,
+    memory_dump: Arc<dyn Readable>,
 
     /// The target architecture
-    architecture: Rc<dyn Architecture>,
+    architecture: Arc<dyn Architecture>,
 
     /// Kernel debug symbols
     kernel_type_info: TypeInformation,
@@ -156,9 +159,9 @@ pub struct LinuxOperatingSystem {
 impl LinuxOperatingSystem {
     /// Creates a new `LinuxOperatingSystem` instance
     pub fn new(
-        memory_dump: Rc<dyn Readable>,
-        architecture: Rc<dyn Architecture>,
-    ) -> Result<Rc<Self>> {
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
+    ) -> Result<Arc<Self>> {
         let kernel_type_info = Self::get_kernel_type_info(memory_dump.as_ref())
             .inspect_err(|err| debug!("{err:?}"))?;
 
@@ -184,7 +187,7 @@ impl LinuxOperatingSystem {
         .inspect_err(|err| debug!("{err:?}"))
         .ok();
 
-        Ok(Rc::new(Self {
+        Ok(Arc::new(Self {
             memory_dump,
             architecture,
             kernel_type_info,
@@ -716,58 +719,65 @@ impl LinuxOperatingSystem {
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols
     fn get_kernel_type_info(readable: &dyn Readable) -> Result<TypeInformation> {
-        let mut read_buffer = [0; SCAN_BUFFER_SIZE];
+        let regions = readable.regions()?;
 
-        for region in readable.regions()? {
-            for range in generate_address_ranges!(
-                region.start,
-                region.end,
-                read_buffer.len(),
-                BTF_LITTLE_ENDIAN_SIGNATURE.len()
-            ) {
-                let bytes_read =
-                    if let Ok(bytes_read) = readable.read(&mut read_buffer, range.start) {
-                        bytes_read
-                    } else {
-                        debug!("Failed to read buffer during BTF scan at {:?}", range.start);
-                        continue;
-                    };
+        regions
+            .par_iter()
+            .find_map_any(|region| {
+                let mut read_buffer = vec![0u8; SCAN_BUFFER_SIZE];
 
-                for offset in read_buffer[..bytes_read]
-                    .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
-                    .enumerate()
-                    .filter_map(|(offset, window)| {
-                        if window == BTF_LITTLE_ENDIAN_SIGNATURE {
-                            Some(offset)
+                for range in generate_address_ranges!(
+                    region.start,
+                    region.end,
+                    read_buffer.len(),
+                    BTF_LITTLE_ENDIAN_SIGNATURE.len()
+                ) {
+                    let bytes_read =
+                        if let Ok(bytes_read) = readable.read(&mut read_buffer, range.start) {
+                            bytes_read
                         } else {
-                            None
-                        }
-                    })
-                {
-                    let btf_offset = range.start + (offset as u64);
-                    let readable_adapter =
-                        BtfparseReadableAdapter::new(readable, btf_offset.value());
-
-                    let type_information =
-                        if let Ok(type_information) = TypeInformation::new(&readable_adapter) {
-                            type_information
-                        } else {
-                            debug!("Failed to parse BTF data at offset {}", btf_offset);
+                            debug!("Failed to read buffer during BTF scan at {:?}", range.start);
                             continue;
                         };
 
-                    if type_information.id_of("task_struct").is_some() {
-                        debug!("BTF data found at offset {btf_offset}");
-                        return Ok(type_information);
+                    for offset in read_buffer[..bytes_read]
+                        .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
+                        .enumerate()
+                        .filter_map(|(offset, window)| {
+                            if window == BTF_LITTLE_ENDIAN_SIGNATURE {
+                                Some(offset)
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        let btf_offset = range.start + (offset as u64);
+                        let readable_adapter =
+                            BtfparseReadableAdapter::new(readable, btf_offset.value());
+
+                        let type_information =
+                            if let Ok(type_information) = TypeInformation::new(&readable_adapter) {
+                                type_information
+                            } else {
+                                debug!("Failed to parse BTF data at offset {}", btf_offset);
+                                continue;
+                            };
+
+                        if type_information.id_of("task_struct").is_some() {
+                            debug!("BTF data found at offset {btf_offset}");
+                            return Some(type_information);
+                        }
                     }
                 }
-            }
-        }
 
-        Err(Error::new(
-            ErrorKind::OperatingSystemInitializationFailed,
-            "Failed to locate the BTF debug symbols",
-        ))
+                None
+            })
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::OperatingSystemInitializationFailed,
+                    "Failed to locate the BTF debug symbols",
+                )
+            })
     }
 
     /// Returns a byte member offset
@@ -809,88 +819,89 @@ impl LinuxOperatingSystem {
         let real_parent_offset =
             Self::get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "real_parent")?;
 
-        let reader = Reader::new(readable, architecture.endianness() == Endianness::Little);
-
-        let mut read_buffer = [0; SCAN_BUFFER_SIZE];
         let task_struct_size = kernel_type_info.size_of(task_struct_tid)?;
+        let regions = readable.regions()?;
 
-        for region in readable.regions()? {
-            for range in generate_address_ranges!(
-                region.start,
-                region.end,
-                read_buffer.len(),
-                task_struct_size
-            ) {
-                let read_size = if let Ok(read_size) = readable.read(&mut read_buffer, range.start)
-                {
-                    read_size
-                } else {
-                    debug!(
-                        "Failed to read buffer during swapper scan at {:?}",
-                        range.start
-                    );
-                    continue;
-                };
+        regions
+            .par_iter()
+            .find_map_any(|region| {
+                let reader = Reader::new(readable, architecture.endianness() == Endianness::Little);
+                let mut read_buffer = vec![0u8; SCAN_BUFFER_SIZE];
 
-                if read_size < SWAPPER_PROCESS_COMM.len() {
-                    debug!("Read size {} too small for swapper comm", read_size);
-                    continue;
+                for range in generate_address_ranges!(
+                    region.start,
+                    region.end,
+                    read_buffer.len(),
+                    task_struct_size
+                ) {
+                    let read_size = if let Ok(read_size) = readable.read(&mut read_buffer, range.start) {
+                        read_size
+                    } else {
+                        debug!("Failed to read buffer during swapper scan at {:?}", range.start);
+                        continue;
+                    };
+
+                    if read_size < SWAPPER_PROCESS_COMM.len() {
+                        debug!("Read size {} too small for swapper comm", read_size);
+                        continue;
+                    }
+
+                    for offset in read_buffer[..read_size]
+                        .windows(SWAPPER_PROCESS_COMM.len())
+                        .enumerate()
+                        .filter_map(|(offset, window)| {
+                            if window == SWAPPER_PROCESS_COMM.as_bytes() {
+                                Some(offset)
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        let swapper_comm_physical_address = range.start + (offset as u64);
+                        let swapper_task_physical_address = swapper_comm_physical_address - comm_offset;
+
+                        let swapper_struct_parent_field =
+                            match reader.read_u64(swapper_task_physical_address + parent_offset) {
+                                Ok(value) => value,
+                                Err(e) => {
+                                    debug!("Failed to read parent field: {:?}", e);
+                                    continue;
+                                }
+                            };
+
+                        let swapper_struct_real_parent_field =
+                            match reader.read_u64(swapper_task_physical_address + real_parent_offset) {
+                                Ok(value) => value,
+                                Err(e) => {
+                                    debug!("Failed to read real_parent field: {:?}", e);
+                                    continue;
+                                }
+                            };
+
+                        let swapper_struct_raw_vaddr =
+                            if swapper_struct_parent_field == swapper_struct_real_parent_field {
+                                RawVirtualAddress::new(swapper_struct_parent_field)
+                            } else {
+                                debug!(
+                                    "Parent fields mismatch: {} != {}",
+                                    swapper_struct_parent_field, swapper_struct_real_parent_field
+                                );
+                                continue;
+                            };
+
+                        debug!("Swapper struct located: {swapper_task_physical_address} => {swapper_struct_raw_vaddr}");
+                        return Some((swapper_task_physical_address, swapper_struct_raw_vaddr));
+                    }
                 }
 
-                for offset in read_buffer[..read_size]
-                    .windows(SWAPPER_PROCESS_COMM.len())
-                    .enumerate()
-                    .filter_map(|(offset, window)| {
-                        if window == SWAPPER_PROCESS_COMM.as_bytes() {
-                            Some(offset)
-                        } else {
-                            None
-                        }
-                    })
-                {
-                    let swapper_comm_physical_address = range.start + (offset as u64);
-
-                    let swapper_task_physical_address = swapper_comm_physical_address - comm_offset;
-
-                    let swapper_struct_parent_field =
-                        match reader.read_u64(swapper_task_physical_address + parent_offset) {
-                            Ok(value) => value,
-                            Err(e) => {
-                                debug!("Failed to read parent field: {:?}", e);
-                                continue;
-                            }
-                        };
-
-                    let swapper_struct_real_parent_field =
-                        match reader.read_u64(swapper_task_physical_address + real_parent_offset) {
-                            Ok(value) => value,
-                            Err(e) => {
-                                debug!("Failed to read real_parent field: {:?}", e);
-                                continue;
-                            }
-                        };
-
-                    let swapper_struct_raw_vaddr =
-                        if swapper_struct_parent_field == swapper_struct_real_parent_field {
-                            RawVirtualAddress::new(swapper_struct_parent_field)
-                        } else {
-                            debug!(
-                                "Parent fields mismatch: {} != {}",
-                                swapper_struct_parent_field, swapper_struct_real_parent_field
-                            );
-                            continue;
-                        };
-
-                    debug!("Swapper struct located: {swapper_task_physical_address} => {swapper_struct_raw_vaddr}");
-                    return Ok((swapper_task_physical_address, swapper_struct_raw_vaddr));
-                }
-            }
-        }
-
-        Err(Error::new(
-            ErrorKind::OperatingSystemInitializationFailed,
-            "Failed to locate the swapper task_struct",
-        ))
+                None
+            })
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::OperatingSystemInitializationFailed,
+                    "Failed to locate the swapper task_struct",
+                )
+            })
     }
 
     /// Returns the virtual address of the swapper task_struct
@@ -1389,7 +1400,7 @@ impl OperatingSystem for LinuxOperatingSystem {
         Ok(open_file_list)
     }
 
-    fn get_file_reader(&self, file: VirtualAddress) -> Result<Rc<dyn Readable>> {
+    fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>> {
         let kallsyms = match self.kallsyms {
             Some(ref kallsyms) => kallsyms,
             None => {
@@ -1413,7 +1424,7 @@ impl OperatingSystem for LinuxOperatingSystem {
 /// Implements reading from a Linux file object in memory
 struct ReadableLinuxFileObject {
     /// Underlying memory dump
-    memory_dump: Rc<dyn Readable>,
+    memory_dump: Arc<dyn Readable>,
 
     /// Base virtual address of the vmemmap
     vmemmap_base: VirtualAddress,
@@ -1431,12 +1442,12 @@ struct ReadableLinuxFileObject {
 impl ReadableLinuxFileObject {
     /// Creates a new reader for the `struct file` object at the given vaddr
     fn from_file_vaddr(
-        memory_dump: Rc<dyn Readable>,
-        architecture: Rc<dyn Architecture>,
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
         type_information: &TypeInformation,
         kallsyms: &Kallsyms,
         file_vaddr: VirtualAddress,
-    ) -> Result<Rc<dyn Readable>> {
+    ) -> Result<Arc<dyn Readable>> {
         let vmemmap_base_ptr = kallsyms.get("vmemmap_base").ok_or_else(|| {
             Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
@@ -1506,7 +1517,7 @@ impl ReadableLinuxFileObject {
             }
         }
 
-        Ok(Rc::new(Self {
+        Ok(Arc::new(Self {
             memory_dump,
             vmemmap_base,
             page_struct_size,
