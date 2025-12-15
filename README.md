@@ -77,6 +77,16 @@ mquire is designed for:
 
 ## Building and installation
 
+### Pre-built packages from CI
+
+Pre-built packages are available as artifacts from CI runs. You can download them from the [Actions tab](https://github.com/trailofbits/mquire/actions) by selecting a successful workflow run and downloading the artifacts. The following package formats are available:
+
+- **linux-deb-package** - Debian/Ubuntu `.deb` package
+- **linux-rpm-package** - Fedora/RHEL/CentOS `.rpm` package
+- **linux-tgz-package** - Generic Linux `.tar.gz` archive
+
+### Building from source
+
 mquire is written in Rust. To build it:
 
 ```bash
