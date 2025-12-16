@@ -15,7 +15,9 @@ use crate::{
     utils::{readable_file::ReadableFile, reader::Reader},
 };
 
-use std::{cmp::Ordering, fs::File, ops::Range, os::unix::fs::FileExt, path::Path, sync::Arc};
+use memmap2::Mmap;
+
+use std::{cmp::Ordering, fs::File, ops::Range, path::Path, sync::Arc};
 
 /// The magic value for LiME snapshot files
 const LIME_HEADER_MAGIC: u32 = 0x4C694D45;
@@ -97,8 +99,8 @@ impl MemoryRange {
 
 /// Represents a lime snapshot of the memory
 pub struct LimeSnapshot {
-    /// The file containing the lime snapshot
-    file: File,
+    /// Memory-mapped view of the snapshot file
+    mmap: Mmap,
 
     /// Memory ranges in the file
     memory_range_list: Vec<MemoryRange>,
@@ -173,7 +175,7 @@ impl LimeSnapshot {
         }
 
         Ok(Arc::new(LimeSnapshot {
-            file,
+            mmap: unsafe { Mmap::map(&file)? },
             memory_range_list,
             size,
         }))
@@ -225,14 +227,23 @@ impl Readable for LimeSnapshot {
             )
         })?;
 
+        // Fill with zeroes if this region was optimized away, otherwise
+        // read from the memory mapping
         if !memory_range.data_present {
-            // Zero-filled region: fill buffer with zeros
             read_buffer.fill(0);
             Ok(readable_bytes)
         } else {
-            // Normal region: read from file
             let file_offset = memory_range.file_offset + range_offset;
-            Ok(self.file.read_at(read_buffer, file_offset)?)
+
+            let start = file_offset as usize;
+            let end = (start + readable_bytes).min(self.mmap.len());
+
+            let bytes_to_read = end - start;
+            if bytes_to_read > 0 {
+                read_buffer[..bytes_to_read].copy_from_slice(&self.mmap[start..end]);
+            }
+
+            Ok(bytes_to_read)
         }
     }
 
