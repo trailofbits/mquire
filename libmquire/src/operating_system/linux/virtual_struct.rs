@@ -18,6 +18,9 @@ use btfparse::{Offset, TypeInformation};
 
 use std::fmt;
 
+/// The chunk size to use when reading strings of unknown length
+const READ_STRING_BYTES_CHUNK_SIZE: usize = 128;
+
 /// A virtual structure, backed by debug symbols, located in the virtual address space
 #[derive(Clone, Copy)]
 pub struct VirtualStruct<'a> {
@@ -185,23 +188,51 @@ impl<'a> VirtualStruct<'a> {
     // Helper function for read_string and read_string_lossy
     fn read_string_bytes(&self, max_size: Option<usize>) -> Result<Vec<u8>> {
         let mut buffer = Vec::new();
+        let mut offset = 0;
 
-        for offset in 0.. {
-            if let Some(max_size) = max_size {
-                if offset >= max_size {
-                    break;
-                }
-            }
+        loop {
+            let remaining = max_size.map(|max| max.saturating_sub(offset));
+            let chunk_size = match remaining {
+                Some(0) => break,
+                Some(r) => r.min(READ_STRING_BYTES_CHUNK_SIZE),
+                None => READ_STRING_BYTES_CHUNK_SIZE,
+            };
 
-            let byte = self
+            let mut chunk = vec![0u8; chunk_size];
+            let bytes_read = match self
                 .vmem_reader
-                .read_u8(self.virtual_address + offset as u64)?;
+                .read(&mut chunk, self.virtual_address + offset as u64)
+            {
+                Ok(n) => n,
+                Err(e) => {
+                    if !buffer.is_empty() {
+                        log::debug!(
+                            "String read error at offset {}, returning partial data ({} bytes)",
+                            offset,
+                            buffer.len()
+                        );
+                        return Ok(buffer);
+                    }
 
-            if byte == 0 {
+                    return Err(e);
+                }
+            };
+
+            if bytes_read == 0 {
                 break;
             }
 
-            buffer.push(byte);
+            if let Some(null_pos) = chunk[..bytes_read].iter().position(|&b| b == 0) {
+                buffer.extend_from_slice(&chunk[..null_pos]);
+                break;
+            }
+
+            buffer.extend_from_slice(&chunk[..bytes_read]);
+            offset += bytes_read;
+
+            if bytes_read < chunk_size {
+                break;
+            }
         }
 
         Ok(buffer)
@@ -221,14 +252,13 @@ impl<'a> VirtualStruct<'a> {
 
     /// Reads a byte vector from the current position
     pub fn read_bytes(&self, size: usize) -> Result<Vec<u8>> {
-        let mut buffer = Vec::new();
-
-        for offset in 0..size {
-            buffer.push(
-                self.vmem_reader
-                    .read_u8(self.virtual_address + offset as u64)?,
-            );
+        if size == 0 {
+            return Ok(Vec::new());
         }
+
+        let mut buffer = vec![0u8; size];
+        self.vmem_reader
+            .read_exact(&mut buffer, self.virtual_address)?;
 
         Ok(buffer)
     }
