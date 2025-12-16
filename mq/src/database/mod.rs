@@ -85,4 +85,17 @@ impl Database {
 
         Ok(json_query_data)
     }
+
+    /// Returns a list of all registered table names
+    pub fn get_table_names(&self) -> Vec<String> {
+        self.sqlite_db.get_table_names()
+    }
+
+    /// Returns the schema for a specific table
+    pub fn get_table_schema(
+        &self,
+        table_name: &str,
+    ) -> Option<std::collections::BTreeMap<String, crate::sqlite::table_plugin::ColumnType>> {
+        self.sqlite_db.get_table_schema(table_name)
+    }
 }
