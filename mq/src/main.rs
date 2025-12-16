@@ -13,7 +13,10 @@ mod sqlite;
 use crate::{
     database::Database,
     logger::Logger,
-    sqlite::{database::QueryData, table_plugin::ColumnValue},
+    sqlite::{
+        database::QueryData,
+        table_plugin::{ColumnType, ColumnValue},
+    },
 };
 
 use std::{
@@ -47,6 +50,25 @@ fn display_query_data(query_data: &QueryData) -> Result<(), io::Error> {
     Ok(())
 }
 
+fn column_type_to_sql_type(column_type: &ColumnType) -> &str {
+    match column_type {
+        ColumnType::SignedInteger => "INTEGER",
+        ColumnType::String => "TEXT",
+        ColumnType::Double => "REAL",
+    }
+}
+
+fn display_table_schema(table_name: &str, schema: &std::collections::BTreeMap<String, ColumnType>) {
+    let columns: Vec<String> = schema
+        .iter()
+        .map(|(col_name, col_type)| {
+            format!("  {} {},", col_name, column_type_to_sql_type(col_type))
+        })
+        .collect();
+
+    println!("CREATE TABLE {table_name}\n{}\n);", columns.join("\n"));
+}
+
 fn run_interactive_shell(database: &Database) -> io::Result<()> {
     println!("Enter a query (or type '.exit' to quit)");
 
@@ -69,11 +91,33 @@ fn run_interactive_shell(database: &Database) -> io::Result<()> {
             break;
         }
 
-        match database.query(query) {
-            Ok(query_data) => display_query_data(&query_data)?,
+        if query.eq_ignore_ascii_case(".tables") {
+            let table_names = database.get_table_names();
+            for table_name in table_names {
+                print!("{table_name} ");
+            }
+            println!();
+        } else if query.eq_ignore_ascii_case(".schema") {
+            let table_names = database.get_table_names();
+            for table_name in &table_names {
+                if let Some(schema) = database.get_table_schema(table_name) {
+                    display_table_schema(table_name, &schema);
+                }
+            }
+        } else if let Some(table_name) = query.strip_prefix(".schema ") {
+            let table_name = table_name.trim();
+            if let Some(schema) = database.get_table_schema(table_name) {
+                display_table_schema(table_name, &schema);
+            } else {
+                println!("Table '{table_name}' not found");
+            }
+        } else {
+            match database.query(query) {
+                Ok(query_data) => display_query_data(&query_data)?,
 
-            Err(error) => {
-                println!("Failed to query the mquire database: {error:?}");
+                Err(error) => {
+                    println!("Failed to query the mquire database: {error:?}");
+                }
             }
         }
 
@@ -103,15 +147,37 @@ fn main() -> io::Result<()> {
     })?;
 
     if argument_list.len() == 3 {
-        let query = &argument_list.get(2).ok_or(io::Error::other(
+        let query = argument_list.get(2).ok_or(io::Error::other(
             "Failed to acquire the SQL query from the command line",
         ))?;
 
-        let json = database.json(query).map_err(|error| {
-            io::Error::other(format!("Failed to query the mquire database: {error:?}"))
-        })?;
+        if query.eq_ignore_ascii_case(".tables") {
+            let table_names = database.get_table_names();
+            for table_name in table_names {
+                print!("{table_name} ");
+            }
+            println!();
+        } else if query.eq_ignore_ascii_case(".schema") {
+            let table_names = database.get_table_names();
+            for table_name in &table_names {
+                if let Some(schema) = database.get_table_schema(table_name) {
+                    display_table_schema(table_name, &schema);
+                }
+            }
+        } else if let Some(table_name) = query.strip_prefix(".schema ") {
+            let table_name = table_name.trim();
+            if let Some(schema) = database.get_table_schema(table_name) {
+                display_table_schema(table_name, &schema);
+            } else {
+                println!("Table '{table_name}' not found");
+            }
+        } else {
+            let json = database.json(query).map_err(|error| {
+                io::Error::other(format!("Failed to query the mquire database: {error:?}"))
+            })?;
 
-        println!("{json}");
+            println!("{json}");
+        }
     } else {
         run_interactive_shell(&database)?;
     }

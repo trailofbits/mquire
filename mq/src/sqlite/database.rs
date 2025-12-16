@@ -245,6 +245,23 @@ impl Database {
 
         Ok(())
     }
+
+    /// Returns a list of all registered table names
+    pub fn get_table_names(&self) -> Vec<String> {
+        let mut table_names: Vec<String> = self.table_plugin_map.keys().cloned().collect();
+        table_names.sort();
+        table_names
+    }
+
+    /// Returns the schema for a specific table
+    pub fn get_table_schema(
+        &self,
+        table_name: &str,
+    ) -> Option<std::collections::BTreeMap<String, ColumnType>> {
+        self.table_plugin_map
+            .get(table_name)
+            .map(|wrapper| wrapper.table_plugin.schema())
+    }
 }
 
 /// Closes the database when it goes out of scope
