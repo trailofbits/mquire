@@ -28,8 +28,9 @@ use crate::{
         btf::BtfparseReadableAdapter,
         entities::{
             cgroup::Cgroup,
+            dmesg::{DmesgDataSource, DmesgEntry},
             memory_mapping::{MemoryMapping, MemoryProtection},
-            syslog::{Syslog, SyslogRegion},
+            syslog_file::{SyslogFile, SyslogFileDataSource, SyslogFileRegion},
         },
         kallsyms::Kallsyms,
         maple_tree::{MapleTree, MapleTreeValue},
@@ -62,11 +63,14 @@ const PAGE_SIZE: u64 = 4096;
 /// Buffer size used for initial data discovery
 const SCAN_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
-/// VM flag constants
+// VM flag constants
 const VM_READ: u64 = 0x00000001;
 const VM_WRITE: u64 = 0x00000002;
 const VM_EXEC: u64 = 0x00000004;
 const VM_SHARED: u64 = 0x00000008;
+
+/// Syslog path
+const SYSLOG_PATH: &str = "/var/log/syslog";
 
 /// Swapper process comm string
 const SWAPPER_PROCESS_COMM: &str = "swapper/0";
@@ -77,9 +81,27 @@ const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 3] = [
     0x01, // Version
 ];
 
+//
+// Constants for the printk ringbuffer
+//
+
+// Mask for extracting descriptor state
+const PRB_DESC_FLAGS_SHIFT: u64 = 64 - 2;
+const PRB_DESC_STATE_MASK: u64 = 0x3;
+const PRB_DESC_ID_MASK: u64 = !(PRB_DESC_STATE_MASK << PRB_DESC_FLAGS_SHIFT);
+
+// State values
+const PRB_DESC_FINALIZED: u64 = 0x2;
+const PRB_DESC_COMMITTED: u64 = 0x1;
+
+// Special lpos values indicating no data
+const PRB_FAILED_LPOS: u64 = 0x1;
+const PRB_EMPTY_LINE_LPOS: u64 = 0x3;
+
+/// File backing information
 #[derive(Debug, Clone, Copy)]
 pub struct VmAreaStructBackingFile {
-    /// File backing information
+    /// File virtual address
     pub file: VirtualAddress,
 
     /// Page offset within the file (in PAGE_SIZE units)
@@ -421,18 +443,14 @@ impl LinuxOperatingSystem {
 
             for entry in maple_tree.entries() {
                 let vma_info = &entry.value;
+                let shared = vma_info.flags & VM_SHARED != 0;
 
-                // Parse protection flags from vm_flags
                 let protection = MemoryProtection::new(
                     vma_info.flags & VM_READ != 0,
                     vma_info.flags & VM_WRITE != 0,
                     vma_info.flags & VM_EXEC != 0,
                 );
 
-                // Determine if this is a shared mapping
-                let shared = vma_info.flags & VM_SHARED != 0;
-
-                // Get the file path if this is a file-backed mapping
                 let file_path = if let Some(backing_file) = vma_info.backing_file {
                     VirtualStruct::from_name(
                         &vmem_reader,
@@ -465,7 +483,6 @@ impl LinuxOperatingSystem {
                     None
                 };
 
-                // Create the memory region
                 let vm_start = VirtualAddress::new(
                     task.page_table,
                     RawVirtualAddress::new(vma_info.region.start),
@@ -489,23 +506,26 @@ impl LinuxOperatingSystem {
         Ok(memory_mapping_list)
     }
 
-    /// Returns the syslog
-    pub fn get_syslog_regions(&self) -> Result<Vec<Syslog>> {
-        const SYSLOG_PATH: &str = "/var/log/syslog";
+    /// Returns the syslog file data from memory
+    pub fn get_syslog_file_regions(&self) -> Result<Vec<SyslogFile>> {
+        // This function attempts to read /var/log/syslog from memory using two approaches:
+        // 1. Page cache from open file handles
+        // 2. Memory mappings of the file
+        let mut syslog_entity_list: Vec<SyslogFile> = Vec::new();
 
-        // It is possible for multiple file entities to exist, for example if
-        // the `/var/log/syslog` file is deleted while still being held open by
-        // a process.
+        // First, read from open files via page cache. It is possible for multiple file
+        // entities to exist with the same path, for example if the `/var/log/syslog` file
+        // is deleted and recreated while still being held open by a process.
         let file_list: Vec<File> = self
             .get_task_open_file_list()?
             .into_iter()
             .filter(|file_entity| file_entity.path == SYSLOG_PATH)
             .map(|file_entity| (file_entity.virtual_address.value(), file_entity))
-            .collect::<BTreeMap<_, _>>() // Used for deduplication
+            .collect::<BTreeMap<_, _>>() // Use the file object vaddr to deduplicate
             .into_values()
             .collect();
 
-        let syslog_entity_list: Vec<Syslog> = file_list
+        let page_cache_syslog: Vec<SyslogFile> = file_list
             .iter()
             .filter_map(|file| {
                 let reader = match self.get_file_reader(file.virtual_address) {
@@ -533,7 +553,7 @@ impl LinuxOperatingSystem {
                     }
                 };
 
-                let syslog_region_list: Vec<SyslogRegion> = file_region_list
+                let syslog_region_list: Vec<SyslogFileRegion> = file_region_list
                     .iter()
                     .filter_map(|region| {
                         let region_size = region.end - region.start;
@@ -555,23 +575,403 @@ impl LinuxOperatingSystem {
                                 }
                             };
 
-                        Some(SyslogRegion {
+                        let lines = extract_valid_lines(&buffer, 10);
+                        if lines.is_empty() {
+                            debug!(
+                                "Skipping syslog region {:?} at {:?}: no valid text lines found",
+                                region, file.virtual_address
+                            );
+
+                            return None;
+                        }
+
+                        Some(SyslogFileRegion {
                             offset_range: region.clone(),
-                            buffer,
+                            lines,
                         })
                     })
                     .collect();
 
-                Some(Syslog {
+                Some(SyslogFile {
                     virtual_address: file.virtual_address,
                     task: file.task,
                     pid: file.pid,
+                    data_source: SyslogFileDataSource::PageCache,
                     region_list: syslog_region_list,
                 })
             })
             .collect();
 
+        syslog_entity_list.extend(page_cache_syslog);
+
+        let syslog_mappings: Vec<_> = self
+            .get_task_memory_mappings()?
+            .into_iter()
+            .filter(|mapping| {
+                mapping
+                    .file_path
+                    .as_ref()
+                    .map(|path| path.to_str().unwrap_or("") == SYSLOG_PATH)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        for mapping in syslog_mappings {
+            let region_size = (mapping.region.end.value() - mapping.region.start.value()) as usize;
+            let mut buffer = vec![0u8; region_size];
+
+            match vmem_reader.read(&mut buffer, mapping.region.start) {
+                Ok(bytes_read) => {
+                    buffer.truncate(bytes_read);
+
+                    let lines = extract_valid_lines(&buffer, 10);
+                    if lines.is_empty() {
+                        debug!(
+                            "Skipping syslog memory mapping at {:?}: no valid text lines found",
+                            mapping.region.start
+                        );
+                        continue;
+                    }
+
+                    let syslog_region = SyslogFileRegion {
+                        offset_range: PhysicalAddress::new(0)
+                            ..PhysicalAddress::new(bytes_read as u64),
+                        lines,
+                    };
+
+                    let task_struct = VirtualStruct::from_name(
+                        &vmem_reader,
+                        &self.kernel_type_info,
+                        "task_struct",
+                        &mapping.task,
+                    )
+                    .inspect_err(|err| debug!("{err:?}"))?;
+
+                    let pid = match try_chain!(task_struct.traverse("tgid")?.read_u32()) {
+                        Ok(tgid) => tgid,
+                        Err(err) => {
+                            debug!(
+                                "Failed to read the tgid field from task {:?}{err:?}",
+                                mapping.task
+                            );
+                            0
+                        }
+                    };
+
+                    syslog_entity_list.push(SyslogFile {
+                        virtual_address: mapping.region.start,
+                        task: mapping.task,
+                        pid,
+                        data_source: SyslogFileDataSource::MemoryMapping,
+                        region_list: vec![syslog_region],
+                    });
+                }
+
+                Err(err) => {
+                    debug!(
+                        "Failed to read memory mapping for {SYSLOG_PATH} at {:?}: {err:?}",
+                        mapping.region.start
+                    );
+                }
+            }
+        }
+
         Ok(syslog_entity_list)
+    }
+
+    /// Returns kernel log messages (dmesg) from the printk_ringbuffer
+    pub fn get_dmesg_entries(&self) -> Result<Vec<DmesgEntry>> {
+        let kallsyms = self.kallsyms.as_ref().ok_or_else(|| {
+            Error::new(
+                ErrorKind::OperatingSystemInitializationFailed,
+                "Kallsyms not initialized",
+            )
+        })?;
+
+        let prb_ptr_vaddr = match kallsyms.get("prb") {
+            Some(vaddr) => {
+                VirtualAddress::new(self.init_task_vaddr.root_page_table(), vaddr.value())
+            }
+
+            None => {
+                return Err(Error::new(
+                    ErrorKind::EntityNotFound,
+                    "Failed to find 'prb' symbol in kallsyms - printk ringbuffer not available",
+                ));
+            }
+        };
+
+        debug!("Found 'prb' symbol at {:?}", prb_ptr_vaddr);
+
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+        let prb_vaddr = vmem_reader.read_vaddr(prb_ptr_vaddr)?;
+
+        debug!("Dereferenced 'prb' pointer to {:?}", prb_vaddr);
+
+        let prb = VirtualStruct::from_name(
+            &vmem_reader,
+            &self.kernel_type_info,
+            "printk_ringbuffer",
+            &prb_vaddr,
+        )?;
+
+        let desc_ring = prb.traverse("desc_ring")?;
+
+        let count_bits = desc_ring.traverse("count_bits")?.read_u32()? as u64;
+        let descriptor_count = 1u64 << count_bits;
+
+        debug!(
+            "Descriptor ring has {} entries (count_bits={})",
+            descriptor_count, count_bits
+        );
+
+        let descs_ptr = desc_ring.traverse("descs")?.read_vaddr()?;
+        let infos_ptr = desc_ring.traverse("infos")?.read_vaddr()?;
+
+        let tail_id = desc_ring.traverse("tail_id")?.read_u64()?;
+        let head_id = desc_ring.traverse("head_id")?.read_u64()?;
+
+        debug!("Descriptor ring: tail_id={}, head_id={}", tail_id, head_id);
+
+        let text_data_ring = prb.traverse("text_data_ring")?;
+        let text_size_bits = text_data_ring.traverse("size_bits")?.read_u32()? as u64;
+        let text_data_ptr = text_data_ring.traverse("data")?.read_vaddr()?;
+        let text_data_size = 1u64 << text_size_bits;
+
+        debug!(
+            "Text data ring: size={} bytes (size_bits={})",
+            text_data_size, text_size_bits
+        );
+
+        let mut entries = Vec::new();
+
+        let mut current_id = tail_id;
+        let mut iteration_count = 0;
+
+        let prb_desc_tid = self.kernel_type_info.id_of("prb_desc").ok_or_else(|| {
+            Error::new(
+                ErrorKind::TypeInformationError,
+                "Failed to find prb_desc type",
+            )
+        })?;
+
+        let printk_info_tid = self.kernel_type_info.id_of("printk_info").ok_or_else(|| {
+            Error::new(
+                ErrorKind::TypeInformationError,
+                "Failed to find printk_info type",
+            )
+        })?;
+
+        let desc_size = self.kernel_type_info.size_of(prb_desc_tid)? as u64;
+        let info_size = self.kernel_type_info.size_of(printk_info_tid)? as u64;
+
+        while current_id != head_id && iteration_count < descriptor_count {
+            let index = current_id % descriptor_count;
+            iteration_count += 1;
+
+            let desc_vaddr = descs_ptr + (index * desc_size);
+            let desc = match VirtualStruct::from_name(
+                &vmem_reader,
+                &self.kernel_type_info,
+                "prb_desc",
+                &desc_vaddr,
+            ) {
+                Ok(desc) => desc,
+                Err(err) => {
+                    debug!("Failed to read descriptor at index {index}: {err:?}");
+                    current_id = current_id.wrapping_add(1);
+                    continue;
+                }
+            };
+
+            let state_var = match desc.traverse("state_var").and_then(|f| f.read_u64()) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to read state_var at index {index}: {err:?}");
+                    current_id = current_id.wrapping_add(1);
+                    continue;
+                }
+            };
+
+            let state = (state_var >> PRB_DESC_FLAGS_SHIFT) & PRB_DESC_STATE_MASK;
+            let desc_id = state_var & PRB_DESC_ID_MASK;
+
+            let expected_id = current_id;
+            current_id = current_id.wrapping_add(1);
+
+            // Each descriptor stores its own ID, so if the buffer wrapped around
+            // and overwrote old entries, desc_id won't match expected_id
+            if desc_id != expected_id {
+                continue;
+            }
+
+            // Only process finalized or committed descriptors
+            if state != PRB_DESC_FINALIZED && state != PRB_DESC_COMMITTED {
+                continue;
+            }
+
+            let info_vaddr = infos_ptr + (index * info_size);
+            let info = match VirtualStruct::from_name(
+                &vmem_reader,
+                &self.kernel_type_info,
+                "printk_info",
+                &info_vaddr,
+            ) {
+                Ok(info) => info,
+                Err(err) => {
+                    debug!("Failed to read printk_info at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let sequence = match info.traverse("seq").and_then(|f| f.read_u64()) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to read seq at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let timestamp_ns = match info.traverse("ts_nsec").and_then(|f| f.read_u64()) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to read ts_nsec at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let text_len = match info.traverse("text_len").and_then(|f| f.read_u16()) {
+                Ok(v) => v as usize,
+                Err(err) => {
+                    debug!("Failed to read text_len at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let facility = match info.traverse("facility").and_then(|f| f.read_u8()) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to read facility at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            //
+            // btfparse can parse bitfields and returns an Offset::BitOffsetAndSize(bit_offset, bit_size),
+            // but VirtualStruct::traverse() only accepts Offset::ByteOffset and explicitly rejects anything
+            // else. As a workaround, we traverse to the last regular field (facility), get its address,
+            // then manually offset by 1 byte to read the bitfield byte.
+            //
+            // Here's the layout from kernel 6.8.0:
+            //
+            // struct printk_info {
+            //     u64 seq;
+            //     u64 ts_nsec;
+            //     u16 text_len;
+            //     u8 facility;
+            //     u8 flags: 5;
+            //     u8 level: 3;
+            //     u32 caller_id;
+            //     struct dev_printk_info dev_info;
+            // };
+            //
+
+            let facility_field = match info.traverse("facility") {
+                Ok(f) => f,
+                Err(err) => {
+                    debug!("Failed to traverse to facility at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let flags_level_vaddr = facility_field.virtual_address() + 1u64;
+
+            let mut flags_level_byte = [0u8; 1];
+            if let Err(err) = vmem_reader.read(&mut flags_level_byte, flags_level_vaddr) {
+                debug!("Failed to read flags_level_byte at index {index}: {err:?}");
+                continue;
+            }
+
+            let level = (flags_level_byte[0] >> 5) & 0x7;
+
+            let caller_id = match info.traverse("caller_id").and_then(|f| f.read_u32()) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to read caller_id at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let text_blk_lpos = match desc.traverse("text_blk_lpos") {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to traverse to text_blk_lpos at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            let text_begin = match text_blk_lpos.traverse("begin").and_then(|f| f.read_u64()) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to read text_begin at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            if text_begin == PRB_FAILED_LPOS || text_begin == PRB_EMPTY_LINE_LPOS {
+                continue;
+            }
+
+            // Read the text data, skipping the ID prefix
+            let text_pos = text_begin % text_data_size;
+            let text_vaddr = text_data_ptr + text_pos + 8u64;
+            let mut text_buffer = vec![0u8; text_len];
+
+            let message = match vmem_reader.read(&mut text_buffer, text_vaddr) {
+                Ok(bytes_read) => {
+                    if bytes_read == text_len {
+                        let msg = String::from_utf8_lossy(&text_buffer).to_string();
+
+                        if !is_valid_text(&msg, 1) {
+                            debug!("Invalid/corrupted message text at index {index}: not enough printable characters");
+                            continue;
+                        }
+
+                        msg
+                    } else {
+                        debug!(
+                            "Partial read of message text at index {index}: expected {text_len} bytes, got {bytes_read}"
+                        );
+                        continue;
+                    }
+                }
+
+                Err(err) => {
+                    debug!("Failed to read message text at index {index}: {err:?}");
+                    continue;
+                }
+            };
+
+            entries.push(DmesgEntry {
+                data_source: DmesgDataSource::PrintkRingbuffer,
+                timestamp_ns,
+                level,
+                facility,
+                sequence,
+                message,
+                caller_id: if caller_id != 0 {
+                    Some(caller_id)
+                } else {
+                    None
+                },
+            });
+        }
+
+        Ok(entries)
     }
 
     // Returns the length of an array located in a structure
@@ -1497,7 +1897,7 @@ impl ReadableLinuxFileObject {
             if let Ok(folio) =
                 VirtualStruct::from_name(&vmem_reader, type_information, "folio", &page_vaddr)
             {
-                let page_index = folio.traverse("page")?.traverse("index")?.read_u64()?;
+                let page_index = folio.traverse("index")?.read_u64()?;
                 let nr_pages = folio
                     .traverse("_folio_nr_pages")
                     .and_then(|field| field.read_u32())
@@ -1623,6 +2023,46 @@ impl Readable for ReadableLinuxFileObject {
     }
 }
 
+/// Validates if a text string contains mostly printable characters
+fn is_valid_text(text: &str, min_length: usize) -> bool {
+    if text.len() < min_length {
+        return false;
+    }
+
+    let printable_count = text
+        .chars()
+        .filter(|c| c.is_ascii_graphic() || c.is_whitespace())
+        .count();
+
+    // Require at least 80% printable characters
+    printable_count as f32 / text.len() as f32 >= 0.8
+}
+
+/// Extracts valid text lines from a buffer that may contain binary data
+fn extract_valid_lines(buffer: &[u8], min_line_length: usize) -> Vec<String> {
+    let mut valid_lines = Vec::new();
+    let mut current_line_start = 0;
+
+    for i in 0..buffer.len() {
+        if buffer[i] == b'\n' || i == buffer.len() - 1 {
+            let line_end = if buffer[i] == b'\n' { i } else { i + 1 };
+            let line_bytes = &buffer[current_line_start..line_end];
+
+            if let Ok(line_str) = std::str::from_utf8(line_bytes) {
+                let line_clean = line_str.trim_end_matches('\r').trim();
+
+                if is_valid_text(line_clean, min_line_length) {
+                    valid_lines.push(line_clean.to_string());
+                }
+            }
+
+            current_line_start = line_end + 1;
+        }
+    }
+
+    valid_lines
+}
+
 impl From<BtfparseError> for Error {
     /// Converts a btfparse error into a System error
     fn from(error: BtfparseError) -> Self {
@@ -1630,5 +2070,83 @@ impl From<BtfparseError> for Error {
             ErrorKind::OperatingSystemInitializationFailed,
             &format!("btfparse has returned the following error: {error:?}"),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_valid_lines_preserves_valid_input() {
+        let input = b"This is a valid line\nAnother valid line\nThird valid line\n";
+        let expected = vec![
+            "This is a valid line",
+            "Another valid line",
+            "Third valid line",
+        ];
+
+        let result = extract_valid_lines(input, 1);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_extract_valid_lines_handles_different_line_endings() {
+        let input = b"Line with CRLF\r\nAnother line\r\nThird line\r\n";
+        let expected = vec!["Line with CRLF", "Another line", "Third line"];
+
+        let result = extract_valid_lines(input, 1);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_extract_valid_lines_filters_short_lines() {
+        let input = b"This is long enough\nShort\nAnother long line\n";
+        let expected = vec!["This is long enough", "Another long line"];
+
+        let result = extract_valid_lines(input, 10);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_extract_valid_lines_handles_no_final_newline() {
+        let input = b"First line\nSecond line\nLast line without newline";
+        let expected = vec!["First line", "Second line", "Last line without newline"];
+
+        let result = extract_valid_lines(input, 1);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_extract_valid_lines_trims_whitespace() {
+        let input = b"  Line with leading spaces\nLine with trailing spaces  \n  Both sides  \n";
+        let expected = vec![
+            "Line with leading spaces",
+            "Line with trailing spaces",
+            "Both sides",
+        ];
+
+        let result = extract_valid_lines(input, 1);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_is_valid_text_accepts_fully_printable() {
+        assert!(is_valid_text("This is 100% valid ASCII text!", 1));
+        assert!(is_valid_text("Line with spaces and punctuation.", 1));
+        assert!(is_valid_text("Numbers 12345 are fine", 1));
+    }
+
+    #[test]
+    fn test_is_valid_text_rejects_mostly_binary() {
+        let binary_heavy = "abc\x00\x01\x02\x03\x04\x05";
+        assert!(!is_valid_text(binary_heavy, 1));
+    }
+
+    #[test]
+    fn test_is_valid_text_respects_min_length() {
+        assert!(!is_valid_text("ab", 5));
+        assert!(is_valid_text("abcde", 5));
+        assert!(is_valid_text("abcdef", 5));
     }
 }

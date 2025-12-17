@@ -7,5 +7,6 @@
 //
 
 pub mod cgroup;
+pub mod dmesg;
 pub mod memory_mapping;
-pub mod syslog;
+pub mod syslog_file;
