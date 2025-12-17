@@ -175,6 +175,11 @@ impl<'a> VirtualStruct<'a> {
         self.vmem_reader.read_u8(self.virtual_address)
     }
 
+    /// Reads a u16 from the current position
+    pub fn read_u16(&self) -> Result<u16> {
+        self.vmem_reader.read_u16(self.virtual_address)
+    }
+
     /// Reads a u32 from the current position
     pub fn read_u32(&self) -> Result<u32> {
         self.vmem_reader.read_u32(self.virtual_address)
