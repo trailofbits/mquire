@@ -274,12 +274,18 @@ impl Architecture for IntelArchitecture {
         readable: &dyn Readable,
         root_page_table: PhysicalAddress,
     ) -> Result<Vec<Region>> {
-        let reader = Reader::new(readable, true);
         let mut region_list = Vec::new();
 
-        for pml4_index in 0..512u64 {
-            let table_entry_offset = pml4_index * 8;
-            let raw_table_entry = reader.read_u64(root_page_table + table_entry_offset)?;
+        // Read the entire PML4 table (4096 bytes = 512 entries)
+        let mut pml4_buffer = [0u8; 4096];
+        readable.read_exact(&mut pml4_buffer, root_page_table)?;
+
+        for (pml4_index, chunk) in pml4_buffer.chunks_exact(8).enumerate() {
+            let pml4_index = pml4_index as u64;
+            let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
+                continue;
+            };
+            let raw_table_entry = u64::from_le_bytes(bytes);
 
             let pml4_page_directory =
                 match PageTableEntry::new(PageTableLevel::Pml4, raw_table_entry) {
@@ -294,16 +300,24 @@ impl Architecture for IntelArchitecture {
                     _ => continue,
                 };
 
-            for pdpt_index in 0..512u64 {
-                let table_entry_offset = pdpt_index * 8;
+            // Read the entire PDPT table
+            let mut pdpt_buffer = [0u8; 4096];
+            if readable
+                .read_exact(
+                    &mut pdpt_buffer,
+                    PhysicalAddress::new(pml4_page_directory.physical_address),
+                )
+                .is_err()
+            {
+                continue;
+            }
 
-                let raw_table_entry = if let Ok(raw_table_entry) = reader.read_u64(
-                    PhysicalAddress::new(pml4_page_directory.physical_address + table_entry_offset),
-                ) {
-                    raw_table_entry
-                } else {
+            for (pdpt_index, chunk) in pdpt_buffer.chunks_exact(8).enumerate() {
+                let pdpt_index = pdpt_index as u64;
+                let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                     continue;
                 };
+                let raw_table_entry = u64::from_le_bytes(bytes);
 
                 let pdpt_page_directory =
                     match PageTableEntry::new(PageTableLevel::Pdpt, raw_table_entry) {
@@ -339,17 +353,24 @@ impl Architecture for IntelArchitecture {
                         _ => continue,
                     };
 
-                for pd_index in 0..512u64 {
-                    let table_entry_offset = pd_index * 8;
+                // Read the entire PD table
+                let mut pd_buffer = [0u8; 4096];
+                if readable
+                    .read_exact(
+                        &mut pd_buffer,
+                        PhysicalAddress::new(pdpt_page_directory.physical_address),
+                    )
+                    .is_err()
+                {
+                    continue;
+                }
 
-                    let raw_table_entry = if let Ok(raw_table_entry) =
-                        reader.read_u64(PhysicalAddress::new(
-                            pdpt_page_directory.physical_address + table_entry_offset,
-                        )) {
-                        raw_table_entry
-                    } else {
+                for (pd_index, chunk) in pd_buffer.chunks_exact(8).enumerate() {
+                    let pd_index = pd_index as u64;
+                    let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                         continue;
                     };
+                    let raw_table_entry = u64::from_le_bytes(bytes);
 
                     let pd_page_directory =
                         match PageTableEntry::new(PageTableLevel::Pd, raw_table_entry) {
@@ -388,17 +409,24 @@ impl Architecture for IntelArchitecture {
                             _ => continue,
                         };
 
-                    for pt_index in 0..512u64 {
-                        let table_entry_offset = pt_index * 8;
+                    // Read the entire PT table
+                    let mut pt_buffer = [0u8; 4096];
+                    if readable
+                        .read_exact(
+                            &mut pt_buffer,
+                            PhysicalAddress::new(pd_page_directory.physical_address),
+                        )
+                        .is_err()
+                    {
+                        continue;
+                    }
 
-                        let raw_table_entry = if let Ok(raw_table_entry) =
-                            reader.read_u64(PhysicalAddress::new(
-                                pd_page_directory.physical_address + table_entry_offset,
-                            )) {
-                            raw_table_entry
-                        } else {
+                    for (pt_index, chunk) in pt_buffer.chunks_exact(8).enumerate() {
+                        let pt_index = pt_index as u64;
+                        let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                             continue;
                         };
+                        let raw_table_entry = u64::from_le_bytes(bytes);
 
                         if let Ok(PageTableEntry::Page(page)) =
                             PageTableEntry::new(PageTableLevel::Pt, raw_table_entry)
