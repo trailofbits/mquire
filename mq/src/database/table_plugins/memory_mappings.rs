@@ -31,12 +31,14 @@ impl TablePlugin for MemoryMappingsTablePlugin {
     fn schema(&self) -> BTreeMap<String, ColumnType> {
         let mut schema = BTreeMap::<String, ColumnType>::new();
 
+        schema.insert(String::from("virtual_address"), ColumnType::String);
         schema.insert(String::from("task"), ColumnType::String);
         schema.insert(String::from("region_start"), ColumnType::String);
         schema.insert(String::from("region_end"), ColumnType::String);
         schema.insert(String::from("protection"), ColumnType::String);
         schema.insert(String::from("shared"), ColumnType::String);
         schema.insert(String::from("file_path"), ColumnType::String);
+        schema.insert(String::from("file_offset"), ColumnType::String);
 
         schema
     }
@@ -50,6 +52,14 @@ impl TablePlugin for MemoryMappingsTablePlugin {
 
         for memory_mapping in self.system.get_task_memory_mappings()? {
             let mut row = BTreeMap::<String, OptionalColumnValue>::new();
+
+            row.insert(
+                String::from("virtual_address"),
+                Some(ColumnValue::String(format!(
+                    "{:?}",
+                    memory_mapping.virtual_address
+                ))),
+            );
 
             row.insert(
                 String::from("task"),
@@ -108,8 +118,17 @@ impl TablePlugin for MemoryMappingsTablePlugin {
             row.insert(
                 String::from("file_path"),
                 memory_mapping
-                    .file_path
-                    .map(|path| ColumnValue::String(path.to_string_lossy().to_string())),
+                    .file_backing
+                    .as_ref()
+                    .map(|fb| ColumnValue::String(fb.path.to_string_lossy().to_string())),
+            );
+
+            row.insert(
+                String::from("file_offset"),
+                memory_mapping
+                    .file_backing
+                    .as_ref()
+                    .map(|fb| ColumnValue::String(format!("{}", fb.offset))),
             );
 
             row_list.push(row);
