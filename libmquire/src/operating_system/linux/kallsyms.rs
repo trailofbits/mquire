@@ -239,7 +239,7 @@ impl Kallsyms {
             }
         };
 
-        let mut memory_range_list: Vec<Range<u64>> = architecture
+        let memory_range_list: Vec<Range<u64>> = architecture
             .enumerate_page_table_regions(memory_dump, root_page_table)?
             .into_iter()
             .map(|region| {
@@ -252,8 +252,6 @@ impl Kallsyms {
                 }
             })
             .collect();
-
-        memory_range_list.sort_by_key(|range| range.start);
 
         let scan_session_list = Self::scan_for_kallsyms_token_table(
             memory_dump,

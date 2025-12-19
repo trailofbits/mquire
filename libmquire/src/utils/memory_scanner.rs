@@ -17,7 +17,7 @@ use crate::{
 
 use std::ops::Range;
 
-/// Scans virtual memory for a byte pattern using a sliding window.
+/// Scans virtual memory for a byte pattern using Boyer-Moore-Horspool algorithm.
 pub struct MemoryScanner<'a> {
     vmem_reader: &'a VirtualMemoryReader<'a>,
     start: VirtualAddress,
@@ -29,6 +29,8 @@ pub struct MemoryScanner<'a> {
     current_read_buffer_offset: usize,
     pattern: Vec<u8>,
     current_range_start: VirtualAddress,
+    /// Boyer-Moore-Horspool bad character skip table
+    skip_table: [usize; 256],
 }
 
 impl<'a> MemoryScanner<'a> {
@@ -51,6 +53,12 @@ impl<'a> MemoryScanner<'a> {
             range_list.push(range);
         }
 
+        // Build Boyer-Moore-Horspool bad character skip table
+        let mut skip_table = [pattern_len; 256];
+        for (i, &byte) in pattern[..pattern_len - 1].iter().enumerate() {
+            skip_table[byte as usize] = pattern_len - 1 - i;
+        }
+
         Ok(Self {
             vmem_reader,
             start,
@@ -62,6 +70,7 @@ impl<'a> MemoryScanner<'a> {
             current_read_buffer_offset: 0,
             pattern: pattern.to_vec(),
             current_range_start: start,
+            skip_table,
         })
     }
 
@@ -84,20 +93,27 @@ impl<'a> Iterator for MemoryScanner<'a> {
     type Item = Result<VirtualAddress>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let pattern_len = self.pattern.len();
+
         loop {
-            if self.current_read_buffer_offset + self.pattern.len() <= self.bytes_read {
+            if self.current_read_buffer_offset + pattern_len <= self.bytes_read {
                 //
-                // Advance the sliding window by one byte and try to match the pattern.
+                // Boyer-Moore-Horspool: compare pattern and skip based on bad character
                 //
 
                 let window = &self.read_buffer[self.current_read_buffer_offset
-                    ..self.current_read_buffer_offset + self.pattern.len()];
+                    ..self.current_read_buffer_offset + pattern_len];
 
                 let current_offset = self.current_read_buffer_offset;
-                self.current_read_buffer_offset += 1;
 
                 if window == self.pattern.as_slice() {
+                    // Match found - advance by 1 to find overlapping matches
+                    self.current_read_buffer_offset += 1;
                     return Some(Ok(self.current_range_start + current_offset as u64));
+                } else {
+                    // No match - skip based on the last byte in the window
+                    let last_byte = window[pattern_len - 1];
+                    self.current_read_buffer_offset += self.skip_table[last_byte as usize];
                 }
             } else if let Some(range) = self.range_list.get(self.current_range_index) {
                 //
@@ -565,5 +581,106 @@ mod tests {
         let scanner = MemoryScanner::new(&reader, start, end, pattern).unwrap();
 
         assert_eq!(scanner.pattern(), pattern);
+    }
+
+    /// Brute-force reference implementation for differential testing.
+    fn brute_force_search(data: &[u8], pattern: &[u8]) -> Vec<usize> {
+        if pattern.is_empty() || pattern.len() > data.len() {
+            return Vec::new();
+        }
+        (0..=data.len() - pattern.len())
+            .filter(|&i| data[i..i + pattern.len()] == *pattern)
+            .collect()
+    }
+
+    /// Helper to run MemoryScanner and collect match offsets.
+    fn scanner_search(data: &[u8], pattern: &[u8]) -> Vec<usize> {
+        let memory = MockMemory::new(data.to_vec());
+        let arch = MockArchitecture;
+        let reader = VirtualMemoryReader::new(&memory, &arch);
+
+        let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
+        let end = VirtualAddress::new(
+            PhysicalAddress::from(0),
+            RawVirtualAddress::new(data.len() as u64),
+        );
+
+        let scanner = MemoryScanner::new(&reader, start, end, pattern).unwrap();
+        scanner
+            .filter_map(|r| r.ok())
+            .map(|addr| addr.value().value() as usize)
+            .collect()
+    }
+
+    #[test]
+    fn test_bmh_matches_brute_force() {
+        // Test case 1: Pattern with distinct bytes
+        let data = vec![
+            0x00, 0x11, 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xDE, 0xAD, 0xBE, 0xEF,
+        ];
+        let pattern = &[0xDE, 0xAD, 0xBE, 0xEF];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 2: Overlapping matches (repeated bytes)
+        let data = vec![0xAA, 0xAA, 0xAA, 0xAA, 0xAA];
+        let pattern = &[0xAA, 0xAA];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 3: Pattern where last byte appears earlier
+        let data = vec![0x00, 0x01, 0x02, 0x01, 0x00, 0x01, 0x02, 0x03];
+        let pattern = &[0x01, 0x02, 0x03];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 4: Single byte pattern
+        let data = vec![0xFF, 0x00, 0xFF, 0x00, 0xFF];
+        let pattern = &[0xFF];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 5: Pattern at very end
+        let data = vec![0x00, 0x00, 0x00, 0xAB, 0xCD];
+        let pattern = &[0xAB, 0xCD];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 6: No matches
+        let data = vec![0x00, 0x11, 0x22, 0x33, 0x44];
+        let pattern = &[0xFF, 0xFF];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 7: Pattern same length as data
+        let data = vec![0xDE, 0xAD];
+        let pattern = &[0xDE, 0xAD];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+
+        // Test case 8: Larger data with multiple scattered matches
+        let mut data = vec![0x00; 200];
+        data[10..14].copy_from_slice(&[0xCA, 0xFE, 0xBA, 0xBE]);
+        data[50..54].copy_from_slice(&[0xCA, 0xFE, 0xBA, 0xBE]);
+        data[196..200].copy_from_slice(&[0xCA, 0xFE, 0xBA, 0xBE]);
+        let pattern = &[0xCA, 0xFE, 0xBA, 0xBE];
+        assert_eq!(
+            scanner_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
     }
 }
