@@ -23,9 +23,9 @@ use crate::{
     utils::ip_address::{ipv4_to_string, ipv6_to_string},
 };
 
-use btfparse::TypeInformation;
+use {btfparse::TypeInformation, log::debug};
 
-use {log::debug, std::collections::BTreeSet};
+use std::collections::BTreeSet;
 
 /// A reasonable max interface limit to avoid infinite loops
 const MAX_INTERFACES: usize = 32;

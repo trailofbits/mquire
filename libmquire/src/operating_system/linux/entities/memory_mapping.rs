@@ -29,9 +29,22 @@ impl MemoryProtection {
     }
 }
 
+/// Information about a file backing a memory mapping
+#[derive(Debug, Clone)]
+pub struct FileBacking {
+    /// The file path
+    pub path: PathBuf,
+
+    /// File offset in pages (vm_pgoff)
+    pub offset: u64,
+}
+
 /// A memory mapping entity
 #[derive(Debug, Clone)]
 pub struct MemoryMapping {
+    /// The kernel virtual address of the vm_area_struct
+    pub virtual_address: VirtualAddress,
+
     /// The kernel virtual address of the task_struct
     pub task: VirtualAddress,
 
@@ -44,6 +57,6 @@ pub struct MemoryMapping {
     /// True if this mapping is shared
     pub shared: bool,
 
-    /// If this memory mapping belongs to a file, this will contain its path
-    pub file_path: Option<PathBuf>,
+    /// File backing information (only present for file-backed mappings)
+    pub file_backing: Option<FileBacking>,
 }
