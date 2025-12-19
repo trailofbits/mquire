@@ -6,6 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod ip_address;
 pub mod macros;
 pub mod memory_scanner;
 pub mod readable_file;

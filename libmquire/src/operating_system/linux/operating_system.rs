@@ -6,12 +6,15 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+mod network_interface;
+mod utils;
+
 use crate::{
     core::{
         architecture::{Architecture, Endianness},
         entities::{
-            file::File, system_information::SystemInformation, system_version::SystemVersion,
-            task::Task,
+            file::File, network_interface::NetworkInterface, system_information::SystemInformation,
+            system_version::SystemVersion, task::Task,
         },
         error::{Error, ErrorKind, Result},
         operating_system::OperatingSystem,
@@ -34,6 +37,7 @@ use crate::{
         },
         kallsyms::Kallsyms,
         maple_tree::{MapleTree, MapleTreeValue},
+        operating_system::utils::get_struct_member_byte_offset,
         virtual_struct::VirtualStruct,
         xarray::XArray,
     },
@@ -42,10 +46,7 @@ use crate::{
 };
 
 use {
-    btfparse::{
-        Error as BtfparseError, Integer32Value, Offset as BtfparseOffset, TypeInformation,
-        TypeVariant,
-    },
+    btfparse::{Error as BtfparseError, Integer32Value, TypeInformation, TypeVariant},
     log::debug,
     rayon::prelude::*,
 };
@@ -1091,11 +1092,8 @@ impl LinuxOperatingSystem {
                 }
 
                 // Same as before, if there's a type issue we'll just propagate the error
-                let sibling_offset = Self::get_struct_member_byte_offset(
-                    kernel_type_info,
-                    task_struct.tid(),
-                    "sibling",
-                )?;
+                let sibling_offset =
+                    get_struct_member_byte_offset(kernel_type_info, task_struct.tid(), "sibling")?;
 
                 for field_path in [
                     "children.prev",
@@ -1180,24 +1178,6 @@ impl LinuxOperatingSystem {
             })
     }
 
-    /// Returns a byte member offset
-    fn get_struct_member_byte_offset(
-        type_information: &TypeInformation,
-        tid: u32,
-        member_name: &str,
-    ) -> Result<u64> {
-        if let (_, BtfparseOffset::ByteOffset(byte_offset)) =
-            type_information.offset_of(tid, member_name)?
-        {
-            Ok(byte_offset as u64)
-        } else {
-            Err(Error::new(
-                ErrorKind::OperatingSystemInitializationFailed,
-                "Unexpected bitfield offset found when retrieving the task_struct::comm offset",
-            ))
-        }
-    }
-
     /// Returns the location of the swapper task_struct
     fn get_swapper_struct_location(
         readable: &dyn Readable,
@@ -1210,14 +1190,13 @@ impl LinuxOperatingSystem {
             "Failed to locate the task_struct type",
         ))?;
 
-        let comm_offset =
-            Self::get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "comm")?;
+        let comm_offset = get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "comm")?;
 
         let parent_offset =
-            Self::get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "parent")?;
+            get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "parent")?;
 
         let real_parent_offset =
-            Self::get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "real_parent")?;
+            get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "real_parent")?;
 
         let task_struct_size = kernel_type_info.size_of(task_struct_tid)?;
         let regions = readable.regions()?;
@@ -1798,6 +1777,10 @@ impl OperatingSystem for LinuxOperatingSystem {
         }
 
         Ok(open_file_list)
+    }
+
+    fn get_network_interface_list(&self) -> Result<Vec<NetworkInterface>> {
+        self.get_network_interface_list_impl()
     }
 
     fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>> {

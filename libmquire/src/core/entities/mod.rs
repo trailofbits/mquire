@@ -7,6 +7,7 @@
 //
 
 pub mod file;
+pub mod network_interface;
 pub mod system_information;
 pub mod system_version;
 pub mod task;
