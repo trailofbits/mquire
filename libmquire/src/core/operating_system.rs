@@ -9,8 +9,8 @@
 use crate::{
     core::{
         entities::{
-            file::File, system_information::SystemInformation, system_version::SystemVersion,
-            task::Task,
+            file::File, network_interface::NetworkInterface, system_information::SystemInformation,
+            system_version::SystemVersion, task::Task,
         },
         error::Result,
     },
@@ -32,6 +32,9 @@ pub trait OperatingSystem: Send + Sync {
 
     /// Returns the list of open files.
     fn get_task_open_file_list(&self) -> Result<Vec<File>>;
+
+    /// Returns the network interface list
+    fn get_network_interface_list(&self) -> Result<Vec<NetworkInterface>>;
 
     /// Returns a reader for the file struct at the given virtual address
     fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>>;
