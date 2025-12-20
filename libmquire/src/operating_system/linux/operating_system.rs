@@ -9,6 +9,7 @@
 mod cgroup;
 mod dmesg;
 mod file;
+mod kallsyms_symbol;
 mod memory_mapping;
 mod network_interface;
 mod readable_file_linux_object;
@@ -36,8 +37,8 @@ use crate::{
     operating_system::linux::{
         btf::BtfparseReadableAdapter,
         entities::{
-            cgroup::Cgroup, dmesg::DmesgEntry, memory_mapping::MemoryMapping,
-            syslog_file::SyslogFile,
+            cgroup::Cgroup, dmesg::DmesgEntry, kallsyms_symbol::KallsymsSymbol,
+            memory_mapping::MemoryMapping, syslog_file::SyslogFile,
         },
         kallsyms::Kallsyms,
         operating_system::{
@@ -144,6 +145,11 @@ impl LinuxOperatingSystem {
     /// Returns kernel log messages (dmesg) from the printk_ringbuffer
     pub fn get_dmesg_entries(&self) -> Result<Vec<DmesgEntry>> {
         self.get_dmesg_entries_impl()
+    }
+
+    /// Returns the list of kernel symbols from kallsyms
+    pub fn get_kallsyms_symbols(&self) -> Result<Vec<KallsymsSymbol>> {
+        self.get_kallsyms_symbols_impl()
     }
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols

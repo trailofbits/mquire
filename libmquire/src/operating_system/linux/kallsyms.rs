@@ -120,6 +120,16 @@ type KallsymsNamesEntry = Vec<u16>;
 /// Represents a list of kallsyms_names entries
 type KallsymsNamesEntryList = Vec<KallsymsNamesEntry>;
 
+/// Data for a single symbol entry
+#[derive(Clone, Debug)]
+pub struct SymbolData {
+    /// The virtual address of the symbol
+    pub address: RawVirtualAddress,
+
+    /// The symbol type character
+    pub symbol_type: char,
+}
+
 /// Represents an ongoing scan session for kallsyms data structures
 #[derive(Clone)]
 struct ScanSession {
@@ -217,8 +227,8 @@ pub struct Kallsyms {
     /// The scan session used to locate and decompress the kallsyms data
     scan_session: ScanSession,
 
-    /// A map of symbol names to their virtual addresses
-    symbol_map: BTreeMap<String, RawVirtualAddress>,
+    /// A map of symbol names to their data
+    symbol_map: BTreeMap<String, SymbolData>,
 }
 
 impl Kallsyms {
@@ -372,12 +382,19 @@ impl Kallsyms {
 
     /// Gets the virtual address of a symbol by its name
     pub fn get(&self, symbol_name: &str) -> Option<VirtualAddress> {
-        self.symbol_map.get(symbol_name).map(|raw_virtual_address| {
-            VirtualAddress::new(self.scan_session.root_page_table, *raw_virtual_address)
+        self.symbol_map.get(symbol_name).map(|symbol_data| {
+            VirtualAddress::new(self.scan_session.root_page_table, symbol_data.address)
         })
     }
 
-    /// Decompresses kallsyms symbol names and builds a map of symbol names to virtual addresses
+    /// Returns an iterator over all symbols with their names and data
+    pub fn symbols(&self) -> impl Iterator<Item = (&str, &SymbolData)> + '_ {
+        self.symbol_map
+            .iter()
+            .map(|(name, data)| (name.as_str(), data))
+    }
+
+    /// Decompresses kallsyms symbol names and builds a map of symbol names to symbol data
     fn decompress_kallsyms(scan_session: ScanSession) -> Result<Self> {
         let mut symbol_map = BTreeMap::new();
 
@@ -389,8 +406,10 @@ impl Kallsyms {
                 ));
             }
 
-            let symbol_name =
-                Self::decompress_symbol_name(name_entry, &scan_session.kallsyms_token_table)?;
+            let (symbol_name, symbol_type) = Self::decompress_symbol_name_with_type(
+                name_entry,
+                &scan_session.kallsyms_token_table,
+            )?;
 
             let raw_vaddr = if scan_session.kallsyms_addresses_range.is_some() {
                 RawVirtualAddress::new(scan_session.kallsyms_addresses[index] as u64)
@@ -424,7 +443,13 @@ impl Kallsyms {
                 ));
             };
 
-            symbol_map.insert(symbol_name, raw_vaddr);
+            symbol_map.insert(
+                symbol_name,
+                SymbolData {
+                    address: raw_vaddr,
+                    symbol_type,
+                },
+            );
         }
 
         Ok(Self {
@@ -433,8 +458,11 @@ impl Kallsyms {
         })
     }
 
-    /// Decompresses a symbol name from a list of token indices
-    fn decompress_symbol_name(token_indices: &[u16], token_table: &[String]) -> Result<String> {
+    /// Decompresses a symbol name from a list of token indices, returning the name and type
+    fn decompress_symbol_name_with_type(
+        token_indices: &[u16],
+        token_table: &[String],
+    ) -> Result<(String, char)> {
         let mut decompressed_name = String::new();
 
         for &token_index in token_indices {
@@ -448,17 +476,19 @@ impl Kallsyms {
             decompressed_name.push_str(&token_table[token_index as usize]);
         }
 
-        if decompressed_name.is_empty() {
-            return Err(Error::new(
-                ErrorKind::OperatingSystemInitializationFailed,
-                "Decompressed symbol name is empty",
-            ));
-        }
+        let symbol_type = match decompressed_name.chars().next() {
+            Some(c) => c,
+            None => {
+                return Err(Error::new(
+                    ErrorKind::OperatingSystemInitializationFailed,
+                    "Decompressed symbol name is empty",
+                ));
+            }
+        };
 
-        // The first character encodes the type of the symbol, so we remove it
         decompressed_name.remove(0);
 
-        Ok(decompressed_name)
+        Ok((decompressed_name, symbol_type))
     }
 
     /// Scans the virtual memory for the kallsyms_token_table data
