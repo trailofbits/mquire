@@ -8,5 +8,6 @@
 
 pub mod cgroup;
 pub mod dmesg;
+pub mod kallsyms_symbol;
 pub mod memory_mapping;
 pub mod syslog_file;

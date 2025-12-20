@@ -10,8 +10,8 @@ mod table_plugins;
 
 use crate::{
     database::table_plugins::{
-        cgroups::CgroupsTablePlugin, dmesg::DmesgTablePlugin, log_messages::LogMessagesTablePlugin,
-        memory_mappings::MemoryMappingsTablePlugin,
+        cgroups::CgroupsTablePlugin, dmesg::DmesgTablePlugin, kallsyms::KallsymsTablePlugin,
+        log_messages::LogMessagesTablePlugin, memory_mappings::MemoryMappingsTablePlugin,
         network_interfaces::NetworkInterfacesTablePlugin, os_version::OSVersionTablePlugin,
         syslog_file::SyslogFileTablePlugin, system_info::SystemInfoTablePlugin,
         task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
@@ -63,6 +63,7 @@ impl Database {
         sqlite_db.register_table_plugin(TasksTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(CgroupsTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(DmesgTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(KallsymsTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(LogMessagesTablePlugin::new())?;
         sqlite_db.register_table_plugin(SyslogFileTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(MemoryMappingsTablePlugin::new(system.clone()))?;

@@ -8,6 +8,7 @@
 
 pub mod cgroups;
 pub mod dmesg;
+pub mod kallsyms;
 pub mod log_messages;
 pub mod memory_mappings;
 pub mod network_interfaces;
