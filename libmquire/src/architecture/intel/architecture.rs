@@ -278,9 +278,9 @@ impl Architecture for IntelArchitecture {
 
         // Read the entire PML4 table (4096 bytes = 512 entries)
         let mut pml4_buffer = [0u8; 4096];
-        readable.read_exact(&mut pml4_buffer, root_page_table)?;
+        let pml4_bytes_read = readable.read(&mut pml4_buffer, root_page_table)?;
 
-        for (pml4_index, chunk) in pml4_buffer.chunks_exact(8).enumerate() {
+        for (pml4_index, chunk) in pml4_buffer[..pml4_bytes_read].chunks_exact(8).enumerate() {
             let pml4_index = pml4_index as u64;
             let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                 continue;
@@ -302,17 +302,15 @@ impl Architecture for IntelArchitecture {
 
             // Read the entire PDPT table
             let mut pdpt_buffer = [0u8; 4096];
-            if readable
-                .read_exact(
-                    &mut pdpt_buffer,
-                    PhysicalAddress::new(pml4_page_directory.physical_address),
-                )
-                .is_err()
-            {
-                continue;
-            }
+            let pdpt_bytes_read = match readable.read(
+                &mut pdpt_buffer,
+                PhysicalAddress::new(pml4_page_directory.physical_address),
+            ) {
+                Ok(bytes_read) => bytes_read,
+                Err(_) => continue,
+            };
 
-            for (pdpt_index, chunk) in pdpt_buffer.chunks_exact(8).enumerate() {
+            for (pdpt_index, chunk) in pdpt_buffer[..pdpt_bytes_read].chunks_exact(8).enumerate() {
                 let pdpt_index = pdpt_index as u64;
                 let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                     continue;
@@ -355,17 +353,15 @@ impl Architecture for IntelArchitecture {
 
                 // Read the entire PD table
                 let mut pd_buffer = [0u8; 4096];
-                if readable
-                    .read_exact(
-                        &mut pd_buffer,
-                        PhysicalAddress::new(pdpt_page_directory.physical_address),
-                    )
-                    .is_err()
-                {
-                    continue;
-                }
+                let pd_bytes_read = match readable.read(
+                    &mut pd_buffer,
+                    PhysicalAddress::new(pdpt_page_directory.physical_address),
+                ) {
+                    Ok(bytes_read) => bytes_read,
+                    Err(_) => continue,
+                };
 
-                for (pd_index, chunk) in pd_buffer.chunks_exact(8).enumerate() {
+                for (pd_index, chunk) in pd_buffer[..pd_bytes_read].chunks_exact(8).enumerate() {
                     let pd_index = pd_index as u64;
                     let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                         continue;
@@ -411,17 +407,16 @@ impl Architecture for IntelArchitecture {
 
                     // Read the entire PT table
                     let mut pt_buffer = [0u8; 4096];
-                    if readable
-                        .read_exact(
-                            &mut pt_buffer,
-                            PhysicalAddress::new(pd_page_directory.physical_address),
-                        )
-                        .is_err()
-                    {
-                        continue;
-                    }
+                    let pt_bytes_read = match readable.read(
+                        &mut pt_buffer,
+                        PhysicalAddress::new(pd_page_directory.physical_address),
+                    ) {
+                        Ok(bytes_read) => bytes_read,
+                        Err(_) => continue,
+                    };
 
-                    for (pt_index, chunk) in pt_buffer.chunks_exact(8).enumerate() {
+                    for (pt_index, chunk) in pt_buffer[..pt_bytes_read].chunks_exact(8).enumerate()
+                    {
                         let pt_index = pt_index as u64;
                         let Ok(bytes) = <[u8; 8]>::try_from(chunk) else {
                             continue;
