@@ -6,6 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+mod boot_time;
 mod cgroup;
 mod dmesg;
 mod file;
@@ -37,10 +38,12 @@ use crate::{
     operating_system::linux::{
         btf::BtfparseReadableAdapter,
         entities::{
-            cgroup::Cgroup, dmesg::DmesgEntry, kallsyms_symbol::KallsymsSymbol,
-            memory_mapping::MemoryMapping, syslog_file::SyslogFile,
+            boot_time::BootTime, cgroup::Cgroup, dmesg::DmesgEntry,
+            kallsyms_symbol::KallsymsSymbol, memory_mapping::MemoryMapping,
+            syslog_file::SyslogFile,
         },
         kallsyms::Kallsyms,
+        kernel_version::KernelVersion,
         operating_system::{
             readable_file_linux_object::ReadableLinuxFileObject,
             utils::get_struct_member_byte_offset,
@@ -85,6 +88,9 @@ pub struct LinuxOperatingSystem {
 
     /// The kernel symbol table
     kallsyms: Option<Kallsyms>,
+
+    /// The kernel version
+    kernel_version: Option<KernelVersion>,
 }
 
 impl LinuxOperatingSystem {
@@ -109,11 +115,15 @@ impl LinuxOperatingSystem {
             &init_task_vaddr,
         )?;
 
+        let kernel_version: Option<KernelVersion> = system_version
+            .kernel_version
+            .and_then(|version_string| version_string.parse().ok());
+
         let kallsyms = Kallsyms::new(
             memory_dump.as_ref(),
             architecture.as_ref(),
             init_task_vaddr.root_page_table(),
-            &system_version.kernel_version,
+            &kernel_version,
         )
         .inspect_err(|err| debug!("{err:?}"))
         .ok();
@@ -124,6 +134,7 @@ impl LinuxOperatingSystem {
             kernel_type_info,
             init_task_vaddr,
             kallsyms,
+            kernel_version,
         }))
     }
 
@@ -150,6 +161,11 @@ impl LinuxOperatingSystem {
     /// Returns the list of kernel symbols from kallsyms
     pub fn get_kallsyms_symbols(&self) -> Result<Vec<KallsymsSymbol>> {
         self.get_kallsyms_symbols_impl()
+    }
+
+    /// Returns the system boot time
+    pub fn get_boot_time(&self) -> Result<Vec<BootTime>> {
+        self.get_boot_time_impl()
     }
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols
