@@ -6,6 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod boot_time;
 pub mod cgroups;
 pub mod dmesg;
 pub mod kallsyms;

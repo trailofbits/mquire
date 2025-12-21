@@ -237,17 +237,14 @@ impl Kallsyms {
         memory_dump: &dyn Readable,
         architecture: &dyn Architecture,
         root_page_table: PhysicalAddress,
-        kernel_version: &Option<String>,
+        kernel_version: &Option<KernelVersion>,
     ) -> Result<Self> {
-        let kernel_version = match kernel_version {
-            Some(version_string) => version_string.parse()?,
-            None => {
-                return Err(Error::new(
-                    ErrorKind::OperatingSystemInitializationFailed,
-                    "A valid kernel version string is required to locate kallsyms data structures",
-                ));
-            }
-        };
+        let kernel_version: &KernelVersion = kernel_version.as_ref().ok_or_else(|| {
+            Error::new(
+                ErrorKind::OperatingSystemInitializationFailed,
+                "A valid kernel version string is required to locate kallsyms data structures",
+            )
+        })?;
 
         let memory_range_list: Vec<Range<u64>> = architecture
             .enumerate_page_table_regions(memory_dump, root_page_table)?
@@ -268,7 +265,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             &memory_range_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {
@@ -283,7 +280,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             scan_session_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {
@@ -298,7 +295,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             scan_session_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {
@@ -313,7 +310,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             scan_session_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {
@@ -328,7 +325,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             scan_session_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {
@@ -343,7 +340,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             scan_session_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {
@@ -358,7 +355,7 @@ impl Kallsyms {
             architecture,
             root_page_table,
             scan_session_list,
-            &kernel_version,
+            kernel_version,
         )?;
 
         if scan_session_list.is_empty() {

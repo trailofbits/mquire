@@ -6,9 +6,13 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-pub mod boot_time;
-pub mod cgroup;
-pub mod dmesg;
-pub mod kallsyms_symbol;
-pub mod memory_mapping;
-pub mod syslog_file;
+use crate::memory::virtual_address::VirtualAddress;
+
+/// Boot time
+pub struct BootTime {
+    /// The virtual address for the uptime entity
+    pub virtual_address: VirtualAddress,
+
+    /// Boot time
+    pub boot_time: u64,
+}
