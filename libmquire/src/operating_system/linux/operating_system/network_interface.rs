@@ -8,7 +8,10 @@
 
 use crate::{
     core::{
-        entities::network_interface::{IPv4Address, IPv6Address, NetworkInterface},
+        entities::{
+            ip_address::IPAddress,
+            network_interface::{IPAddressAndMask, NetworkInterface, NetworkMask},
+        },
         error::{Error, ErrorKind, Result},
         virtual_memory_reader::VirtualMemoryReader,
     },
@@ -172,18 +175,20 @@ impl LinuxOperatingSystem {
         let state = read_interface_state(&net_device);
 
         let kernel_page_table = self.init_task_vaddr.root_page_table();
-        let ipv4_address_list = collect_ipv4_addresses(
+
+        let mut ip_addresses = collect_ipv4_addresses(
             &self.kernel_type_info,
             kernel_page_table,
             vmem_reader,
             &net_device,
         );
-        let ipv6_address_list = collect_ipv6_addresses(
+
+        ip_addresses.extend(collect_ipv6_addresses(
             &self.kernel_type_info,
             kernel_page_table,
             vmem_reader,
             &net_device,
-        );
+        ));
 
         let next_entry_vaddr = net_device
             .traverse("dev_list")
@@ -197,8 +202,7 @@ impl LinuxOperatingSystem {
             active_mac_address,
             physical_mac_address,
             additional_mac_addresses,
-            ipv4_address_list,
-            ipv6_address_list,
+            ip_addresses,
             state,
         };
 
@@ -292,13 +296,13 @@ fn read_interface_state(net_device: &VirtualStruct) -> Option<String> {
     }
 }
 
-/// Returns all the IPv4 addresses of a net_device object
+/// Returns all the IPv4 addresses and masks of a net_device object
 fn collect_ipv4_addresses(
     kernel_type_info: &TypeInformation,
     kernel_page_table: PhysicalAddress,
     vmem_reader: &VirtualMemoryReader,
     net_device: &VirtualStruct,
-) -> Vec<IPv4Address> {
+) -> Vec<IPAddressAndMask> {
     let mut result = Vec::new();
 
     let ip_ptr_vaddr = match net_device.traverse("ip_ptr").and_then(|f| f.read_vaddr()) {
@@ -352,9 +356,9 @@ fn collect_ipv4_addresses(
             });
 
         if let (Some(addr), Some(msk)) = (address, mask) {
-            result.push(IPv4Address {
-                address: addr,
-                mask: msk,
+            result.push(IPAddressAndMask {
+                ip_address: IPAddress::IPv4(addr),
+                mask: NetworkMask::DottedDecimal(msk),
             });
         }
 
@@ -367,13 +371,13 @@ fn collect_ipv4_addresses(
     result
 }
 
-/// Returns all the IPv6 addresses of a net_device object
+/// Returns all the IPv6 addresses and prefix lengths of a net_device object
 fn collect_ipv6_addresses(
     kernel_type_info: &TypeInformation,
     kernel_page_table: PhysicalAddress,
     vmem_reader: &VirtualMemoryReader,
     net_device: &VirtualStruct,
-) -> Vec<IPv6Address> {
+) -> Vec<IPAddressAndMask> {
     let mut result = Vec::new();
 
     let ip6_ptr_vaddr = match net_device.traverse("ip6_ptr").and_then(|f| f.read_vaddr()) {
@@ -449,9 +453,9 @@ fn collect_ipv6_addresses(
             .ok();
 
         if let (Some(addr), Some(prefix_len)) = (address, prefix_length) {
-            result.push(IPv6Address {
-                address: addr,
-                prefix_length: prefix_len,
+            result.push(IPAddressAndMask {
+                ip_address: IPAddress::IPv6(addr),
+                mask: NetworkMask::PrefixLength(prefix_len as usize),
             });
         }
 

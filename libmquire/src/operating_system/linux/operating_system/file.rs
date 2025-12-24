@@ -97,11 +97,29 @@ impl LinuxOperatingSystem {
                     }
                 };
 
+                let inode = file
+                    .traverse("f_inode")
+                    .ok()
+                    .and_then(|f| f.read_vaddr().ok())
+                    .filter(|ptr| !ptr.is_null())
+                    .and_then(|f_inode_ptr| {
+                        VirtualStruct::from_name(
+                            &vmem_reader,
+                            &self.kernel_type_info,
+                            "inode",
+                            &f_inode_ptr,
+                        )
+                        .ok()
+                    })
+                    .and_then(|inode_struct| inode_struct.traverse("i_ino").ok())
+                    .and_then(|f| f.read_u64().ok());
+
                 let file_entity = File {
                     virtual_address: file.virtual_address(),
                     task: task.virtual_address,
                     path,
                     pid: task.pid,
+                    inode,
                 };
 
                 open_file_list.push(file_entity);

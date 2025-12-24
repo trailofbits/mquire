@@ -45,6 +45,9 @@ mq provides SQL tables to query different aspects of the system or the state of 
 
 - **os_version** - Kernel version and architecture
 - **system_info** - Hostname and domain name
+- **boot_time** - System boot time
+- **kallsyms** - Kernel symbol addresses (same data as `/proc/kallsyms`)
+- **dmesg** - Kernel ring buffer messages (same data as `dmesg` command)
 
 #### Process information
 
@@ -53,11 +56,20 @@ mq provides SQL tables to query different aspects of the system or the state of 
 - **cgroups** - Control groups for processes
 - **memory_mappings** - Memory regions mapped by each process
 
+#### Kernel modules
+
+- **mod** - Loaded kernel modules with their addresses and sizes
+
+#### Network information
+
+- **network_connections** - Active network connections (TCP sockets)
+- **network_interfaces** - Network interfaces with IP addresses and MAC addresses
+
 #### File system
 
 - **syslog** - System logs read from the kernel's file cache (works even if log files are deleted or unavailable, as long as they're cached in memory)
 
-### Debugging
+#### Debugging
 
 - **log_messages** - Internal mquire logs showing analysis progress, warnings, and errors
 
@@ -133,62 +145,99 @@ All other queries use standard SQL syntax.
 
 #### System version
 
-```bash
-mq /path/to/memory.raw 'SELECT * FROM os_version;'
+```sql
+SELECT * FROM os_version;
 ```
 
-```
-arch:"x86_64" kernel_version:"6.2.0-39-generic" system_version:"#40~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 16 10:53:04 UTC 2"
+```bash
+$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
+Enter a query (or type '.exit' to quit)
+mquire> SELECT * FROM os_version;
+arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2"
 ```
 
 #### System information
 
-```bash
-mq /path/to/memory.raw 'SELECT * FROM system_info;'
+```sql
+SELECT * FROM system_info;
 ```
 
-```
-domain:"(none)" hostname:"ubuntu2204-mquire"
+```bash
+$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
+Enter a query (or type '.exit' to quit)
+mquire> SELECT * FROM system_info;
+domain:"(none)" hostname:"ubuntu2404"
 ```
 
 #### Running tasks
 
-```bash
-mq /path/to/memory.raw \
-  'SELECT comm, binary_path, command_line
-   FROM tasks
-   WHERE command_line NOT NULL AND comm LIKE "%systemd%";'
+```sql
+SELECT
+  comm, binary_path, command_line
+FROM tasks
+WHERE command_line NOT NULL AND comm LIKE "%systemd%";
 ```
 
-```
+```bash
+$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
+Enter a query (or type '.exit' to quit)
+mquire> SELECT comm, binary_path, command_line FROM tasks WHERE command_line NOT NULL AND comm LIKE "%systemd%";
 comm:"systemd" binary_path:"/usr/lib/systemd/systemd" command_line:"/sbin/init splash"
-comm:"systemd-journal" binary_path:"/usr/lib/systemd/systemd-journald" command_line:"/lib/systemd/systemd-journald"
-comm:"systemd-udevd" binary_path:"/usr/bin/udevadm" command_line:"/lib/systemd/systemd-udevd"
-comm:"systemd-oomd" binary_path:"/usr/lib/systemd/systemd-oomd" command_line:"/lib/systemd/systemd-oomd"
-comm:"systemd-resolve" binary_path:"/usr/lib/systemd/systemd-resolved" command_line:"/lib/systemd/systemd-resolved"
-comm:"systemd-timesyn" binary_path:"/usr/lib/systemd/systemd-timesyncd" command_line:"/lib/systemd/systemd-timesyncd"
-comm:"systemd" binary_path:"/usr/lib/systemd/systemd" command_line:"/lib/systemd/systemd --user"
-comm:"systemd-logind" binary_path:"/usr/lib/systemd/systemd-logind" command_line:"/lib/systemd/systemd-logind"
+comm:"systemd-oomd" binary_path:"/usr/lib/systemd/systemd-oomd" command_line:"/usr/lib/systemd/systemd-oomd"
+comm:"systemd-resolve" binary_path:"/usr/lib/systemd/systemd-resolved" command_line:"/usr/lib/systemd/systemd-resolved"
+comm:"systemd-udevd" binary_path:"/usr/bin/udevadm" command_line:"/usr/lib/systemd/systemd-udevd"
+comm:"systemd" binary_path:"/usr/lib/systemd/systemd" command_line:"/usr/lib/systemd/systemd --user"
+comm:"systemd-logind" binary_path:"/usr/lib/systemd/systemd-logind" command_line:"/usr/lib/systemd/systemd-logind"
+comm:"systemd-journal" binary_path:"/usr/lib/systemd/systemd-journald" command_line:"/usr/lib/systemd/systemd-journald"
+comm:"systemd-timesyn" binary_path:"/usr/lib/systemd/systemd-timesyncd" command_line:"/usr/lib/systemd/systemd-timesyncd"
+```
+
+#### Connections
+
+```sql
+SELECT
+  t.pid, t.comm, nc.local_address, nc.local_port,
+  nc.remote_address, nc.remote_port, nc.state, nc.protocol
+FROM network_connections nc
+JOIN task_open_files tof ON nc.inode = tof.inode
+JOIN tasks t ON tof.pid = t.pid;
+```
+
+```bash
+$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
+Enter a query (or type '.exit' to quit)
+mquire> SELECT t.pid, t.comm, nc.local_address, nc.local_port, nc.remote_address, nc.remote_port, nc.state, nc.protocol FROM network_connections nc JOIN task_open_files tof ON nc.inode = tof.inode JOIN tasks t ON tof.pid = t.pid;
+pid:"1134" comm:"sshd" local_address:"::" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
+pid:"1134" comm:"sshd" local_address:"0.0.0.0" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
+pid:"1117" comm:"cupsd" local_address:"127.0.0.1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
+pid:"792" comm:"systemd-resolve" local_address:"127.0.0.54" local_port:"53" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
+pid:"792" comm:"systemd-resolve" local_address:"127.0.0.53" local_port:"53" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
+pid:"1117" comm:"cupsd" local_address:"::1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
 ```
 
 #### Task open files
 
-```bash
-mq /path/to/memory.raw \
-  'SELECT
-    tasks.pid, tasks.binary_path, tasks.command_line,
-    task_open_files.path
-  FROM tasks
-  JOIN task_open_files ON tasks.pid = task_open_files.pid
-  WHERE path LIKE "/home/%";'
+```sql
+SELECT path
+FROM task_open_files
+WHERE path LIKE '%firefox%'
+LIMIT 10;
 ```
 
-```
-...
-pid:"1982" binary_path:"/usr/lib/firefox/firefox" command_line:"/snap/firefox/2356/usr/lib/firefox/firefox" path:"/home/user/snap/firefox/common/.mozilla/firefox/8tljoy31.default/permissions.sqlite"
-pid:"1982" binary_path:"/usr/lib/firefox/firefox" command_line:"/snap/firefox/2356/usr/lib/firefox/firefox" path:"/home/user/snap/firefox/common/.mozilla/firefox/8tljoy31.default/places.sqlite"
-pid:"1982" binary_path:"/usr/lib/firefox/firefox" command_line:"/snap/firefox/2356/usr/lib/firefox/firefox" path:"/home/user/snap/firefox/common/.mozilla/firefox/8tljoy31.default/cookies.sqlite"
-...
+```bash
+$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
+Enter a query (or type '.exit' to quit)
+mquire> SELECT path FROM task_open_files WHERE path LIKE '%firefox%' LIMIT 10;
+path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/cookies.sqlite"
+path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/.parentlock"
+path:"/usr/lib/firefox/omni.ja"
+path:"/usr/lib/firefox/browser/omni.ja"
+path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/startupCache.8.little"
+path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/scriptCache-child-current.bin"
+path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/storage.sqlite"
+path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/scriptCache-current.bin"
+path:"/usr/lib/firefox/browser/features/formautofill@mozilla.org.xpi"
+path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/extensions/uBlock0@raymondhill.net.xpi"
 ```
 
 ## Contributing
@@ -201,8 +250,6 @@ Contributions are welcome! When contributing, please follow these guidelines:
    - Kallsyms location
    - `init_task` virtual address
    - BTF data
-
-This project uses automated code quality checks to maintain consistency.
 
 ## License
 

@@ -94,73 +94,50 @@ impl NetworkInterfacesTablePlugin {
                     .collect()
             };
 
-            // Expand the base row list to include the IPv4 addresses
-            let ipv4_row_list: RowList = interface
-                .ipv4_address_list
-                .iter()
-                .flat_map(|ip_address| {
-                    base_row_list.iter().map(|base_row| {
-                        let mut ip_address_row = base_row.clone();
-
-                        ip_address_row.insert(
-                            String::from("ip_type"),
-                            Some(ColumnValue::String(String::from("ipv4"))),
-                        );
-
-                        ip_address_row.insert(
-                            String::from("ip_address"),
-                            Some(ColumnValue::String(ip_address.address.clone())),
-                        );
-
-                        ip_address_row.insert(
-                            String::from("mask"),
-                            Some(ColumnValue::String(ip_address.mask.clone())),
-                        );
-
-                        ip_address_row
-                    })
-                })
-                .collect();
-
-            // Expand the base row list to include the IPv6 addresses
-            let ipv6_row_list: RowList = interface
-                .ipv6_address_list
-                .iter()
-                .flat_map(|ip_address| {
-                    base_row_list.iter().map(|base_row| {
-                        let mut ip_address_row = base_row.clone();
-
-                        ip_address_row.insert(
-                            String::from("ip_type"),
-                            Some(ColumnValue::String(String::from("ipv6"))),
-                        );
-
-                        ip_address_row.insert(
-                            String::from("ip_address"),
-                            Some(ColumnValue::String(ip_address.address.clone())),
-                        );
-
-                        ip_address_row.insert(
-                            String::from("mask"),
-                            Some(ColumnValue::String(ip_address.prefix_length.to_string())),
-                        );
-
-                        ip_address_row
-                    })
-                })
-                .collect();
-
-            let mut current_interface_row_list = if interface.ipv4_address_list.is_empty()
-                && interface.ipv6_address_list.is_empty()
-            {
+            // Expand the base row list to include the IP addresses
+            let mut current_interface_row_list = if interface.ip_addresses.is_empty() {
                 base_row_list
             } else {
-                let mut row_list = ipv4_row_list;
+                interface
+                    .ip_addresses
+                    .iter()
+                    .flat_map(|ip_addr_and_mask| {
+                        base_row_list.iter().map(|base_row| {
+                            let mut ip_address_row = base_row.clone();
 
-                let mut additional_row_list = ipv6_row_list;
-                row_list.append(&mut additional_row_list);
+                            let (ip_type, ip_address) = match &ip_addr_and_mask.ip_address {
+                                mquire::core::entities::ip_address::IPAddress::IPv4(addr) => {
+                                    ("ipv4", addr.clone())
+                                }
+                                mquire::core::entities::ip_address::IPAddress::IPv6(addr) => {
+                                    ("ipv6", addr.clone())
+                                }
+                            };
 
-                row_list
+                            ip_address_row.insert(
+                                String::from("ip_type"),
+                                Some(ColumnValue::String(String::from(ip_type))),
+                            );
+
+                            ip_address_row.insert(
+                                String::from("ip_address"),
+                                Some(ColumnValue::String(ip_address)),
+                            );
+
+                            let mask_str = match &ip_addr_and_mask.mask {
+                                mquire::core::entities::network_interface::NetworkMask::DottedDecimal(s) => s.clone(),
+                                mquire::core::entities::network_interface::NetworkMask::PrefixLength(len) => len.to_string(),
+                            };
+
+                            ip_address_row.insert(
+                                String::from("mask"),
+                                Some(ColumnValue::String(mask_str)),
+                            );
+
+                            ip_address_row
+                        })
+                    })
+                    .collect()
             };
 
             row_list.append(&mut current_interface_row_list);
@@ -201,7 +178,10 @@ mod tests {
     use super::*;
 
     use mquire::{
-        core::entities::network_interface::{IPv4Address, IPv6Address},
+        core::entities::{
+            ip_address::IPAddress,
+            network_interface::{IPAddressAndMask, NetworkMask},
+        },
         memory::{
             primitives::{PhysicalAddress, RawVirtualAddress},
             virtual_address::VirtualAddress,
@@ -215,6 +195,24 @@ mod tests {
         ipv4_addresses: Vec<(&str, &str)>,
         ipv6_addresses: Vec<(&str, u32)>,
     ) -> NetworkInterface {
+        let mut ip_addresses = Vec::new();
+
+        // Add IPv4 addresses
+        for (addr, mask) in ipv4_addresses {
+            ip_addresses.push(IPAddressAndMask {
+                ip_address: IPAddress::IPv4(String::from(addr)),
+                mask: NetworkMask::DottedDecimal(String::from(mask)),
+            });
+        }
+
+        // Add IPv6 addresses
+        for (addr, prefix) in ipv6_addresses {
+            ip_addresses.push(IPAddressAndMask {
+                ip_address: IPAddress::IPv6(String::from(addr)),
+                mask: NetworkMask::PrefixLength(prefix as usize),
+            });
+        }
+
         NetworkInterface {
             virtual_address: VirtualAddress::new(
                 PhysicalAddress::new(0x1000),
@@ -224,20 +222,7 @@ mod tests {
             active_mac_address: Some(String::from("aa:bb:cc:dd:ee:ff")),
             physical_mac_address: Some(String::from("aa:bb:cc:dd:ee:00")),
             additional_mac_addresses,
-            ipv4_address_list: ipv4_addresses
-                .into_iter()
-                .map(|(addr, mask)| IPv4Address {
-                    address: String::from(addr),
-                    mask: String::from(mask),
-                })
-                .collect(),
-            ipv6_address_list: ipv6_addresses
-                .into_iter()
-                .map(|(addr, prefix)| IPv6Address {
-                    address: String::from(addr),
-                    prefix_length: prefix,
-                })
-                .collect(),
+            ip_addresses,
             state: Some(String::from("up")),
         }
     }
@@ -562,8 +547,7 @@ mod tests {
             active_mac_address: None,
             physical_mac_address: None,
             additional_mac_addresses: vec![],
-            ipv4_address_list: vec![],
-            ipv6_address_list: vec![],
+            ip_addresses: vec![],
             state: None,
         };
 

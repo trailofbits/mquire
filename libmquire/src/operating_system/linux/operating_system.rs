@@ -12,6 +12,7 @@ mod dmesg;
 mod file;
 mod kallsyms_symbol;
 mod memory_mapping;
+mod network_connection;
 mod network_interface;
 mod readable_file_linux_object;
 mod syslog_file;
@@ -23,8 +24,8 @@ use crate::{
     core::{
         architecture::{Architecture, Endianness},
         entities::{
-            file::File, network_interface::NetworkInterface, system_information::SystemInformation,
-            system_version::SystemVersion, task::Task,
+            file::File, network_connection::NetworkConnection, network_interface::NetworkInterface,
+            system_information::SystemInformation, system_version::SystemVersion, task::Task,
         },
         error::{Error, ErrorKind, Result},
         operating_system::OperatingSystem,
@@ -166,6 +167,11 @@ impl LinuxOperatingSystem {
     /// Returns the system boot time
     pub fn get_boot_time(&self) -> Result<Vec<BootTime>> {
         self.get_boot_time_impl()
+    }
+
+    /// Returns the list of network connections
+    pub fn get_network_connection_list(&self) -> Result<Vec<NetworkConnection>> {
+        self.get_network_connection_list_impl()
     }
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols

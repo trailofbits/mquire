@@ -12,6 +12,7 @@ pub mod dmesg;
 pub mod kallsyms;
 pub mod log_messages;
 pub mod memory_mappings;
+pub mod network_connections;
 pub mod network_interfaces;
 pub mod os_version;
 pub mod syslog_file;
