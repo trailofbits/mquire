@@ -25,3 +25,18 @@ pub fn get_struct_member_byte_offset(
         ))
     }
 }
+
+/// Get the size of a struct type
+pub fn get_struct_size(type_info: &TypeInformation, struct_name: &str) -> Result<u64> {
+    let tid = type_info.id_of(struct_name).ok_or(Error::new(
+        ErrorKind::TypeInformationError,
+        &format!("Failed to locate type: {}", struct_name),
+    ))?;
+
+    type_info.size_of(tid).map(|size| size as u64).map_err(|e| {
+        Error::new(
+            ErrorKind::TypeInformationError,
+            &format!("Failed to get size of {}: {:?}", struct_name, e),
+        )
+    })
+}

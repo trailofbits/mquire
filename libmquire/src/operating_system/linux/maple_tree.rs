@@ -143,7 +143,10 @@ where
                 }
 
                 Err(err) => {
-                    debug!("Failed to parse VMA at {:?}: {err:?}", value_vaddr.value);
+                    debug!(
+                        "Failed to parse maple tree value at {:?}: {err:?}",
+                        value_vaddr.value
+                    );
                 }
             }
         }

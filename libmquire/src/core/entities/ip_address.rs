@@ -6,13 +6,12 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod btf;
-mod kallsyms;
-mod kernel_version;
-mod list;
-mod maple_tree;
-mod virtual_struct;
-mod xarray;
+/// IP address
+#[derive(Debug, Clone)]
+pub enum IPAddress {
+    /// IPv4 address
+    IPv4(String),
 
-pub mod entities;
-pub mod operating_system;
+    /// IPv6 address
+    IPv6(String),
+}

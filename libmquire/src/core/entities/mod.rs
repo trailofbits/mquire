@@ -7,6 +7,8 @@
 //
 
 pub mod file;
+pub mod ip_address;
+pub mod network_connection;
 pub mod network_interface;
 pub mod system_information;
 pub mod system_version;

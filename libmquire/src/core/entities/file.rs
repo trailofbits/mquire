@@ -22,4 +22,7 @@ pub struct File {
 
     /// The task pid.
     pub pid: u32,
+
+    /// The inode number
+    pub inode: Option<u64>,
 }

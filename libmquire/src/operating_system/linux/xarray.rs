@@ -31,11 +31,6 @@ pub struct XArray {
 }
 
 impl XArray {
-    /// Returns the list of entries in the XArray
-    pub fn entries(&self) -> &[VirtualAddress] {
-        &self.entry_list
-    }
-
     /// Creates a new `XArray` parser instance
     pub fn new(
         readable: &dyn Readable,
@@ -80,6 +75,11 @@ impl XArray {
         }
 
         Ok(Self { entry_list })
+    }
+
+    /// Returns the list of entries in the XArray
+    pub fn entries(&self) -> &[VirtualAddress] {
+        &self.entry_list
     }
 
     /// Gets the number of slots in a xa_node

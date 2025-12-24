@@ -31,10 +31,11 @@ impl TablePlugin for TaskOpenFilesTablePlugin {
     fn schema(&self) -> BTreeMap<String, ColumnType> {
         let mut schema = BTreeMap::<String, ColumnType>::new();
 
-        schema.insert(String::from("pid"), ColumnType::String);
+        schema.insert(String::from("pid"), ColumnType::SignedInteger);
         schema.insert(String::from("virtual_address"), ColumnType::String);
         schema.insert(String::from("task"), ColumnType::String);
         schema.insert(String::from("path"), ColumnType::String);
+        schema.insert(String::from("inode"), ColumnType::SignedInteger);
 
         schema
     }
@@ -72,6 +73,13 @@ impl TablePlugin for TaskOpenFilesTablePlugin {
             row.insert(
                 String::from("path"),
                 Some(ColumnValue::String(task_open_file.path)),
+            );
+
+            row.insert(
+                String::from("inode"),
+                task_open_file
+                    .inode
+                    .map(|i| ColumnValue::SignedInteger(i as i64)),
             );
 
             row_list.push(row)
