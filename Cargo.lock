@@ -54,9 +54,9 @@ checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "btfparse"
-version = "1.3.6"
+version = "1.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c55bea4508bc6b6a1e60103270762587c389130c1e33daf28f70ef61c13585c6"
+checksum = "d7cab399cddea08bb657577282a6459c9c67a8e3dd74a72ef3f60b19d65fc272"
 
 [[package]]
 name = "bumpalo"
