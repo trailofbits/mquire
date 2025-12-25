@@ -15,7 +15,7 @@ edition = "2021"
 libmquire = { path = "../libmquire" }
 log = "0.4.29"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.145"
+serde_json = "1.0.147"
 chrono = { version = "0.4.42", features = ["clock"], default-features = false }
 
 [build-dependencies]
