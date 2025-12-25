@@ -21,6 +21,9 @@ use std::{
     sync::Arc,
 };
 
+/// Read buffer size for file extraction
+const READ_BUFFER_SIZE: usize = 4 * 1024 * 1024;
+
 /// Represents the state of a dumped file
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FileState {
@@ -114,6 +117,7 @@ fn dump_file(
 
     let reader = match os.get_file_reader(virtual_address) {
         Ok(reader) => reader,
+
         Err(e) => {
             log::error!("Failed to get file reader for {}: {:?}", file_path, e);
             return FileState::Error;
@@ -166,97 +170,122 @@ fn dump_file(
     let mut first_error = true;
     let mut current_file_offset: u64 = 0;
 
+    let mut buffer = vec![0u8; READ_BUFFER_SIZE];
+
     for region in &region_list {
-        let region_size = (region.end.value() - region.start.value()) as usize;
-        let mut buffer = vec![0u8; region_size];
-
+        let region_size = region.end.value() - region.start.value();
         let region_file_offset = region.start.value();
-        let region_file_end = region.end.value();
 
+        // Fill gap with zeros if needed
         if region_file_offset > current_file_offset {
             let gap_size =
                 (region_file_offset - current_file_offset).min(file_size - current_file_offset);
 
             if gap_size > 0 {
-                let zero_buffer = vec![0u8; gap_size as usize];
-                if let Err(e) = out_file.write_all(&zero_buffer) {
-                    log::error!("Failed to write gap padding for {}: {}", file_path, e);
-                    section_errors += 1;
+                let mut remaining = gap_size;
+                while remaining > 0 {
+                    let chunk_size = (remaining as usize).min(READ_BUFFER_SIZE);
+                    buffer[..chunk_size].fill(0);
+
+                    if let Err(e) = out_file.write_all(&buffer[..chunk_size]) {
+                        log::error!("Failed to write gap padding for {}: {}", file_path, e);
+                        section_errors += 1;
+                        break;
+                    }
+
+                    remaining -= chunk_size as u64;
                 }
 
                 current_file_offset += gap_size;
             }
         }
 
-        match reader.read(&mut buffer, region.start) {
-            Ok(bytes_read) => {
-                let bytes_to_write = if current_file_offset >= file_size {
-                    0
-                } else if region_file_end <= file_size {
-                    bytes_read
-                } else {
-                    let valid_bytes = file_size.saturating_sub(region_file_offset);
-                    (bytes_read as u64).min(valid_bytes) as usize
-                };
+        let mut region_offset = 0u64;
+        let mut region_had_error = false;
 
-                if bytes_read != region_size {
-                    if first_error {
-                        log::error!(
-                            "Partial read for {}: expected {} bytes, got {}",
-                            file_path,
-                            region_size,
-                            bytes_read
-                        );
-                        first_error = false;
-                    }
-                    section_errors += 1;
-                }
+        while region_offset < region_size {
+            let chunk_size = ((region_size - region_offset) as usize).min(READ_BUFFER_SIZE);
+            let chunk_address = region.start + region_offset;
 
-                match out_file.write_all(&buffer[..bytes_to_write]) {
-                    Ok(_) => {
-                        current_file_offset += bytes_to_write as u64;
-                    }
+            let bytes_to_process = if current_file_offset >= file_size {
+                0
+            } else {
+                let remaining_in_file = file_size.saturating_sub(current_file_offset);
+                (chunk_size as u64).min(remaining_in_file) as usize
+            };
 
-                    Err(e) => {
+            if bytes_to_process == 0 {
+                break;
+            }
+
+            match reader.read(&mut buffer[..chunk_size], chunk_address) {
+                Ok(bytes_read) => {
+                    if bytes_read != chunk_size && !region_had_error {
                         if first_error {
-                            log::error!("Failed to write region for {}: {}", file_path, e);
+                            log::error!(
+                                "Partial read for {}: expected {} bytes, got {}",
+                                file_path,
+                                chunk_size,
+                                bytes_read
+                            );
+
                             first_error = false;
                         }
+
                         section_errors += 1;
+                        region_had_error = true;
+                    }
+
+                    let bytes_to_write = bytes_read.min(bytes_to_process);
+                    match out_file.write_all(&buffer[..bytes_to_write]) {
+                        Ok(_) => {
+                            current_file_offset += bytes_to_write as u64;
+                        }
+
+                        Err(e) => {
+                            if first_error {
+                                log::error!("Failed to write region for {}: {}", file_path, e);
+                                first_error = false;
+                            }
+
+                            section_errors += 1;
+                            break;
+                        }
+                    }
+                }
+
+                Err(e) => {
+                    if !region_had_error {
+                        if first_error {
+                            log::error!("Failed to read region for {}: {:?}", file_path, e);
+                            first_error = false;
+                        }
+
+                        section_errors += 1;
+                        region_had_error = true;
+                    }
+
+                    buffer[..bytes_to_process].fill(0);
+                    if let Err(write_err) = out_file.write_all(&buffer[..bytes_to_process]) {
+                        if first_error {
+                            log::error!(
+                                "Failed to write zero-padded region for {}: {}",
+                                file_path,
+                                write_err
+                            );
+
+                            first_error = false;
+                        }
+
+                        section_errors += 1;
+                        break;
+                    } else {
+                        current_file_offset += bytes_to_process as u64;
                     }
                 }
             }
 
-            Err(e) => {
-                if first_error {
-                    log::error!("Failed to read region for {}: {:?}", file_path, e);
-                    first_error = false;
-                }
-                section_errors += 1;
-
-                let bytes_to_write = if current_file_offset >= file_size {
-                    0
-                } else if region_file_end <= file_size {
-                    region_size
-                } else {
-                    let valid_bytes = file_size.saturating_sub(region_file_offset);
-                    (region_size as u64).min(valid_bytes) as usize
-                };
-
-                if let Err(write_err) = out_file.write_all(&buffer[..bytes_to_write]) {
-                    if first_error {
-                        log::error!(
-                            "Failed to write zero-padded region for {}: {}",
-                            file_path,
-                            write_err
-                        );
-                        first_error = false;
-                    }
-                    section_errors += 1;
-                } else {
-                    current_file_offset += bytes_to_write as u64;
-                }
-            }
+            region_offset += chunk_size as u64;
         }
     }
 
