@@ -6,10 +6,22 @@
 # the LICENSE file found in the root directory of this source tree.
 #
 
-[workspace]
-resolver = "2"
-members = [
-    "libmquire",
-    "mq",
-    "mq-file-dump",
-]
+[package]
+name = "mquire"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+btfparse = "1.3.7"
+log = "0.4.29"
+memmap2 = "0.9"
+rayon = "1.11.0"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.147"
+chrono = { version = "0.4.42", features = ["clock"], default-features = false }
+clap = { version = "4.5", features = ["derive"] }
+thiserror = "2.0"
+
+[build-dependencies]
+cc = "1.2.50"
+bindgen = "0.72.1"

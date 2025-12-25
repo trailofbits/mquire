@@ -1,1 +1,1 @@
-mquire is a software for querying Linux memory dumps using SQL. It helps users easily find and understand data in memory dumps
+Memory forensics and analysis tool for querying Linux kernel memory dumps using SQL

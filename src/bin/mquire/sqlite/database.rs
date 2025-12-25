@@ -7,7 +7,7 @@
 //
 
 use crate::sqlite::{
-    error::{Error, ErrorKind, Result},
+    error::{Error, Result},
     libsqlite3::{
         self, sqlite3, sqlite3_close, sqlite3_create_module, sqlite3_module, sqlite3_open,
         sqlite3_vtab, SQLITE_DONE, SQLITE_ERROR, SQLITE_OK, SQLITE_ROW,
@@ -57,17 +57,11 @@ impl Database {
     pub fn new() -> Result<Self> {
         let mut sqlite: *mut sqlite3 = std::ptr::null_mut();
         let memory_database_name = CString::new(":memory:").map_err(|_| {
-            Error::new(
-                ErrorKind::InternalError,
-                "Failed to allocate the :memory: database name",
-            )
+            Error::Internal("Failed to allocate the :memory: database name".to_string())
         })?;
 
         if unsafe { sqlite3_open(memory_database_name.as_ptr(), &mut sqlite) as u32 } != SQLITE_OK {
-            return Err(Error::new(
-                ErrorKind::DatabaseCreationFailed,
-                "Failed to create the database",
-            ));
+            return Err(Error::DatabaseCreationFailed);
         }
 
         Ok(Self {
@@ -80,12 +74,8 @@ impl Database {
     pub fn query(&self, query: &str) -> Result<QueryData> {
         let mut stmt: *mut libsqlite3::sqlite3_stmt = std::ptr::null_mut();
 
-        let query_string = CString::new(query).map_err(|_| {
-            Error::new(
-                ErrorKind::InternalError,
-                "Failed to allocate the query string",
-            )
-        })?;
+        let query_string = CString::new(query)
+            .map_err(|_| Error::Internal("Failed to allocate the query string".to_string()))?;
 
         let query_string_size = query_string.as_bytes().len() as i32;
 
@@ -105,10 +95,9 @@ impl Database {
                 CStr::from_ptr(buffer).to_string_lossy().into_owned()
             };
 
-            return Err(Error::new(
-                ErrorKind::InvalidSqlStatement,
-                &format!("The sqlite library returned error {error} when trying to compile the following SQL statement: {query}. Error message: {error_message}"),
-            ));
+            return Err(Error::InvalidSqlStatement(format!(
+                "The sqlite library returned error {error} when trying to compile the following SQL statement: {query}. Error message: {error_message}"
+            )));
         }
 
         let column_count = unsafe { libsqlite3::sqlite3_column_count(stmt) } as usize;
@@ -127,12 +116,9 @@ impl Database {
                     CStr::from_ptr(buffer).to_string_lossy().into_owned()
                 };
 
-                return Err(Error::new(
-                    ErrorKind::TablePluginError,
-                    &format!(
-                        "The table plugin has failed to generate the next row. Error message: {error_message}",
-                    ),
-                ));
+                return Err(Error::TablePlugin(format!(
+                    "The table plugin has failed to generate the next row. Error message: {error_message}"
+                )));
             }
 
             let mut current_row = Row::new();
@@ -180,9 +166,8 @@ impl Database {
                     libsqlite3::SQLITE_NULL => None,
 
                     _ => {
-                        return Err(Error::new(
-                            ErrorKind::TablePluginError,
-                            "The table plugin has generated an invalid column type",
+                        return Err(Error::TablePlugin(
+                            "The table plugin has generated an invalid column type".to_string(),
                         ));
                     }
                 };
@@ -203,17 +188,11 @@ impl Database {
     /// Registers a new table plugin
     pub fn register_table_plugin(&mut self, table_plugin: Arc<dyn TablePlugin>) -> Result<()> {
         if self.table_plugin_map.contains_key(&table_plugin.name()) {
-            return Err(Error::new(
-                ErrorKind::DuplicatedTableName,
-                &format!("The table {} is already registered", table_plugin.name()),
-            ));
+            return Err(Error::DuplicatedTableName(table_plugin.name()));
         }
 
         let table_name = CString::new(table_plugin.name()).map_err(|_| {
-            Error::new(
-                ErrorKind::InvalidTablePluginName,
-                "The table plugin name is not valid",
-            )
+            Error::InvalidTablePluginName("The table plugin name is not valid".to_string())
         })?;
 
         let mut table_plugin_wrapper = Box::new(TablePluginWrapper {
@@ -231,13 +210,10 @@ impl Database {
             ) as u32
         } != SQLITE_OK
         {
-            return Err(Error::new(
-                ErrorKind::TablePluginRegistrationError,
-                &format!(
-                    "The table plugin {} could not be registered",
-                    table_plugin.name()
-                ),
-            ));
+            return Err(Error::TablePluginRegistration(format!(
+                "The table plugin {} could not be registered",
+                table_plugin.name()
+            )));
         }
 
         self.table_plugin_map
@@ -315,10 +291,7 @@ fn generate_create_table_statement(table_plugin: &dyn TablePlugin) -> Result<CSt
         column_declarations
     ))
     .map_err(|_| {
-        Error::new(
-            ErrorKind::InternalError,
-            "Failed to allocate the string for the CREATE TABLE statemenet",
-        )
+        Error::Internal("Failed to allocate the string for the CREATE TABLE statemenet".to_string())
     })
 }
 
@@ -635,10 +608,7 @@ mod tests {
 
         fn generate(&self) -> Result<RowList> {
             if self.return_error {
-                return Err(Error::new(
-                    ErrorKind::TablePluginError,
-                    "Custom error message",
-                ));
+                return Err(Error::TablePlugin("Custom error message".to_string()));
             }
 
             let mut row = Row::new();
@@ -686,7 +656,7 @@ mod tests {
 
         let mut database = Database::new().unwrap();
         let error = database.query("SELECT * FROM test_table").unwrap_err();
-        assert_eq!(error.kind(), ErrorKind::InvalidSqlStatement);
+        assert!(matches!(error, Error::InvalidSqlStatement(_)));
 
         database
             .register_table_plugin(table_plugin.clone())
@@ -723,14 +693,14 @@ mod tests {
 
         let mut database = Database::new().unwrap();
         let error = database.query("SELECT * FROM test_table").unwrap_err();
-        assert_eq!(error.kind(), ErrorKind::InvalidSqlStatement);
+        assert!(matches!(error, Error::InvalidSqlStatement(_)));
 
         database
             .register_table_plugin(table_plugin.clone())
             .expect("Failed to register the table plugin");
 
         let error = database.query("SELECT * FROM test_table").unwrap_err();
-        assert_eq!(error.kind(), ErrorKind::TablePluginError);
-        assert!(error.message().contains("Custom error message"));
+        assert!(matches!(error, Error::TablePlugin(_)));
+        assert!(error.to_string().contains("Custom error message"));
     }
 }

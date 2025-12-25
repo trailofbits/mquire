@@ -15,7 +15,7 @@ if(NOT EXISTS "${MQUIRE_REPOSITORY_PATH}/Cargo.toml")
 endif()
 
 execute_process(
-  COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_version.sh" "${MQUIRE_REPOSITORY_PATH}/mq/Cargo.toml"
+  COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_version.sh" "${MQUIRE_REPOSITORY_PATH}/Cargo.toml"
   OUTPUT_VARIABLE MQUIRE_VERSION
   COMMAND_ERROR_IS_FATAL ANY
 )
@@ -28,7 +28,7 @@ list(GET MQUIRE_VERSION_COMPONENTS 1 CPACK_PACKAGE_VERSION_MINOR)
 list(GET MQUIRE_VERSION_COMPONENTS 2 CPACK_PACKAGE_VERSION_PATCH)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/description.txt" CPACK_PACKAGE_DESCRIPTION_SUMMARY)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "mquire is a Linux memory dump analyzer.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Memory forensics and analysis tool for querying Linux kernel memory dumps using SQL")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
 
 set(CPACK_PACKAGE_NAME "mquire")
@@ -74,28 +74,21 @@ include(CPack)
 
 if(UNIX)
   if(APPLE)
-    set(mq_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mq")
-    set(mq_file_dump_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mq-file-dump")
+    set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mquire")
   else()
-    set(mq_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mq")
-    set(mq_file_dump_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mq-file-dump")
+    set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mquire")
   endif()
 else()
   message(FATAL_ERROR "MQUIRE - Currently, only Linux and macOS operating systems are supported")
 endif()
 
-if(NOT EXISTS "${mq_executable_path}")
-    message(FATAL_ERROR "The mq binary was not found. Expected path: ${mq_executable_path}")
-endif()
-
-if(NOT EXISTS "${mq_file_dump_executable_path}")
-    message(FATAL_ERROR "The mq-file-dump binary was not found. Expected path: ${mq_file_dump_executable_path}")
+if(NOT EXISTS "${mquire_executable_path}")
+    message(FATAL_ERROR "The mquire binary was not found. Expected path: ${mquire_executable_path}")
 endif()
 
 install(
   FILES
-    "${mq_executable_path}"
-    "${mq_file_dump_executable_path}"
+    "${mquire_executable_path}"
 
   DESTINATION
     "bin"
