@@ -28,6 +28,9 @@ use std::{collections::BTreeMap, ops::Range, sync::Arc};
 /// Standard page size
 const PAGE_SIZE: u64 = 4096;
 
+/// Max amount of pages per folio structure
+const MAX_FOLIO_PAGES: u64 = 512;
+
 /// Implements reading from a Linux file object in memory
 pub(super) struct ReadableLinuxFileObject {
     /// Underlying memory dump
@@ -81,7 +84,6 @@ impl ReadableLinuxFileObject {
         let page_struct_size = type_information.size_of(page_tid)? as u64;
         let file = VirtualStruct::from_name(&vmem_reader, type_information, "file", &file_vaddr)?;
 
-        // Parse the XArray to get all cached pages
         let inode = file.traverse("f_inode")?.dereference()?;
         let file_size = inode.traverse("i_size")?.read_u64()?;
         let i_pages_vaddr = inode
@@ -110,8 +112,18 @@ impl ReadableLinuxFileObject {
                     .and_then(|field| field.read_u32())
                     .unwrap_or(1) as u64;
 
-                for i in 0..nr_pages {
-                    cached_page_map.insert(page_index + i, page_vaddr);
+                if nr_pages > MAX_FOLIO_PAGES {
+                    log::error!(
+                        "  Folio has suspicious page count: {} (max: {}), treating as single page",
+                        nr_pages,
+                        MAX_FOLIO_PAGES
+                    );
+
+                    cached_page_map.insert(page_index, page_vaddr);
+                } else {
+                    for i in 0..nr_pages {
+                        cached_page_map.insert(page_index + i, page_vaddr);
+                    }
                 }
             } else if let Ok(page) =
                 VirtualStruct::from_name(&vmem_reader, type_information, "page", &page_vaddr)
