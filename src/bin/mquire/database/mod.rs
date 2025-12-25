@@ -20,7 +20,8 @@ use crate::{
     },
     sqlite::{
         database::{Database as SqliteDatabase, QueryData},
-        error::{Error, ErrorKind, Result},
+        error::{Error, Result},
+        table_plugin::ColumnType,
     },
 };
 
@@ -49,9 +50,8 @@ impl Database {
             Some("lime") => LimeSnapshot::new(memory_dump_path)?,
 
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InternalError,
-                    "Unsupported memory dump format",
+                return Err(Error::Internal(
+                    "Unsupported memory dump format".to_string(),
                 ));
             }
         };
@@ -84,12 +84,8 @@ impl Database {
     /// Executes the given SQL query, returning serialized JSON
     pub fn json(&self, query: &str) -> Result<String> {
         let query_data = self.sqlite_db.query(query)?;
-        let json_query_data = serde_json::to_string_pretty(&query_data).map_err(|error| {
-            Error::new(
-                ErrorKind::InternalError,
-                &format!("JSON serialization error: {error:?}"),
-            )
-        })?;
+        let json_query_data = serde_json::to_string_pretty(&query_data)
+            .map_err(|error| Error::Internal(format!("JSON serialization error: {error:?}")))?;
 
         Ok(json_query_data)
     }
@@ -103,7 +99,7 @@ impl Database {
     pub fn get_table_schema(
         &self,
         table_name: &str,
-    ) -> Option<std::collections::BTreeMap<String, crate::sqlite::table_plugin::ColumnType>> {
+    ) -> Option<std::collections::BTreeMap<String, ColumnType>> {
         self.sqlite_db.get_table_schema(table_name)
     }
 }

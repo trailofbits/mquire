@@ -188,7 +188,7 @@ impl Readable for ReadableLinuxFileObject {
         Ok(total_bytes_read)
     }
 
-    fn len(&self) -> crate::memory::error::Result<u64> {
+    fn len(&self) -> MemoryResult<u64> {
         Ok(self.file_size)
     }
 

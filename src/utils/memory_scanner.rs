@@ -162,7 +162,10 @@ mod tests {
     use super::*;
 
     use crate::{
-        core::architecture::{Architecture, Bitness, Endianness, PhysicalAddressRange, Region},
+        core::{
+            architecture::{Architecture, Bitness, Endianness, PhysicalAddressRange, Region},
+            error::Result as CoreResult,
+        },
         memory::{
             error::Result,
             primitives::{PhysicalAddress, RawVirtualAddress},
@@ -185,8 +188,8 @@ mod tests {
         fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize> {
             let offset = physical_address.value() as usize;
             if offset >= self.data.len() {
-                return Err(crate::memory::error::Error::new(
-                    crate::memory::error::ErrorKind::IOError,
+                return Err(Error::new(
+                    ErrorKind::IOError,
                     "Read beyond end of mock memory",
                 ));
             }
@@ -226,15 +229,12 @@ mod tests {
 
             // If read starts in the hole, error immediately
             if offset >= self.hole_start && offset < self.hole_end {
-                return Err(crate::memory::error::Error::new(
-                    crate::memory::error::ErrorKind::IOError,
-                    "Read in memory hole",
-                ));
+                return Err(Error::new(ErrorKind::IOError, "Read in memory hole"));
             }
 
             if offset >= self.data.len() {
-                return Err(crate::memory::error::Error::new(
-                    crate::memory::error::ErrorKind::IOError,
+                return Err(Error::new(
+                    ErrorKind::IOError,
                     "Read beyond end of mock memory",
                 ));
             }
@@ -268,7 +268,7 @@ mod tests {
             &self,
             _readable: &dyn Readable,
             virtual_address: VirtualAddress,
-        ) -> crate::core::error::Result<PhysicalAddressRange> {
+        ) -> CoreResult<PhysicalAddressRange> {
             let phys_addr = PhysicalAddress::from(virtual_address.value().value());
 
             Ok(PhysicalAddressRange::new(
@@ -290,7 +290,7 @@ mod tests {
             _readable: &dyn Readable,
             _physical_address: PhysicalAddress,
             _raw_virtual_address: RawVirtualAddress,
-        ) -> crate::core::error::Result<PhysicalAddress> {
+        ) -> CoreResult<PhysicalAddress> {
             unimplemented!("Not needed for tests")
         }
 
@@ -298,7 +298,7 @@ mod tests {
             &self,
             _readable: &dyn Readable,
             _root_page_table: PhysicalAddress,
-        ) -> crate::core::error::Result<Vec<Region>> {
+        ) -> CoreResult<Vec<Region>> {
             unimplemented!("Not needed for tests")
         }
     }
@@ -412,7 +412,7 @@ mod tests {
 
         assert!(result.is_err());
         if let Err(err) = result {
-            assert_eq!(err.kind(), crate::memory::error::ErrorKind::IOError);
+            assert_eq!(err.kind(), ErrorKind::IOError);
             assert_eq!(err.message(), "Pattern cannot be empty");
         }
     }

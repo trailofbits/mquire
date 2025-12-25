@@ -15,6 +15,7 @@ use crate::{
         operating_system::LinuxOperatingSystem,
         virtual_struct::VirtualStruct,
     },
+    try_chain,
 };
 
 use {btfparse::TypeInformation, log::debug};
@@ -106,7 +107,7 @@ impl LinuxOperatingSystem {
             )
             .inspect_err(|err| debug!("{err:?}"))?;
 
-            match crate::try_chain!(task_struct.traverse("mm")?.read_vaddr()) {
+            match try_chain!(task_struct.traverse("mm")?.read_vaddr()) {
                 Ok(mm_virtual_address) => {
                     if mm_virtual_address.is_null() {
                         continue;
@@ -119,17 +120,14 @@ impl LinuxOperatingSystem {
                 }
             };
 
-            let mm_mt = match crate::try_chain!(task_struct
-                .traverse("mm")?
-                .dereference()?
-                .traverse("mm_mt"))
-            {
-                Ok(obj) => obj,
-                Err(err) => {
-                    debug!("{err:?}");
-                    continue;
-                }
-            };
+            let mm_mt =
+                match try_chain!(task_struct.traverse("mm")?.dereference()?.traverse("mm_mt")) {
+                    Ok(obj) => obj,
+                    Err(err) => {
+                        debug!("{err:?}");
+                        continue;
+                    }
+                };
 
             let maple_tree = MapleTree::<VmAreaStruct>::new(
                 self.memory_dump.as_ref(),

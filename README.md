@@ -39,7 +39,7 @@ The Kallsyms scanner depends on the data format from `scripts/kallsyms.c` in the
 
 ### Tables
 
-mq provides SQL tables to query different aspects of the system or the state of the tool itself:
+mquire provides SQL tables to query different aspects of the system or the state of the tool itself:
 
 #### System information
 
@@ -73,9 +73,13 @@ mq provides SQL tables to query different aspects of the system or the state of 
 
 - **log_messages** - Internal mquire logs showing analysis progress, warnings, and errors
 
-### Tools
+## Commands
 
-- **mq-file-dump** - Extract files from the kernel's file cache to recover files directly from memory. Currently works with files opened through file descriptors (from the process file descriptor table). Does not yet support extracting data from memory-mapped files.
+mquire provides three main commands:
+
+- **`mquire shell`** - Start an interactive SQL shell to query memory snapshots
+- **`mquire query`** - Execute a single SQL query and output results (supports JSON or table format)
+- **`mquire dump`** - Extract files from the kernel's file cache to recover files directly from memory. Currently works with files opened through file descriptors (from the process file descriptor table). Does not yet support extracting data from memory-mapped files.
 
 ## Use cases
 
@@ -85,7 +89,7 @@ mquire is designed for:
 - **Incident response** - Quickly query memory dumps to find evidence of malicious activity
 - **Security research** - Study kernel internals and process behavior from memory snapshots
 - **Malware analysis** - Examine running processes and their file operations without detection
-- **Custom tooling** - Build your own analysis tools using the **libmquire** library, which provides a reusable API for kernel memory analysis
+- **Custom tooling** - Build your own analysis tools using the **mquire** library crate, which provides a reusable API for kernel memory analysis
 
 ## Building and installation
 
@@ -109,9 +113,8 @@ cd mquire
 # Build the project
 cargo build --release
 
-# The binaries will be in target/release/
-# - mq: Main query tool
-# - mq-file-dump: File extraction tool
+# The binary will be in target/release/
+# - mquire: Unified tool with shell, query, and dump commands
 ```
 
 ## Acquiring a memory snapshot
@@ -121,66 +124,73 @@ cargo build --release
 
 ## Getting started
 
-Once you have a memory snapshot, you can query it using SQL:
+Once you have a memory snapshot, you can query it using SQL. mquire provides three ways to interact with snapshots:
 
-### Basic SQLite commands
+### Interactive shell
 
-#### Discovering available tables
-
-There is no hosted table list yet, but you can easily discover what's available from the command line using the following queries:
+Start an interactive SQL shell:
 
 ```bash
-# List all available tables
-mq /path/to/memory.raw '.tables'
+mquire shell /path/to/memory.raw
 ```
 
+This opens a prompt where you can run queries interactively:
+
 ```bash
-# Show the schema of a specific table
-mq /path/to/memory.raw '.schema tasks'
+mquire> .tables              # List all available tables
+mquire> .schema tasks        # Show schema for a specific table
+mquire> SELECT * FROM tasks; # Run SQL queries
+mquire> .exit                # Exit the shell
+```
+
+### One-off queries
+
+Execute a single query from the command line:
+
+```bash
+# Output as JSON (default)
+mquire query /path/to/memory.raw "SELECT * FROM os_version"
+
+# Output as table format
+mquire query /path/to/memory.raw "SELECT * FROM tasks" --format table
+
+# Special commands work too
+mquire query /path/to/memory.raw ".tables"
+mquire query /path/to/memory.raw ".schema tasks"
+```
+
+### File extraction
+
+Extract files from memory to disk:
+
+```bash
+mquire dump /path/to/memory.raw /output/directory
 ```
 
 ### Example queries
 
-All other queries use standard SQL syntax.
+All queries use standard SQL syntax.
 
 #### System version
 
-```sql
-SELECT * FROM os_version;
-```
-
 ```bash
-$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
-Enter a query (or type '.exit' to quit)
+$ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT * FROM os_version;
 arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2"
 ```
 
 #### System information
 
-```sql
-SELECT * FROM system_info;
-```
-
 ```bash
-$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
-Enter a query (or type '.exit' to quit)
+$ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT * FROM system_info;
 domain:"(none)" hostname:"ubuntu2404"
 ```
 
 #### Running tasks
 
-```sql
-SELECT
-  comm, binary_path, command_line
-FROM tasks
-WHERE command_line NOT NULL AND comm LIKE "%systemd%";
-```
-
 ```bash
-$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
-Enter a query (or type '.exit' to quit)
+$ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT comm, binary_path, command_line FROM tasks WHERE command_line NOT NULL AND comm LIKE "%systemd%";
 comm:"systemd" binary_path:"/usr/lib/systemd/systemd" command_line:"/sbin/init splash"
 comm:"systemd-oomd" binary_path:"/usr/lib/systemd/systemd-oomd" command_line:"/usr/lib/systemd/systemd-oomd"
@@ -194,18 +204,8 @@ comm:"systemd-timesyn" binary_path:"/usr/lib/systemd/systemd-timesyncd" command_
 
 #### Connections
 
-```sql
-SELECT
-  t.pid, t.comm, nc.local_address, nc.local_port,
-  nc.remote_address, nc.remote_port, nc.state, nc.protocol
-FROM network_connections nc
-JOIN task_open_files tof ON nc.inode = tof.inode
-JOIN tasks t ON tof.pid = t.pid;
-```
-
 ```bash
-$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
-Enter a query (or type '.exit' to quit)
+$ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT t.pid, t.comm, nc.local_address, nc.local_port, nc.remote_address, nc.remote_port, nc.state, nc.protocol FROM network_connections nc JOIN task_open_files tof ON nc.inode = tof.inode JOIN tasks t ON tof.pid = t.pid;
 pid:"1134" comm:"sshd" local_address:"::" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
 pid:"1134" comm:"sshd" local_address:"0.0.0.0" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
@@ -217,16 +217,8 @@ pid:"1117" comm:"cupsd" local_address:"::1" local_port:"631" remote_address:"<nu
 
 #### Task open files
 
-```sql
-SELECT path
-FROM task_open_files
-WHERE path LIKE '%firefox%'
-LIMIT 10;
-```
-
 ```bash
-$ mq /home/alessandro/Documents/snapshots/Linux/ubuntu2404_6.14.0-37-generic.lime
-Enter a query (or type '.exit' to quit)
+$ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT path FROM task_open_files WHERE path LIKE '%firefox%' LIMIT 10;
 path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/cookies.sqlite"
 path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/.parentlock"
@@ -238,6 +230,44 @@ path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/sto
 path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/scriptCache-current.bin"
 path:"/usr/lib/firefox/browser/features/formautofill@mozilla.org.xpi"
 path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/extensions/uBlock0@raymondhill.net.xpi"
+```
+
+#### One-off queries
+
+##### JSON output (default)
+
+```bash
+$ mquire query --format=json ubuntu2404_6.14.0-37-generic.lime "SELECT * FROM os_version"
+[
+  {
+    "arch": "x86_64",
+    "kernel_version": "6.14.0-37-generic",
+    "system_version": "#37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2"
+  }
+]
+```
+
+##### Table output
+
+```bash
+$ mquire query --format=table ubuntu2404_6.14.0-37-generic.lime "SELECT * FROM os_version"
+arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2"
+```
+
+#### Extract files from memory
+
+```bash
+$ mquire dump ubuntu2404_6.14.0-37-generic.lime ./extracted_files
+Opening memory dump: ubuntu2404_6.14.0-37-generic.lime
+Initializing Linux operating system analyzer...
+Getting task open file list...
+Found 1234 open files
+
+Summary:
+  Total files found: 1234
+  Successfully dumped: 1156
+  Skipped: 45
+  Errors: 33
 ```
 
 ## Contributing

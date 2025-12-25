@@ -6,8 +6,6 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-mod logger;
-
 use mquire::{
     architecture::intel::architecture::IntelArchitecture,
     core::operating_system::OperatingSystem,
@@ -17,7 +15,6 @@ use mquire::{
 };
 
 use std::{
-    env,
     fs::{self, File},
     io::{self, Write},
     path::{Path, PathBuf},
@@ -173,11 +170,9 @@ fn dump_file(
         let region_size = (region.end.value() - region.start.value()) as usize;
         let mut buffer = vec![0u8; region_size];
 
-        // region.start is the file offset (page_index * PAGE_SIZE)
         let region_file_offset = region.start.value();
         let region_file_end = region.end.value();
 
-        // If there's a gap between current position and this region, fill with zeros
         if region_file_offset > current_file_offset {
             let gap_size =
                 (region_file_offset - current_file_offset).min(file_size - current_file_offset);
@@ -195,20 +190,15 @@ fn dump_file(
 
         match reader.read(&mut buffer, region.start) {
             Ok(bytes_read) => {
-                // Calculate how many bytes from this region are actually part of the file
                 let bytes_to_write = if current_file_offset >= file_size {
-                    // We've already written the entire file
                     0
                 } else if region_file_end <= file_size {
-                    // Entire region is within the file
                     bytes_read
                 } else {
-                    // Region partially overlaps with file end
                     let valid_bytes = file_size.saturating_sub(region_file_offset);
                     (bytes_read as u64).min(valid_bytes) as usize
                 };
 
-                // Check if we read the expected amount
                 if bytes_read != region_size {
                     if first_error {
                         log::error!(
@@ -244,7 +234,6 @@ fn dump_file(
                 }
                 section_errors += 1;
 
-                // Calculate how many bytes we should write (zero-padded)
                 let bytes_to_write = if current_file_offset >= file_size {
                     0
                 } else if region_file_end <= file_size {
@@ -279,7 +268,7 @@ fn dump_file(
 }
 
 /// Dumps all open files from the memory dump to the output directory
-fn dump_task_open_files(memory_dump_path: &Path, output_dir: &Path) -> io::Result<()> {
+pub fn dump_files(memory_dump_path: &Path, output_dir: &Path) -> io::Result<()> {
     log::info!("Opening memory dump: {}", memory_dump_path.display());
 
     let memory_dump: Arc<dyn Readable> =
@@ -355,34 +344,4 @@ fn dump_task_open_files(memory_dump_path: &Path, output_dir: &Path) -> io::Resul
     }
 
     Ok(())
-}
-
-fn main() -> io::Result<()> {
-    logger::Logger::initialize();
-
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: {} <memory_dump.bin> <output_directory>\n", args[0]);
-
-        eprintln!("Dumps all open files from a Linux memory dump to disk.");
-        eprintln!("Files are organized by PID in the output directory.");
-
-        return Ok(());
-    }
-
-    let memory_dump_path = Path::new(&args[1]);
-    if !memory_dump_path.exists() {
-        eprintln!(
-            "Error: Memory dump file does not exist: {}",
-            memory_dump_path.display()
-        );
-
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Memory dump not found",
-        ));
-    }
-
-    let output_dir = Path::new(&args[2]);
-    dump_task_open_files(memory_dump_path, output_dir)
 }
