@@ -56,10 +56,6 @@ mquire provides SQL tables to query different aspects of the system or the state
 - **cgroups** - Control groups for processes
 - **memory_mappings** - Memory regions mapped by each process
 
-#### Kernel modules
-
-- **mod** - Loaded kernel modules with their addresses and sizes
-
 #### Network information
 
 - **network_connections** - Active network connections (TCP sockets)
