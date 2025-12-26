@@ -21,6 +21,7 @@ serde_json = "1.0.147"
 chrono = { version = "0.4.42", features = ["clock"], default-features = false }
 clap = { version = "4.5", features = ["derive"] }
 thiserror = "2.0"
+rustyline = { version = "17.0.2", default-features = false }
 
 [build-dependencies]
 cc = "1.2.50"
