@@ -159,6 +159,108 @@ mquire query /path/to/memory.raw ".tables"
 mquire query /path/to/memory.raw ".schema tasks"
 ```
 
+## Query Optimization
+
+**mquire queries require reconstructing kernel data structures from virtual memory by dereferencing pointers using embedded type information and debug symbols. This processing can be expensive, so use query optimization techniques to improve performance dramatically.**
+
+### Materialization with `AS MATERIALIZED`
+
+Use the `AS MATERIALIZED` hint to cache table results when tables are used in JOINs or accessed multiple times.
+
+**When to materialize:**
+- Tables that are expensive to generate (e.g., `tasks` requires walking linked lists of process structures, dereferencing multiple pointers per process)
+- Tables used in JOINs (accessed multiple times during query execution)
+- Tables referenced multiple times in the same query
+
+**Example:**
+
+```sql
+WITH
+  tasks_mat AS MATERIALIZED (
+    SELECT * FROM tasks
+  ),
+
+  network_connections_mat AS MATERIALIZED (
+    SELECT * FROM network_connections
+  ),
+
+  task_open_files_mat AS MATERIALIZED (
+    SELECT * FROM task_open_files
+  )
+
+SELECT
+  t.pid,
+  t.comm,
+  nc.local_address,
+  nc.local_port,
+  nc.remote_address,
+  nc.remote_port,
+  nc.state,
+  nc.protocol
+FROM network_connections_mat nc
+JOIN task_open_files_mat tof ON nc.inode = tof.inode
+JOIN tasks_mat t ON tof.pid = t.pid;
+```
+
+**Performance impact:** Materialization can provide significant speedup for queries with JOINs (typically 2-5x faster)
+
+**Example benchmark results:**
+
+*Test performed on an Ubuntu 24.04 snapshot (kernel 6.8.0-63), 351 processes, 50 connections, 2142 open files. Performance will vary based on snapshot size, kernel version, and hardware.*
+
+| Method | Real Time | User Time | Speedup |
+|--------|-----------|-----------|---------|
+| WITHOUT materialization | 12.067s | 16.373s | baseline |
+| WITH materialization | 3.171s | 8.786s | **3.8x faster** |
+
+### JOIN Order Optimization
+
+**Start with the smallest table and JOIN toward larger tables** to minimize rows processed early in the query pipeline.
+
+**Typical table sizes:**
+- `network_connections`: smallest - only processes with network activity
+- `tasks`: medium - all processes
+- `task_open_files`: largest - all open file descriptors
+
+**Optimal order:**
+```sql
+-- Good: Starts with smallest table
+FROM network_connections_mat nc           -- ~50 rows
+JOIN task_open_files_mat tof ON ...      -- ~2000 rows
+JOIN tasks_mat t ON ...                   -- ~350 rows
+
+-- Less optimal: Starts with larger table
+FROM task_open_files_mat tof             -- ~2000 rows
+JOIN network_connections_mat nc ON ...    -- ~50 rows
+JOIN tasks_mat t ON ...                   -- ~350 rows
+```
+
+### Understanding Query Execution
+
+Use `EXPLAIN QUERY PLAN` to see how SQLite executes your query:
+
+```sql
+EXPLAIN QUERY PLAN
+SELECT ...
+FROM network_connections_mat nc
+JOIN task_open_files_mat tof ON nc.inode = tof.inode
+JOIN tasks_mat t ON tof.pid = t.pid;
+```
+
+Look for:
+- **BLOOM FILTER**: SQLite's optimization for large JOINs
+- **AUTOMATIC COVERING INDEX**: Temporary indexes created for lookups
+- **SCAN**: Full table scan (expected for the driving table)
+- **SEARCH**: Index-based lookup (efficient)
+
+### Best Practices
+
+1. **Always materialize expensive tables** used in JOINs
+2. **Start with the smallest table** as your driving table
+3. **Use multiline SQL** in scripts for readability
+4. **Check query plans** with `EXPLAIN QUERY PLAN` for complex queries
+5. **Avoid `SELECT *`** in production - specify only needed columns
+
 ### File extraction
 
 Extract files from memory to disk:
@@ -216,9 +318,11 @@ comm:"systemd-timesyn" binary_path:"/usr/lib/systemd/systemd-timesyncd" command_
 
 #### Connections
 
+Note: This query uses materialization for better performance (see [Query Optimization](#query-optimization) section).
+
 ```bash
 $ mquire shell ubuntu2404_6.14.0-37-generic.lime
-mquire> SELECT t.pid, t.comm, nc.local_address, nc.local_port, nc.remote_address, nc.remote_port, nc.state, nc.protocol FROM network_connections nc JOIN task_open_files tof ON nc.inode = tof.inode JOIN tasks t ON tof.pid = t.pid;
+mquire> WITH tasks_mat AS MATERIALIZED (SELECT * FROM tasks), network_connections_mat AS MATERIALIZED (SELECT * FROM network_connections), task_open_files_mat AS MATERIALIZED (SELECT * FROM task_open_files) SELECT t.pid, t.comm, nc.local_address, nc.local_port, nc.remote_address, nc.remote_port, nc.state, nc.protocol FROM network_connections_mat nc JOIN task_open_files_mat tof ON nc.inode = tof.inode JOIN tasks_mat t ON tof.pid = t.pid;
 pid:"1134" comm:"sshd" local_address:"::" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
 pid:"1134" comm:"sshd" local_address:"0.0.0.0" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
 pid:"1117" comm:"cupsd" local_address:"127.0.0.1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
