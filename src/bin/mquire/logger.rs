@@ -6,9 +6,9 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::sync::{Mutex, OnceLock};
-
 use chrono::Utc;
+
+use std::sync::{Mutex, OnceLock};
 
 /// The global logger instance
 static LOGGER: OnceLock<Logger> = OnceLock::new();

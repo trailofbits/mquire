@@ -38,7 +38,7 @@ pub trait ListValue: Sized {
 }
 
 /// The type of linked list structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum ListType {
     /// Hash list - singly-linked list with only 'next' pointer
     HList,
@@ -153,58 +153,76 @@ impl<T: ListValue> ListBuilder<T> {
             ListType::DoublyLinked => "list_head",
         };
 
-        let mut current_node_vaddr = start_node_vaddr;
-        let mut visited_raw_addr_set = BTreeSet::new();
-
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
         let mut entry_list = Vec::new();
 
-        while visited_raw_addr_set.insert(current_node_vaddr.value()) {
-            if current_node_vaddr.is_null() {
-                break;
-            }
+        let mut next_address_queue = vec![start_node_vaddr];
+        let mut visited_raw_addr_set = BTreeSet::new();
 
-            let current_node_raw_addr = &current_node_vaddr.value();
-            if current_node_raw_addr.value() & 1 != 0 {
-                break;
-            }
+        while !next_address_queue.is_empty() {
+            let address_queue = next_address_queue;
+            next_address_queue = Vec::new();
 
-            let current_value_vaddr = current_node_vaddr - node_offset;
-
-            match T::from_vaddr(
-                readable,
-                architecture,
-                type_information,
-                current_value_vaddr,
-            ) {
-                Ok(value) => {
-                    entry_list.push(value);
+            for address in address_queue {
+                if address.is_null() {
+                    continue;
                 }
 
-                Err(err) => {
-                    debug!(
-                        "Failed to parse List value at {:?}: {err:?}",
-                        current_value_vaddr
-                    );
+                let current_node_raw_addr = &address.value();
+                if current_node_raw_addr.value() & 1 != 0 {
+                    continue;
+                }
+
+                if !visited_raw_addr_set.insert(address.value()) {
+                    continue;
+                }
+
+                let current_value_vaddr = address - node_offset;
+
+                match T::from_vaddr(
+                    readable,
+                    architecture,
+                    type_information,
+                    current_value_vaddr,
+                ) {
+                    Ok(value) => {
+                        entry_list.push(value);
+                    }
+
+                    Err(err) => {
+                        debug!(
+                            "Failed to parse List value at {:?}: {err:?}",
+                            current_value_vaddr
+                        );
+                    }
+                }
+
+                let list_node = match VirtualStruct::from_name(
+                    &vmem_reader,
+                    type_information,
+                    node_struct_name,
+                    &address,
+                ) {
+                    Ok(n) => n,
+                    Err(_) => break,
+                };
+
+                let path_list = match self.list_type {
+                    ListType::HList => vec!["next"],
+                    ListType::DoublyLinked => vec!["next", "prev"],
+                };
+
+                for path in path_list {
+                    let discovered_address = list_node
+                        .traverse(path)
+                        .and_then(|f| f.read_vaddr())
+                        .unwrap_or_else(|_| {
+                            VirtualAddress::new(kernel_page_table, RawVirtualAddress::new(0))
+                        });
+
+                    next_address_queue.push(discovered_address);
                 }
             }
-
-            let list_node = match VirtualStruct::from_name(
-                &vmem_reader,
-                type_information,
-                node_struct_name,
-                &current_node_vaddr,
-            ) {
-                Ok(n) => n,
-                Err(_) => break,
-            };
-
-            current_node_vaddr = list_node
-                .traverse("next")
-                .and_then(|f| f.read_vaddr())
-                .unwrap_or_else(|_| {
-                    VirtualAddress::new(kernel_page_table, RawVirtualAddress::new(0))
-                });
         }
 
         Ok(List { entry_list })

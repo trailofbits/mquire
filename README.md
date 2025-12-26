@@ -56,6 +56,10 @@ mquire provides SQL tables to query different aspects of the system or the state
 - **cgroups** - Control groups for processes
 - **memory_mappings** - Memory regions mapped by each process
 
+#### Kernel modules
+
+- **kernel_modules** - Loaded kernel modules with metadata (name, state, version, parameters, taint flags)
+
 #### Network information
 
 - **network_connections** - Active network connections (TCP sockets)
@@ -181,6 +185,17 @@ arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubu
 $ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT * FROM system_info;
 domain:"(none)" hostname:"ubuntu2404"
+```
+
+#### Kernel modules
+
+```bash
+mquire> SELECT name, state, src_version, parameters FROM kernel_modules LIMIT 5;
+name:"snd_seq_dummy" state:"live" src_version:"7A40E0FD47A0746D1C9CD85" parameters:"ump (perm: 0o444), duplex (perm: 0o444), ports (perm: 0o444)" 
+name:"snd_hrtimer" state:"live" src_version:"81EE6D58896E2C2E63E252D" parameters:"<null>" 
+name:"qrtr" state:"live" src_version:"473C5AB47E04ECEA0106681" parameters:"<null>" 
+name:"virtio_rng" state:"live" src_version:"0852940240D554836D22CB2" parameters:"<null>" 
+name:"intel_rapl_msr" state:"live" src_version:"34853C4F5EB8FCAD28ACFB3" parameters:"<null>" 
 ```
 
 #### Running tasks

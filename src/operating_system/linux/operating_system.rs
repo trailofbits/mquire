@@ -11,6 +11,7 @@ mod cgroup;
 mod dmesg;
 mod file;
 mod kallsyms_symbol;
+mod kernel_module;
 mod memory_mapping;
 mod network_connection;
 mod network_interface;
@@ -172,6 +173,13 @@ impl LinuxOperatingSystem {
     /// Returns the list of network connections
     pub fn get_network_connection_list(&self) -> Result<Vec<NetworkConnection>> {
         self.get_network_connection_list_impl()
+    }
+
+    /// Returns the list of loaded kernel modules
+    pub fn get_kernel_module_list(
+        &self,
+    ) -> Result<Vec<crate::operating_system::linux::entities::kernel_module::KernelModule>> {
+        self.get_kernel_module_list_impl()
     }
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols

@@ -14,8 +14,10 @@ mod shell;
 mod sqlite;
 mod utils;
 
-use clap::{Parser, Subcommand};
 use database::Database;
+
+use clap::{Parser, Subcommand};
+
 use std::{io, path::PathBuf};
 
 #[derive(Parser)]
