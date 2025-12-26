@@ -11,7 +11,9 @@ use crate::{
     utils::{display_query_data, display_table_schema},
 };
 
-use std::io::{self, Write};
+use rustyline::DefaultEditor;
+
+use std::io;
 
 pub fn run_interactive_shell(database: &Database) -> io::Result<()> {
     println!("mquire interactive shell");
@@ -22,17 +24,21 @@ pub fn run_interactive_shell(database: &Database) -> io::Result<()> {
     println!("  .exit             - Exit the shell");
     println!();
 
+    let mut editor = DefaultEditor::new()
+        .map_err(|e| io::Error::other(format!("Failed to create editor: {e}")))?;
+
     loop {
-        print!("mquire> ");
-        io::stdout().flush()?;
+        let readline = editor.readline("mquire> ");
+        let query = match readline {
+            Ok(line) => {
+                editor.add_history_entry(&line).ok();
+                line
+            }
 
-        let mut input = String::new();
-        if std::io::stdin().read_line(&mut input).is_err() {
-            println!("Error reading input");
-            continue;
-        }
+            Err(_) => break,
+        };
 
-        let query = input.trim();
+        let query = query.trim();
         if query.is_empty() {
             continue;
         }
