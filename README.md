@@ -190,6 +190,7 @@ domain:"(none)" hostname:"ubuntu2404"
 #### Kernel modules
 
 ```bash
+$ mquire shell ubuntu2404_6.14.0-37-generic.lime
 mquire> SELECT name, state, src_version, parameters FROM kernel_modules LIMIT 5;
 name:"snd_seq_dummy" state:"live" src_version:"7A40E0FD47A0746D1C9CD85" parameters:"ump (perm: 0o444), duplex (perm: 0o444), ports (perm: 0o444)" 
 name:"snd_hrtimer" state:"live" src_version:"81EE6D58896E2C2E63E252D" parameters:"<null>" 
