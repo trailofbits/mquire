@@ -19,7 +19,6 @@ mod readable_file_linux_object;
 mod syslog_file;
 mod system_information;
 mod task;
-mod utils;
 
 use crate::{
     core::{
@@ -30,6 +29,7 @@ use crate::{
         },
         error::{Error, ErrorKind, Result},
         operating_system::OperatingSystem,
+        virtual_memory_reader::VirtualMemoryReader,
     },
     generate_address_ranges,
     memory::{
@@ -46,11 +46,11 @@ use crate::{
         },
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
-        operating_system::{
-            readable_file_linux_object::ReadableLinuxFileObject,
-            utils::get_struct_member_byte_offset,
-        },
+        operating_system::readable_file_linux_object::ReadableLinuxFileObject,
+        task_struct_iterator::TaskStructIterator,
+        utils::get_struct_member_byte_offset,
     },
+    try_chain,
     utils::reader::Reader,
 };
 
@@ -365,42 +365,29 @@ impl LinuxOperatingSystem {
             swapper_struct_raw_vaddr,
         )?;
 
-        let task_vaddr_list = Self::enumerate_related_task_struct_vaddrs(
+        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
+        let mut task_iter = TaskStructIterator::new(
+            &vmem_reader,
             kernel_type_info,
-            readable,
-            architecture,
             VirtualAddress::new(discovered_page_table, swapper_struct_raw_vaddr),
         )?;
 
-        let init_task =
-            task_vaddr_list.into_iter().find_map(
-                |virtual_address| match Self::get_task_from_vaddr(
-                    readable,
-                    architecture,
-                    kernel_type_info,
-                    virtual_address,
-                ) {
-                    Ok(task_struct) => {
-                        if task_struct.pid == 1 {
-                            Some(task_struct)
-                        } else {
-                            None
-                        }
-                    }
+        let init_task = task_iter.find_map(|task_struct| {
+            if let Ok(pid) = try_chain!(task_struct.traverse("tgid")?.read_u32()) {
+                if pid == 1 {
+                    Some(task_struct.virtual_address())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
 
-                    Err(_) => None,
-                },
-            );
-
-        init_task
-            .map(|task_struct| {
-                let raw_virtual_address = task_struct.virtual_address.value();
-                VirtualAddress::new(task_struct.page_table, raw_virtual_address)
-            })
-            .ok_or(Error::new(
-                ErrorKind::OperatingSystemInitializationFailed,
-                "Failed to locate the init task struct",
-            ))
+        init_task.ok_or(Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
+            "Failed to locate the init task struct",
+        ))
     }
 }
 

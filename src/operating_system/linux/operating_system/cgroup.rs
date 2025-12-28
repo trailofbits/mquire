@@ -13,7 +13,7 @@ use crate::{
     },
     operating_system::linux::{
         entities::cgroup::Cgroup, operating_system::LinuxOperatingSystem,
-        virtual_struct::VirtualStruct,
+        task_struct_iterator::TaskStructIterator,
     },
     try_chain,
 };
@@ -114,25 +114,10 @@ impl LinuxOperatingSystem {
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        for task_vaddr in Self::enumerate_related_task_struct_vaddrs(
-            &self.kernel_type_info,
-            self.memory_dump.as_ref(),
-            self.architecture.as_ref(),
-            self.init_task_vaddr,
-        )? {
-            let task_struct = match VirtualStruct::from_name(
-                &vmem_reader,
-                &self.kernel_type_info,
-                "task_struct",
-                &task_vaddr,
-            ) {
-                Ok(task_struct) => task_struct,
-                Err(err) => {
-                    debug!("{err:?}");
-                    continue;
-                }
-            };
+        let task_iter =
+            TaskStructIterator::new(&vmem_reader, &self.kernel_type_info, self.init_task_vaddr)?;
 
+        for task_struct in task_iter {
             let mut kn = match try_chain!(task_struct
                 .traverse("cgroups")?
                 .dereference()?
@@ -195,7 +180,7 @@ impl LinuxOperatingSystem {
 
             if !name_list.is_empty() {
                 cgroup_list.push(Cgroup {
-                    task: task_vaddr,
+                    task: task_struct.virtual_address(),
                     name: name_list.into_iter().rev().collect::<Vec<_>>().join("/"),
                 });
             }

@@ -20,7 +20,7 @@ use crate::{
         virtual_address::VirtualAddress,
     },
     operating_system::linux::{
-        operating_system::{utils::get_struct_member_byte_offset, LinuxOperatingSystem},
+        operating_system::LinuxOperatingSystem, utils::get_struct_member_byte_offset,
         virtual_struct::VirtualStruct,
     },
     utils::ip_address::{ipv4_to_string, ipv6_to_string},
