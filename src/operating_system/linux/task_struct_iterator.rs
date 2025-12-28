@@ -196,6 +196,27 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                 }
             };
 
+            if let Ok(mm_struct) = try_chain!(task_struct.traverse("mm")?.dereference()) {
+                if !mm_struct.virtual_address().is_null() {
+                    if let Ok(exe_file_vaddr) =
+                        try_chain!(mm_struct.traverse("exe_file")?.read_vaddr())
+                    {
+                        if !exe_file_vaddr.is_null() {
+                            read_error = try_chain!(mm_struct
+                                .traverse("exe_file")?
+                                .dereference()?
+                                .traverse("f_path.dentry")?
+                                .read_u8())
+                            .is_err();
+                        }
+                    } else {
+                        read_error = true;
+                    }
+                }
+            } else {
+                read_error = true;
+            }
+
             let has_invalid_fields = valid_vaddr_list.len() + skipped_vaddr_count
                 < field_offset_map.len()
                 || tgid > PID_MAX_LIMIT
