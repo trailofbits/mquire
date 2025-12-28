@@ -22,6 +22,12 @@ use {btfparse::TypeInformation, log::debug};
 
 use std::{collections::BTreeMap, ops::Sub, path::PathBuf};
 
+/// Maximum size for command line arguments buffer (1 MB)
+const MAX_ARG_SIZE: usize = 1024 * 1024;
+
+/// Maximum size for environment variables buffer (1 MB)
+const MAX_ENV_SIZE: usize = 1024 * 1024;
+
 impl LinuxOperatingSystem {
     /// Returns the list of tasks
     pub(super) fn get_task_list_impl(&self) -> Result<Vec<Task>> {
@@ -93,40 +99,42 @@ impl LinuxOperatingSystem {
                 );
 
                 let arg_size = arg_end_vaddr.sub(arg_start_vaddr)? as usize;
-                let arg_start = VirtualStruct::from_id(
-                    &vmem_reader,
-                    kernel_type_info,
-                    mm_struct.traverse("arg_start")?.tid(),
-                    &arg_start_vaddr,
-                )?;
+                if arg_size <= MAX_ARG_SIZE {
+                    let arg_start = VirtualStruct::from_id(
+                        &vmem_reader,
+                        kernel_type_info,
+                        mm_struct.traverse("arg_start")?.tid(),
+                        &arg_start_vaddr,
+                    )?;
 
-                if let Ok(command_line_buffer) = arg_start.read_bytes(arg_size) {
-                    let argument_buffer_list: Vec<_> = command_line_buffer
-                        .split(|&byte| byte == 0)
-                        .filter(|slice| !slice.is_empty())
-                        .collect();
+                    if let Ok(command_line_buffer) = arg_start.read_bytes(arg_size) {
+                        let argument_buffer_list: Vec<_> = command_line_buffer
+                            .split(|&byte| byte == 0)
+                            .filter(|slice| !slice.is_empty())
+                            .collect();
 
-                    let mut processed_command_line = String::new();
-                    for argument_buffer in argument_buffer_list {
-                        let argument = String::from_utf8_lossy(argument_buffer);
+                        let mut processed_command_line = String::new();
+                        for argument_buffer in argument_buffer_list {
+                            let argument = String::from_utf8_lossy(argument_buffer);
+
+                            if !processed_command_line.is_empty() {
+                                processed_command_line.push(' ');
+                            }
+
+                            if argument.contains(' ') || argument.contains('\t') {
+                                processed_command_line += "'";
+                            }
+
+                            processed_command_line += &argument;
+
+                            if argument.contains(' ') || argument.contains('\t') {
+                                processed_command_line += "'";
+                            }
+                        }
 
                         if !processed_command_line.is_empty() {
-                            processed_command_line.push(' ');
+                            command_line = Some(processed_command_line);
                         }
-
-                        if argument.contains(' ') || argument.contains('\t') {
-                            processed_command_line += "'";
-                        }
-
-                        processed_command_line += &argument;
-
-                        if argument.contains(' ') || argument.contains('\t') {
-                            processed_command_line += "'";
-                        }
-                    }
-
-                    if !processed_command_line.is_empty() {
-                        command_line = Some(processed_command_line);
                     }
                 }
 
@@ -140,37 +148,39 @@ impl LinuxOperatingSystem {
                     RawVirtualAddress::new(mm_struct.traverse("env_end")?.read_u64()?),
                 );
 
-                let env_size = env_end_vaddr.sub(env_start_vaddr)?;
-                let env_start = VirtualStruct::from_id(
-                    &vmem_reader,
-                    kernel_type_info,
-                    mm_struct.traverse("env_start")?.tid(),
-                    &env_start_vaddr,
-                )?;
+                let env_size = env_end_vaddr.sub(env_start_vaddr)? as usize;
+                if env_size <= MAX_ENV_SIZE {
+                    let env_start = VirtualStruct::from_id(
+                        &vmem_reader,
+                        kernel_type_info,
+                        mm_struct.traverse("env_start")?.tid(),
+                        &env_start_vaddr,
+                    )?;
 
-                if let Ok(env_variables_buffer) = env_start.read_bytes(env_size as usize) {
-                    let env_variable_buffer_list: Vec<_> = env_variables_buffer
-                        .split(|&byte| byte == 0)
-                        .filter_map(|slice| {
-                            if slice.is_empty() {
-                                None
-                            } else {
-                                let part_list = String::from_utf8_lossy(slice)
-                                    .split(['='])
-                                    .map(|s| s.to_string())
-                                    .collect::<Vec<_>>();
-
-                                if part_list.len() == 2 {
-                                    Some((part_list[0].to_string(), part_list[1].to_string()))
-                                } else {
+                    if let Ok(env_variables_buffer) = env_start.read_bytes(env_size) {
+                        let env_variable_buffer_list: Vec<_> = env_variables_buffer
+                            .split(|&byte| byte == 0)
+                            .filter_map(|slice| {
+                                if slice.is_empty() {
                                     None
-                                }
-                            }
-                        })
-                        .collect();
+                                } else {
+                                    let part_list = String::from_utf8_lossy(slice)
+                                        .split(['='])
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<_>>();
 
-                    for (variable_name, variable_value) in env_variable_buffer_list {
-                        environment_variable_map.insert(variable_name, variable_value);
+                                    if part_list.len() == 2 {
+                                        Some((part_list[0].to_string(), part_list[1].to_string()))
+                                    } else {
+                                        None
+                                    }
+                                }
+                            })
+                            .collect();
+
+                        for (variable_name, variable_value) in env_variable_buffer_list {
+                            environment_variable_map.insert(variable_name, variable_value);
+                        }
                     }
                 }
 
