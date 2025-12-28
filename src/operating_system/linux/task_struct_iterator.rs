@@ -28,6 +28,9 @@ const KERNEL_VIRTUAL_ADDRESS_BASE: u64 = 0xFFFF000000000000;
 /// Default time to live for task discovery queue items
 const TASK_DISCOVERY_QUEUE_ITEM_TTL: usize = 2;
 
+/// Max pid value
+const PID_MAX_LIMIT: u32 = 4 * 1024 * 1024;
+
 /// Queue item for task struct discovery
 #[derive(Clone)]
 struct TaskDiscoveryQueueItem {
@@ -134,7 +137,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
             ];
 
             let mut read_error = false;
-            let mut discovered_vaddr_list = Vec::new();
+            let mut valid_vaddr_list = Vec::new();
             let mut skipped_vaddr_count = 0;
 
             for (field_path, offset) in field_offset_map {
@@ -146,7 +149,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                         if adjusted_vaddr.is_null() || adjusted_vaddr == queue_item.vaddr {
                             skipped_vaddr_count += 1;
                         } else if adjusted_raw_vaddr.value() >= KERNEL_VIRTUAL_ADDRESS_BASE {
-                            discovered_vaddr_list.push(adjusted_vaddr);
+                            valid_vaddr_list.push(adjusted_vaddr);
                         }
                     }
 
@@ -163,9 +166,44 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                 }
             }
 
+            let tgid = match try_chain!(task_struct.traverse("tgid")?.read_u32()) {
+                Ok(tgid) => tgid,
+
+                Err(error) => {
+                    read_error = true;
+
+                    debug!(
+                        "Failed to read task_struct::tgid from {:?}: {error:?}",
+                        queue_item.vaddr
+                    );
+
+                    0
+                }
+            };
+
+            let pid = match try_chain!(task_struct.traverse("pid")?.read_u32()) {
+                Ok(pid) => pid,
+
+                Err(error) => {
+                    read_error = true;
+
+                    debug!(
+                        "Failed to read task_struct::pid from {:?}: {error:?}",
+                        queue_item.vaddr
+                    );
+
+                    0
+                }
+            };
+
+            let has_invalid_fields = valid_vaddr_list.len() + skipped_vaddr_count
+                < field_offset_map.len()
+                || tgid > PID_MAX_LIMIT
+                || pid > PID_MAX_LIMIT;
+
             let time_to_live = if read_error {
                 0
-            } else if discovered_vaddr_list.len() + skipped_vaddr_count < field_offset_map.len() {
+            } else if has_invalid_fields {
                 queue_item.time_to_live.saturating_sub(1)
             } else {
                 queue_item.time_to_live
@@ -174,7 +212,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
             if time_to_live > 0 {
                 self.next_vaddr_queue
                     .extend(
-                        discovered_vaddr_list
+                        valid_vaddr_list
                             .iter()
                             .map(|&vaddr| TaskDiscoveryQueueItem {
                                 vaddr,
