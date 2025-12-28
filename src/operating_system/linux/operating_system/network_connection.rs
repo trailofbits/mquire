@@ -19,7 +19,8 @@ use crate::{
     memory::{primitives::PhysicalAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
         list::{List, ListValue},
-        operating_system::{utils::get_struct_size, LinuxOperatingSystem},
+        operating_system::LinuxOperatingSystem,
+        utils::get_struct_size,
         virtual_struct::VirtualStruct,
     },
     try_chain,

@@ -13,43 +13,41 @@ use crate::{
     },
     memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
-        operating_system::{utils::get_struct_member_byte_offset, LinuxOperatingSystem},
+        operating_system::LinuxOperatingSystem, task_struct_iterator::TaskStructIterator,
         virtual_struct::VirtualStruct,
     },
-    try_chain,
 };
 
 use {btfparse::TypeInformation, log::debug};
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    ops::Sub,
-    path::PathBuf,
-};
+use std::{collections::BTreeMap, ops::Sub, path::PathBuf};
 
 impl LinuxOperatingSystem {
     /// Returns the list of tasks
     pub(super) fn get_task_list_impl(&self) -> Result<Vec<Task>> {
         let mut task_list = Vec::new();
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        for virtual_address in Self::enumerate_related_task_struct_vaddrs(
-            &self.kernel_type_info,
-            self.memory_dump.as_ref(),
-            self.architecture.as_ref(),
-            self.init_task_vaddr,
-        )? {
-            match Self::get_task_from_vaddr(
+        let task_iter =
+            TaskStructIterator::new(&vmem_reader, &self.kernel_type_info, self.init_task_vaddr)?;
+
+        for task_struct in task_iter {
+            match Self::parse_virtual_task_struct(
                 self.memory_dump.as_ref(),
                 self.architecture.as_ref(),
                 &self.kernel_type_info,
-                virtual_address,
+                &task_struct,
             ) {
                 Ok(task) => {
                     task_list.push(task);
                 }
 
                 Err(err) => {
-                    debug!("Failed to read the task_struct from vaddr {virtual_address}: {err:?}",);
+                    debug!(
+                        "Failed to read the task_struct from vaddr {:?}: {err:?}",
+                        task_struct.virtual_address()
+                    );
                 }
             }
         }
@@ -57,94 +55,14 @@ impl LinuxOperatingSystem {
         Ok(task_list)
     }
 
-    /// Enumerates the virtual addresses of task structs related to the given one
-    pub(super) fn enumerate_related_task_struct_vaddrs(
-        kernel_type_info: &TypeInformation,
-        memory_dump: &dyn Readable,
-        architecture: &dyn Architecture,
-        task_struct: VirtualAddress,
-    ) -> Result<Vec<VirtualAddress>> {
-        let mut task_struct_vaddr_set = BTreeSet::new();
-
-        let mut visited_physical_addresses = BTreeSet::new();
-        let mut next_vaddr_queue = vec![task_struct];
-
-        let vmem_reader = VirtualMemoryReader::new(memory_dump, architecture);
-
-        while !next_vaddr_queue.is_empty() {
-            let virtual_address_queue = next_vaddr_queue.clone();
-            next_vaddr_queue.clear();
-
-            for virtual_address in virtual_address_queue {
-                let physical_address =
-                    match architecture.translate_virtual_address(memory_dump, virtual_address) {
-                        Ok(physical_address_range) => physical_address_range.address(),
-                        Err(err) => {
-                            debug!("{err:?}");
-                            continue;
-                        }
-                    };
-
-                if !visited_physical_addresses.insert(physical_address.value()) {
-                    continue;
-                }
-
-                task_struct_vaddr_set.insert(virtual_address.value());
-
-                // This can only fail if the type is not present, so it's ok to
-                // propagate the error
-                let task_struct = VirtualStruct::from_name(
-                    &vmem_reader,
-                    kernel_type_info,
-                    "task_struct",
-                    &virtual_address,
-                )?;
-
-                for field_path in ["parent", "real_parent"] {
-                    match try_chain!(task_struct.traverse(field_path)?.read_vaddr()) {
-                        Ok(vaddr) => next_vaddr_queue.push(vaddr),
-                        Err(err) => debug!("{err:?}"),
-                    }
-                }
-
-                // Same as before, if there's a type issue we'll just propagate the error
-                let sibling_offset =
-                    get_struct_member_byte_offset(kernel_type_info, task_struct.tid(), "sibling")?;
-
-                for field_path in [
-                    "children.prev",
-                    "children.next",
-                    "sibling.prev",
-                    "sibling.next",
-                ] {
-                    match try_chain!(task_struct.traverse(field_path)?.read_vaddr()) {
-                        Ok(vaddr) => next_vaddr_queue.push(vaddr - sibling_offset),
-                        Err(err) => debug!("{err:?}"),
-                    }
-                }
-            }
-        }
-
-        Ok(task_struct_vaddr_set
-            .into_iter()
-            .map(|raw_vaddr| VirtualAddress::new(task_struct.root_page_table(), raw_vaddr))
-            .collect())
-    }
-
     /// Returns a snapshot for the task entity at the given VirtualAddress
-    pub(super) fn get_task_from_vaddr(
+    pub(super) fn parse_virtual_task_struct(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
-        virtual_address: VirtualAddress,
+        task_struct: &VirtualStruct,
     ) -> Result<Task> {
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
-        let task_struct = VirtualStruct::from_name(
-            &vmem_reader,
-            kernel_type_info,
-            "task_struct",
-            &virtual_address,
-        )?;
 
         let comm = task_struct.traverse("comm")?.read_string_lossy(Some(16))?;
         let tgid = task_struct.traverse("tgid")?.read_u32()?;
@@ -153,7 +71,7 @@ impl LinuxOperatingSystem {
         let uid = cred.traverse("uid")?.read_u32()?;
         let gid = cred.traverse("gid")?.read_u32()?;
 
-        let mut page_table = virtual_address.root_page_table();
+        let mut page_table = task_struct.virtual_address().root_page_table();
         let mut command_line: Option<String> = None;
         let mut environment_variable_map = BTreeMap::new();
         let mut binary_path: Option<String> = None;
@@ -276,7 +194,7 @@ impl LinuxOperatingSystem {
         }
 
         Ok(Task {
-            virtual_address,
+            virtual_address: task_struct.virtual_address(),
             page_table,
             binary_path,
             name: Some(comm),

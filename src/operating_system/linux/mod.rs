@@ -11,8 +11,10 @@ mod kallsyms;
 mod kernel_version;
 mod list;
 mod maple_tree;
+mod utils;
 mod virtual_struct;
 mod xarray;
 
 pub mod entities;
 pub mod operating_system;
+pub mod task_struct_iterator;
