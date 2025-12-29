@@ -13,6 +13,9 @@ use crate::{core::entities::ip_address::IPAddress, memory::virtual_address::Virt
 pub enum Protocol {
     /// TCP protocol
     TCP,
+
+    /// UDP protocol
+    UDP,
 }
 
 /// IP type

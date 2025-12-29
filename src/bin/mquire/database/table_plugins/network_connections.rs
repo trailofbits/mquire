@@ -70,9 +70,9 @@ impl TablePlugin for NetworkConnectionsTablePlugin {
 
                 row.insert(
                     String::from("protocol"),
-                    connection
-                        .protocol
-                        .map(|protocol| ColumnValue::String(format!("{:?}", protocol))),
+                    connection.protocol.map(|protocol| {
+                        ColumnValue::String(format!("{:?}", protocol).to_lowercase())
+                    }),
                 );
 
                 row.insert(

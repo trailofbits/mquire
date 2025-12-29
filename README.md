@@ -322,13 +322,41 @@ Note: This query uses materialization for better performance (see [Query Optimiz
 
 ```bash
 $ mquire shell ubuntu2404_6.14.0-37-generic.lime
-mquire> WITH tasks_mat AS MATERIALIZED (SELECT * FROM tasks), network_connections_mat AS MATERIALIZED (SELECT * FROM network_connections), task_open_files_mat AS MATERIALIZED (SELECT * FROM task_open_files) SELECT t.pid, t.comm, nc.local_address, nc.local_port, nc.remote_address, nc.remote_port, nc.state, nc.protocol FROM network_connections_mat nc JOIN task_open_files_mat tof ON nc.inode = tof.inode JOIN tasks_mat t ON tof.pid = t.pid;
-pid:"1134" comm:"sshd" local_address:"::" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
-pid:"1134" comm:"sshd" local_address:"0.0.0.0" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
-pid:"1117" comm:"cupsd" local_address:"127.0.0.1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
-pid:"792" comm:"systemd-resolve" local_address:"127.0.0.54" local_port:"53" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
-pid:"792" comm:"systemd-resolve" local_address:"127.0.0.53" local_port:"53" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
-pid:"1117" comm:"cupsd" local_address:"::1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"LISTEN" protocol:"TCP"
+mquire> WITH
+  network_connections_mat AS MATERIALIZED (
+    SELECT * FROM network_connections
+  ),
+
+  task_open_files_mat AS MATERIALIZED (
+    SELECT * FROM task_open_files
+  ),
+
+  tasks_mat AS MATERIALIZED (
+    SELECT * FROM tasks WHERE main_thread = 1
+  )
+
+SELECT
+  t.pid,
+  t.comm,
+  t.binary_path,
+  nc.protocol,
+  nc.local_address,
+  nc.local_port,
+  nc.remote_address,
+  nc.remote_port,
+  nc.state,
+  nc.type as ip_type,
+  nc.inode
+FROM network_connections_mat nc
+JOIN task_open_files_mat tof ON nc.inode = tof.inode
+JOIN tasks_mat t ON tof.task = t.virtual_address
+ORDER BY t.pid, nc.local_port
+LIMIT 5;
+pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"::" local_port:"5353" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv6" inode:"17696" 
+pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"0.0.0.0" local_port:"5353" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv4" inode:"17695" 
+pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"0.0.0.0" local_port:"35022" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv4" inode:"17697" 
+pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"::" local_port:"36728" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv6" inode:"17698" 
+pid:"1081" comm:"cupsd" binary_path:"/usr/sbin/cupsd" protocol:"tcp" local_address:"127.0.0.1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"listen" ip_type:"ipv4" inode:"8800"
 ```
 
 #### Task open files
