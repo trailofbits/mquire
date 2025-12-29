@@ -74,6 +74,7 @@ impl Database {
         sqlite_db.register_table_plugin(NetworkConnectionsTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(NetworkInterfacesTablePlugin::new(system.clone()))?;
 
+        sqlite_db.load_autostart_files();
         Ok(Self { sqlite_db })
     }
 

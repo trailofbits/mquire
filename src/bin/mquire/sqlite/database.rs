@@ -25,7 +25,9 @@ use {
 use std::{
     collections::{BTreeMap, HashMap},
     ffi::c_int,
+    fs,
     marker::PhantomData,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -146,6 +148,68 @@ impl Database {
         self.table_plugin_map
             .get(table_name)
             .map(|plugin| plugin.schema())
+    }
+
+    /// Executes an SQL statement without returning results (for DDL statements like CREATE VIEW)
+    pub fn execute(&self, sql: &str) -> Result<()> {
+        self.conn
+            .execute_batch(sql)
+            .map_err(|e| Error::InvalidSqlStatement(format!("{}", e)))
+    }
+
+    /// Loads and executes all .sql files from the autostart directory
+    /// The autostart directory is located at ${HOME}/.config/trailofbits/mquire/autostart
+    pub fn load_autostart_files(&self) {
+        let home_dir = match std::env::var("HOME") {
+            Ok(dir) => dir,
+            Err(_) => return,
+        };
+
+        let autostart_dir = PathBuf::from(home_dir)
+            .join(".config")
+            .join("trailofbits")
+            .join("mquire")
+            .join("autostart");
+
+        if !autostart_dir.exists() {
+            return;
+        }
+
+        let entries = match fs::read_dir(&autostart_dir) {
+            Ok(entries) => entries,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to read autostart directory {:?}: {}",
+                    autostart_dir, e
+                );
+                return;
+            }
+        };
+
+        let mut sql_files: Vec<PathBuf> = entries
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("sql")
+            })
+            .collect();
+
+        sql_files.sort();
+
+        for sql_file in sql_files {
+            let sql_content = match fs::read_to_string(&sql_file) {
+                Ok(content) => content,
+                Err(e) => {
+                    eprintln!("Error: Failed to read SQL file {:?}: {}", sql_file, e);
+                    continue;
+                }
+            };
+
+            if let Err(e) = self.execute(&sql_content) {
+                eprintln!("Error: Failed to execute SQL file {:?}: {}", sql_file, e);
+                continue;
+            }
+        }
     }
 }
 
