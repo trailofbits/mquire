@@ -17,10 +17,6 @@ pub enum Error {
     #[error("Failed to create database")]
     DatabaseCreationFailed,
 
-    /// The table plugin name is not valid
-    #[error("Invalid table plugin name: {0}")]
-    InvalidTablePluginName(String),
-
     /// The table plugin could not be registered
     #[error("Failed to register table plugin: {0}")]
     TablePluginRegistration(String),
