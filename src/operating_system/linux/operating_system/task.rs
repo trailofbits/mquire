@@ -71,7 +71,8 @@ impl LinuxOperatingSystem {
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
 
         let comm = task_struct.traverse("comm")?.read_string_lossy(Some(16))?;
-        let tgid = task_struct.traverse("tgid")?.read_u32()?;
+        let kernel_pid = task_struct.traverse("pid")?.read_u32()?; // Thread ID
+        let kernel_tgid = task_struct.traverse("tgid")?.read_u32()?; // Process ID
 
         let cred = task_struct.traverse("cred")?.dereference()?;
         let uid = cred.traverse("uid")?.read_u32()?;
@@ -210,7 +211,9 @@ impl LinuxOperatingSystem {
             name: Some(comm),
             command_line,
             environment_variable_map,
-            pid: tgid,
+            pid: kernel_tgid,
+            tid: kernel_pid,
+            main_thread: kernel_pid == kernel_tgid,
             uid,
             gid,
         })

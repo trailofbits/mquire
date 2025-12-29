@@ -31,8 +31,14 @@ pub struct Task {
     /// The environment variables of the task.
     pub environment_variable_map: BTreeMap<String, String>,
 
-    /// The process identifier of the task.
+    /// The process identifier
     pub pid: u32,
+
+    /// The thread identifier
+    pub tid: u32,
+
+    /// Whether this is the main thread of the process.
+    pub main_thread: bool,
 
     /// The user identifier of the task.
     pub uid: u32,
