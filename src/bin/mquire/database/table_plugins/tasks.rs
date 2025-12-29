@@ -38,6 +38,8 @@ impl TablePlugin for TasksTablePlugin {
         schema.insert(String::from("command_line"), ColumnType::String);
         schema.insert(String::from("environment"), ColumnType::String);
         schema.insert(String::from("pid"), ColumnType::SignedInteger);
+        schema.insert(String::from("tid"), ColumnType::SignedInteger);
+        schema.insert(String::from("main_thread"), ColumnType::SignedInteger);
         schema.insert(String::from("uid"), ColumnType::SignedInteger);
         schema.insert(String::from("gid"), ColumnType::SignedInteger);
 
@@ -68,6 +70,7 @@ impl TablePlugin for TasksTablePlugin {
                 String::from("binary_path"),
                 task.binary_path.map(ColumnValue::String),
             );
+
             row.insert(String::from("comm"), task.name.map(ColumnValue::String));
             row.insert(
                 String::from("command_line"),
@@ -93,10 +96,26 @@ impl TablePlugin for TasksTablePlugin {
                 String::from("pid"),
                 Some(ColumnValue::SignedInteger(task.pid as i64)),
             );
+
+            row.insert(
+                String::from("tid"),
+                Some(ColumnValue::SignedInteger(task.tid as i64)),
+            );
+
+            row.insert(
+                String::from("main_thread"),
+                Some(ColumnValue::SignedInteger(if task.main_thread {
+                    1
+                } else {
+                    0
+                })),
+            );
+
             row.insert(
                 String::from("uid"),
                 Some(ColumnValue::SignedInteger(task.uid as i64)),
             );
+
             row.insert(
                 String::from("gid"),
                 Some(ColumnValue::SignedInteger(task.gid as i64)),
