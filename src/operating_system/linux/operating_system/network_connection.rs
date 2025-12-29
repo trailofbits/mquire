@@ -50,39 +50,64 @@ struct ConnectionInfo {
     remote_port: Option<u16>,
 }
 
-/// Wrapper for listening socket connections that implements ListValue
-struct ListeningSocketValue {
-    connection: NetworkConnection,
+/// Trait for reading different types of socket connections
+trait SocketReader {
+    fn read_socket(
+        vmem_reader: &VirtualMemoryReader,
+        type_info: &TypeInformation,
+        sock_vaddr: &VirtualAddress,
+    ) -> Option<NetworkConnection>;
 }
 
-impl ListValue for ListeningSocketValue {
-    fn from_vaddr(
-        readable: &dyn Readable,
-        architecture: &dyn Architecture,
-        type_information: &TypeInformation,
-        virtual_address: VirtualAddress,
-    ) -> Result<Self> {
-        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
+/// Marker type for listening TCP sockets
+struct ListeningTcpSocket;
 
-        if let Some(connection) =
-            read_sock_object(&vmem_reader, type_information, &virtual_address, true)
-        {
-            Ok(Self { connection })
-        } else {
-            Err(Error::new(
-                ErrorKind::EntityNotFound,
-                "Failed to read listening socket object",
-            ))
-        }
+impl SocketReader for ListeningTcpSocket {
+    fn read_socket(
+        vmem_reader: &VirtualMemoryReader,
+        type_info: &TypeInformation,
+        sock_vaddr: &VirtualAddress,
+    ) -> Option<NetworkConnection> {
+        read_tcp_sock_object(vmem_reader, type_info, sock_vaddr, true)
     }
 }
 
-/// Wrapper for established socket connections that implements ListValue
-struct EstablishedSocketValue {
-    connection: NetworkConnection,
+/// Marker type for established TCP sockets
+struct EstablishedTcpSocket;
+
+impl SocketReader for EstablishedTcpSocket {
+    fn read_socket(
+        vmem_reader: &VirtualMemoryReader,
+        type_info: &TypeInformation,
+        sock_vaddr: &VirtualAddress,
+    ) -> Option<NetworkConnection> {
+        read_tcp_sock_object(vmem_reader, type_info, sock_vaddr, false)
+    }
 }
 
-impl ListValue for EstablishedSocketValue {
+/// Marker type for UDP sockets
+struct UdpSocket;
+
+impl SocketReader for UdpSocket {
+    fn read_socket(
+        vmem_reader: &VirtualMemoryReader,
+        type_info: &TypeInformation,
+        sock_vaddr: &VirtualAddress,
+    ) -> Option<NetworkConnection> {
+        read_udp_sock_object(vmem_reader, type_info, sock_vaddr)
+    }
+}
+
+/// Generic socket value wrapper that uses marker types to differentiate socket types
+struct SocketValue<T: SocketReader> {
+    /// Connection details
+    connection: NetworkConnection,
+
+    /// Phantom data to mark T as used
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: SocketReader> ListValue for SocketValue<T> {
     fn from_vaddr(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
@@ -91,14 +116,15 @@ impl ListValue for EstablishedSocketValue {
     ) -> Result<Self> {
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
 
-        if let Some(connection) =
-            read_sock_object(&vmem_reader, type_information, &virtual_address, false)
-        {
-            Ok(Self { connection })
+        if let Some(connection) = T::read_socket(&vmem_reader, type_information, &virtual_address) {
+            Ok(Self {
+                connection,
+                _phantom: std::marker::PhantomData,
+            })
         } else {
             Err(Error::new(
                 ErrorKind::EntityNotFound,
-                "Failed to read established socket object",
+                "Failed to read socket object",
             ))
         }
     }
@@ -139,7 +165,7 @@ impl LinuxOperatingSystem {
 
         let mut connection_list = Vec::new();
 
-        Self::collect_listening_sockets(
+        Self::collect_listening_tcp_sockets(
             &self.kernel_type_info,
             self.init_task_vaddr.root_page_table(),
             &vmem_reader,
@@ -149,7 +175,7 @@ impl LinuxOperatingSystem {
             self.architecture.as_ref(),
         )?;
 
-        Self::collect_established_sockets(
+        Self::collect_established_tcp_sockets(
             &self.kernel_type_info,
             self.init_task_vaddr.root_page_table(),
             &vmem_reader,
@@ -158,12 +184,24 @@ impl LinuxOperatingSystem {
             self.memory_dump.as_ref(),
             self.architecture.as_ref(),
         )?;
+
+        if let Err(error) = Self::collect_udp_sockets(
+            &self.kernel_type_info,
+            self.init_task_vaddr.root_page_table(),
+            &vmem_reader,
+            &mut connection_list,
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            kallsyms,
+        ) {
+            debug!("Failed to collect UDP sockets: {:?}", error);
+        }
 
         Ok(connection_list)
     }
 
-    /// Collect listening sockets
-    fn collect_listening_sockets(
+    /// Collect listening tcp sockets
+    fn collect_listening_tcp_sockets(
         kernel_type_info: &TypeInformation,
         kernel_page_table: PhysicalAddress,
         vmem_reader: &VirtualMemoryReader,
@@ -211,7 +249,7 @@ impl LinuxOperatingSystem {
                 error!("Type `inet_listen_hashbucket` was not found: {error:?}")
             })?;
 
-            if let Err(error) = Self::enumerate_listening_sockets(
+            if let Err(error) = Self::enumerate_listening_tcp_socket_bucket(
                 kernel_type_info,
                 kernel_page_table,
                 &bucket,
@@ -229,8 +267,8 @@ impl LinuxOperatingSystem {
         Ok(())
     }
 
-    /// Enumerates the sockets in a listening socket bucket
-    fn enumerate_listening_sockets(
+    /// Enumerates the TCP sockets in a listening socket bucket
+    fn enumerate_listening_tcp_socket_bucket(
         kernel_type_info: &TypeInformation,
         kernel_page_table: PhysicalAddress,
         bucket: &VirtualStruct,
@@ -243,7 +281,7 @@ impl LinuxOperatingSystem {
             return Ok(());
         }
 
-        let list = List::<ListeningSocketValue>::builder()
+        let list = List::<SocketValue<ListeningTcpSocket>>::builder()
             .hlist()
             .container("sock_common")
             .node_path(&["skc_node"])
@@ -260,8 +298,8 @@ impl LinuxOperatingSystem {
         Ok(())
     }
 
-    /// Collect established sockets from ehash hash table
-    fn collect_established_sockets(
+    /// Collect established TCP sockets from ehash hash table
+    fn collect_established_tcp_sockets(
         kernel_type_info: &TypeInformation,
         kernel_page_table: PhysicalAddress,
         vmem_reader: &VirtualMemoryReader,
@@ -312,7 +350,7 @@ impl LinuxOperatingSystem {
                 }
             };
 
-            if let Err(error) = Self::enumerate_established_sockets(
+            if let Err(error) = Self::enumerate_established_tcp_socket_bucket(
                 kernel_type_info,
                 kernel_page_table,
                 &bucket,
@@ -331,7 +369,7 @@ impl LinuxOperatingSystem {
     }
 
     /// Enumerates the sockets in an established socket bucket
-    fn enumerate_established_sockets(
+    fn enumerate_established_tcp_socket_bucket(
         kernel_type_info: &TypeInformation,
         kernel_page_table: PhysicalAddress,
         bucket: &VirtualStruct,
@@ -344,10 +382,129 @@ impl LinuxOperatingSystem {
             return Ok(());
         }
 
-        let list = List::<EstablishedSocketValue>::builder()
+        let list = List::<SocketValue<EstablishedTcpSocket>>::builder()
             .hlist()
             .container("sock")
             .node_path(&["__sk_common", "skc_node"])
+            .parse(
+                readable,
+                architecture,
+                kernel_type_info,
+                first_node_vaddr,
+                kernel_page_table,
+            )?;
+
+        connection_list.extend(list.into_iter().map(|list_value| list_value.connection));
+
+        Ok(())
+    }
+
+    /// Collects UDP sockets from the kernel
+    fn collect_udp_sockets(
+        kernel_type_info: &TypeInformation,
+        kernel_page_table: PhysicalAddress,
+        vmem_reader: &VirtualMemoryReader,
+        connection_list: &mut Vec<NetworkConnection>,
+        readable: &dyn Readable,
+        architecture: &dyn Architecture,
+        kallsyms: &crate::operating_system::linux::kallsyms::Kallsyms,
+    ) -> Result<()> {
+        let udp_table_vaddr = kallsyms
+            .get("udp_table")
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::EntityNotFound,
+                    "Failed to find 'udp_table' symbol in kallsyms",
+                )
+            })
+            .inspect_err(|error| debug!("{error:?}"))?;
+
+        let udp_table = VirtualStruct::from_name(
+            vmem_reader,
+            kernel_type_info,
+            "udp_table",
+            &VirtualAddress::new(kernel_page_table, udp_table_vaddr.value()),
+        )
+        .inspect_err(|error| debug!("Failed to read udp_table: {error:?}"))?;
+
+        let mask = udp_table
+            .traverse("mask")
+            .and_then(|f| f.read_u32())
+            .inspect_err(|e| debug!("Failed to read udp_table mask: {:?}", e))?;
+
+        let bucket_count = (mask + 1) as usize;
+        let bucket_count = if bucket_count > MAX_HASH_BUCKETS {
+            debug!("Too many UDP hash2 buckets: {}", bucket_count);
+            MAX_HASH_BUCKETS
+        } else {
+            bucket_count
+        };
+
+        let hash2_vaddr = udp_table
+            .traverse("hash2")
+            .and_then(|f| f.read_vaddr())
+            .inspect_err(|e| debug!("Failed to read udp hash2 pointer: {:?}", e))?;
+
+        if hash2_vaddr.is_null() {
+            debug!("udp hash2 pointer is null");
+            return Ok(());
+        }
+
+        let bucket_size = get_struct_size(kernel_type_info, "udp_hslot")
+            .inspect_err(|e| debug!("Failed to get size of udp_hslot: {:?}", e))?;
+
+        for bucket_idx in 0..bucket_count {
+            let bucket_vaddr = hash2_vaddr + (bucket_idx as u64 * bucket_size);
+
+            let bucket = match VirtualStruct::from_name(
+                vmem_reader,
+                kernel_type_info,
+                "udp_hslot",
+                &bucket_vaddr,
+            ) {
+                Ok(b) => b,
+                Err(_) => {
+                    debug!("Failed to read UDP hash2 bucket at index {}", bucket_idx);
+                    continue;
+                }
+            };
+
+            if let Err(error) = Self::enumerate_udp_socket_bucket(
+                kernel_type_info,
+                kernel_page_table,
+                &bucket,
+                connection_list,
+                readable,
+                architecture,
+            ) {
+                debug!(
+                    "Error iterating UDP hash2 for bucket {}: {:?}",
+                    bucket_idx, error
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Enumerates the UDP sockets in a hash bucket
+    fn enumerate_udp_socket_bucket(
+        kernel_type_info: &TypeInformation,
+        kernel_page_table: PhysicalAddress,
+        bucket: &VirtualStruct,
+        connection_list: &mut Vec<NetworkConnection>,
+        readable: &dyn Readable,
+        architecture: &dyn Architecture,
+    ) -> Result<()> {
+        let first_node_vaddr = bucket.traverse("head.first")?.read_vaddr()?;
+        if first_node_vaddr.is_null() {
+            return Ok(());
+        }
+
+        let list = List::<SocketValue<UdpSocket>>::builder()
+            .hlist()
+            .container("sock_common")
+            .node_path(&["skc_portaddr_node"])
             .parse(
                 readable,
                 architecture,
@@ -451,13 +608,27 @@ fn get_sock_struct_inode(
     Some(ino)
 }
 
-/// Read a single network connection from a sock structure
-fn read_sock_object(
+/// Common socket information extracted from sock_common
+struct CommonSocketInfo {
+    /// The socket state (established, listening, etc)
+    state_u8: u8,
+
+    /// The local and remote IP pairs
+    connection_info: ConnectionInfo,
+
+    /// Whether it is IPv4 or IPv6
+    ip_address_type: Option<IPAddressType>,
+
+    /// Socket inode, used for attribution
+    inode: Option<u64>,
+}
+
+/// Reads common socket information shared by all socket types
+fn read_common_socket_info(
     vmem_reader: &VirtualMemoryReader,
     type_info: &TypeInformation,
     sock_vaddr: &VirtualAddress,
-    is_listening: bool,
-) -> Option<NetworkConnection> {
+) -> Option<CommonSocketInfo> {
     let sock_common =
         VirtualStruct::from_name(vmem_reader, type_info, "sock_common", sock_vaddr).ok()?;
 
@@ -465,8 +636,6 @@ fn read_sock_object(
         .traverse("skc_state")
         .and_then(|f| f.read_u8())
         .ok()?;
-
-    let state = tcp_state_to_string(state_u8);
 
     let family = sock_common
         .traverse("skc_family")
@@ -476,6 +645,7 @@ fn read_sock_object(
     let ip_address_type = match family {
         2 => Some(IPAddressType::IPv4),
         10 => Some(IPAddressType::IPv6),
+
         _ => None,
     };
 
@@ -493,28 +663,66 @@ fn read_sock_object(
 
     let inode = get_sock_struct_inode(vmem_reader, type_info, sock_vaddr);
 
-    Some(NetworkConnection {
-        virtual_address: *sock_vaddr,
-        protocol: Some(Protocol::TCP),
-        state,
-        local_address: connection_info.local_address,
-        local_port: connection_info.local_port,
-        remote_address: if is_listening {
-            None
-        } else {
-            connection_info.remote_address
-        },
-        remote_port: if is_listening {
-            None
-        } else {
-            connection_info.remote_port
-        },
+    Some(CommonSocketInfo {
+        state_u8,
+        connection_info,
         ip_address_type,
         inode,
     })
 }
 
-/// Extract IPv4 connection information from sock_common
+/// Reads a single network connection from a TCP sock structure
+fn read_tcp_sock_object(
+    vmem_reader: &VirtualMemoryReader,
+    type_info: &TypeInformation,
+    sock_vaddr: &VirtualAddress,
+    is_listening: bool,
+) -> Option<NetworkConnection> {
+    let socket_info = read_common_socket_info(vmem_reader, type_info, sock_vaddr)?;
+
+    Some(NetworkConnection {
+        virtual_address: *sock_vaddr,
+        protocol: Some(Protocol::TCP),
+        state: tcp_state_to_string(socket_info.state_u8),
+        local_address: socket_info.connection_info.local_address,
+        local_port: socket_info.connection_info.local_port,
+        remote_address: if is_listening {
+            None
+        } else {
+            socket_info.connection_info.remote_address
+        },
+        remote_port: if is_listening {
+            None
+        } else {
+            socket_info.connection_info.remote_port
+        },
+        ip_address_type: socket_info.ip_address_type,
+        inode: socket_info.inode,
+    })
+}
+
+/// Reads a single UDP network connection from a sock structure
+fn read_udp_sock_object(
+    vmem_reader: &VirtualMemoryReader,
+    type_info: &TypeInformation,
+    sock_vaddr: &VirtualAddress,
+) -> Option<NetworkConnection> {
+    let socket_info = read_common_socket_info(vmem_reader, type_info, sock_vaddr)?;
+
+    Some(NetworkConnection {
+        virtual_address: *sock_vaddr,
+        protocol: Some(Protocol::UDP),
+        state: udp_state_to_string(socket_info.state_u8),
+        local_address: socket_info.connection_info.local_address,
+        local_port: socket_info.connection_info.local_port,
+        remote_address: socket_info.connection_info.remote_address,
+        remote_port: socket_info.connection_info.remote_port,
+        ip_address_type: socket_info.ip_address_type,
+        inode: socket_info.inode,
+    })
+}
+
+/// Extracts IPv4 connection information from a sock_common object
 fn extract_ipv4_connection_info(sock_common: &VirtualStruct) -> Option<ConnectionInfo> {
     let local_address = try_chain! {
         sock_common
@@ -563,7 +771,7 @@ fn extract_ipv4_connection_info(sock_common: &VirtualStruct) -> Option<Connectio
     })
 }
 
-/// Extract IPv6 connection information from sock_common
+/// Extracts IPv6 connection information from a sock_common object
 fn extract_ipv6_connection_info(sock_common: &VirtualStruct) -> Option<ConnectionInfo> {
     let local_address = try_chain! {
         sock_common
@@ -612,21 +820,30 @@ fn extract_ipv6_connection_info(sock_common: &VirtualStruct) -> Option<Connectio
     })
 }
 
-/// Map TCP state enum value to string
+/// Maps a TCP state enum value to a string
 fn tcp_state_to_string(state: u8) -> Option<String> {
     match state {
-        1 => Some("ESTABLISHED".to_string()),
-        2 => Some("SYN_SENT".to_string()),
-        3 => Some("SYN_RECV".to_string()),
-        4 => Some("FIN_WAIT1".to_string()),
-        5 => Some("FIN_WAIT2".to_string()),
-        6 => Some("TIME_WAIT".to_string()),
-        7 => Some("CLOSE".to_string()),
-        8 => Some("CLOSE_WAIT".to_string()),
-        9 => Some("LAST_ACK".to_string()),
-        10 => Some("LISTEN".to_string()),
-        11 => Some("CLOSING".to_string()),
-        12 => Some("NEW_SYN_RECV".to_string()),
+        1 => Some("established".to_string()),
+        2 => Some("syn_sent".to_string()),
+        3 => Some("syn_recv".to_string()),
+        4 => Some("fin_wait1".to_string()),
+        5 => Some("fin_wait2".to_string()),
+        6 => Some("time_wait".to_string()),
+        7 => Some("close".to_string()),
+        8 => Some("close_wait".to_string()),
+        9 => Some("last_ack".to_string()),
+        10 => Some("listen".to_string()),
+        11 => Some("closing".to_string()),
+        12 => Some("new_syn_recv".to_string()),
+        _ => None,
+    }
+}
+
+/// Mapa a UDP state enum value to a string
+fn udp_state_to_string(state: u8) -> Option<String> {
+    match state {
+        1 => Some("established".to_string()),
+        7 => Some("close".to_string()),
         _ => None,
     }
 }
