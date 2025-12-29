@@ -159,6 +159,64 @@ mquire query /path/to/memory.raw ".tables"
 mquire query /path/to/memory.raw ".schema tasks"
 ```
 
+## Autostart SQL Files
+
+mquire automatically loads and executes SQL files from `~/.config/trailofbits/mquire/autostart/` when starting the shell or executing queries. This is useful for:
+
+- Creating reusable SQL views
+- Setting up custom tables
+- Defining frequently-used queries
+
+**Features:**
+- SQL files are executed in alphabetical order
+- Files must have a `.sql` extension
+- Errors are displayed but don't block execution
+- Works with both `mquire shell` and `mquire query` commands
+
+**Example: Creating a process network connections view**
+
+Create `~/.config/trailofbits/mquire/autostart/001_process_network_connections.sql`:
+
+```sql
+CREATE VIEW IF NOT EXISTS process_network_connections AS
+WITH
+  network_connections_mat AS MATERIALIZED (
+    SELECT * FROM network_connections
+  ),
+
+  task_open_files_mat AS MATERIALIZED (
+    SELECT * FROM task_open_files
+  ),
+
+  tasks_mat AS MATERIALIZED (
+    SELECT * FROM tasks WHERE main_thread = 1
+  )
+
+SELECT
+  t.pid,
+  t.comm,
+  t.binary_path,
+  nc.protocol,
+  nc.local_address,
+  nc.local_port,
+  nc.remote_address,
+  nc.remote_port,
+  nc.state,
+  nc.type as ip_type,
+  nc.inode
+FROM network_connections_mat nc
+JOIN task_open_files_mat tof ON nc.inode = tof.inode
+JOIN tasks_mat t ON tof.task = t.virtual_address
+ORDER BY t.pid, nc.local_port;
+```
+
+Once created, you can query the view directly:
+
+```bash
+$ mquire shell /path/to/memory.raw
+mquire> SELECT * FROM process_network_connections LIMIT 5;
+```
+
 ## Query Optimization
 
 **mquire queries require reconstructing kernel data structures from virtual memory by dereferencing pointers using embedded type information and debug symbols. This processing can be expensive, so use query optimization techniques to improve performance dramatically.**
