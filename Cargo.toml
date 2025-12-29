@@ -33,15 +33,12 @@ thiserror = "2.0"
 # CLI-only dependencies
 clap = { version = "4.5", features = ["derive"], optional = true }
 rustyline = { version = "17.0.2", default-features = false, optional = true }
+rusqlite = { version = "0.38.0", features = ["vtab", "bundled"], optional = true }
 
 [features]
 default = ["cli"]
-cli = ["clap", "rustyline"]
+cli = ["clap", "rustyline", "rusqlite"]
 
 [[bin]]
 name = "mquire"
 required-features = ["cli"]
-
-[build-dependencies]
-cc = "1.2.50"
-bindgen = "0.72.1"

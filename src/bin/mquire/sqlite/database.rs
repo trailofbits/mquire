@@ -8,29 +8,26 @@
 
 use crate::sqlite::{
     error::{Error, Result},
-    libsqlite3::{
-        self, sqlite3, sqlite3_close, sqlite3_create_module, sqlite3_module, sqlite3_open,
-        sqlite3_vtab, SQLITE_DONE, SQLITE_ERROR, SQLITE_OK, SQLITE_ROW,
-    },
     table_plugin::{ColumnType, ColumnValue, Row, RowList, TablePlugin},
 };
 
-use serde::Serialize;
-
-use std::{
-    collections::HashMap,
-    ffi::{CStr, CString},
-    os,
-    sync::Arc,
+use {
+    rusqlite::{
+        types::Value,
+        vtab::{
+            eponymous_only_module, Context, Filters, IndexInfo, VTab, VTabConnection, VTabCursor,
+        },
+        Connection,
+    },
+    serde::Serialize,
 };
 
-/// This struct is used to wrap the table plugin before it is passed to sqlite
-/// Wrapping the trait object ensures we don't lose the vtable when passing this
-/// through the ffi
-struct TablePluginWrapper {
-    /// The table plugin
-    table_plugin: Arc<dyn TablePlugin>,
-}
+use std::{
+    collections::{BTreeMap, HashMap},
+    ffi::c_int,
+    marker::PhantomData,
+    sync::Arc,
+};
 
 /// Query data, as returned by Database::query
 #[derive(Debug, Serialize)]
@@ -42,147 +39,72 @@ pub struct QueryData {
     pub row_list: RowList,
 }
 
-/// A wrapper around the sqlite3 database
+/// A wrapper around the rusqlite database connection
 pub struct Database {
-    /// The sqlite3 database
-    sqlite: *mut sqlite3,
+    /// The rusqlite connection
+    conn: Connection,
 
     /// A map of table names to registered table plugins
-    table_plugin_map: HashMap<String, Box<TablePluginWrapper>>,
+    table_plugin_map: HashMap<String, Arc<dyn TablePlugin>>,
 }
 
-/// The database implementation
 impl Database {
     /// Creates a new in-memory database
     pub fn new() -> Result<Self> {
-        let mut sqlite: *mut sqlite3 = std::ptr::null_mut();
-        let memory_database_name = CString::new(":memory:").map_err(|_| {
-            Error::Internal("Failed to allocate the :memory: database name".to_string())
-        })?;
-
-        if unsafe { sqlite3_open(memory_database_name.as_ptr(), &mut sqlite) as u32 } != SQLITE_OK {
-            return Err(Error::DatabaseCreationFailed);
-        }
+        let conn = Connection::open_in_memory().map_err(|_| Error::DatabaseCreationFailed)?;
 
         Ok(Self {
-            sqlite,
+            conn,
             table_plugin_map: HashMap::new(),
         })
     }
 
     /// Executes a query and returns the result
     pub fn query(&self, query: &str) -> Result<QueryData> {
-        let mut stmt: *mut libsqlite3::sqlite3_stmt = std::ptr::null_mut();
+        let mut stmt = self
+            .conn
+            .prepare(query)
+            .map_err(|e| Error::InvalidSqlStatement(format!("{}", e)))?;
 
-        let query_string = CString::new(query)
-            .map_err(|_| Error::Internal("Failed to allocate the query string".to_string()))?;
+        let column_name_list: Vec<String> =
+            stmt.column_names().iter().map(|s| s.to_string()).collect();
 
-        let query_string_size = query_string.as_bytes().len() as i32;
+        let mapped_row_list = stmt
+            .query_map([], |row| {
+                let mut current_row = Row::new();
 
-        let error = unsafe {
-            libsqlite3::sqlite3_prepare_v2(
-                self.sqlite,
-                query_string.as_ptr(),
-                query_string_size,
-                &mut stmt,
-                std::ptr::null_mut(),
-            )
-        } as u32;
+                for (column_index, column_name) in column_name_list.iter().enumerate() {
+                    let rusqlite_value: Value = row.get(column_index)?;
 
-        if error != SQLITE_OK {
-            let error_message = unsafe {
-                let buffer = libsqlite3::sqlite3_errmsg(self.sqlite);
-                CStr::from_ptr(buffer).to_string_lossy().into_owned()
-            };
+                    let column_value = match rusqlite_value {
+                        Value::Integer(i) => Some(ColumnValue::SignedInteger(i)),
+                        Value::Real(f) => Some(ColumnValue::Double(f)),
+                        Value::Text(s) => Some(ColumnValue::String(s)),
+                        Value::Null => None,
+                        Value::Blob(_) => {
+                            return Err(rusqlite::Error::InvalidColumnType(
+                                column_index,
+                                column_name.clone(),
+                                rusqlite::types::Type::Blob,
+                            ))
+                        }
+                    };
 
-            return Err(Error::InvalidSqlStatement(format!(
-                "The sqlite library returned error {error} when trying to compile the following SQL statement: {query}. Error message: {error_message}"
-            )));
-        }
-
-        let column_count = unsafe { libsqlite3::sqlite3_column_count(stmt) } as usize;
-        let mut query_data = QueryData {
-            column_order: Vec::new(),
-            row_list: RowList::new(),
-        };
-
-        loop {
-            let error = unsafe { libsqlite3::sqlite3_step(stmt) } as u32;
-            if error == SQLITE_DONE {
-                break;
-            } else if error != SQLITE_ROW {
-                let error_message = unsafe {
-                    let buffer = libsqlite3::sqlite3_errmsg(self.sqlite);
-                    CStr::from_ptr(buffer).to_string_lossy().into_owned()
-                };
-
-                return Err(Error::TablePlugin(format!(
-                    "The table plugin has failed to generate the next row. Error message: {error_message}"
-                )));
-            }
-
-            let mut current_row = Row::new();
-            for column_index in 0..column_count {
-                let column_name_cstr =
-                    unsafe { libsqlite3::sqlite3_column_name(stmt, column_index as i32) };
-
-                let column_name =
-                    String::from_utf8_lossy(unsafe { CStr::from_ptr(column_name_cstr).to_bytes() })
-                        .to_string();
-
-                if query_data.column_order.len() != column_count {
-                    query_data.column_order.push(column_name.clone());
+                    current_row.insert(column_name.clone(), column_value);
                 }
 
-                let column_type =
-                    unsafe { libsqlite3::sqlite3_column_type(stmt, column_index as i32) } as u32;
+                Ok(current_row)
+            })
+            .map_err(|e| Error::TablePlugin(format!("{}", e)))?;
 
-                let column_value = match column_type {
-                    libsqlite3::SQLITE_INTEGER => {
-                        let value =
-                            unsafe { libsqlite3::sqlite3_column_int64(stmt, column_index as i32) };
+        let row_list = mapped_row_list
+            .map(|row| row.map_err(|e| Error::TablePlugin(format!("{}", e))))
+            .collect::<Result<RowList>>()?;
 
-                        Some(ColumnValue::SignedInteger(value))
-                    }
-
-                    libsqlite3::SQLITE_FLOAT => {
-                        let value =
-                            unsafe { libsqlite3::sqlite3_column_double(stmt, column_index as i32) };
-
-                        Some(ColumnValue::Double(value))
-                    }
-
-                    libsqlite3::SQLITE_TEXT => {
-                        let value = unsafe {
-                            libsqlite3::sqlite3_column_text(stmt, column_index as i32) as *const i8
-                        };
-
-                        let value = unsafe { CStr::from_ptr(value).to_bytes() };
-                        let value = String::from_utf8_lossy(value).to_string();
-
-                        Some(ColumnValue::String(value))
-                    }
-
-                    libsqlite3::SQLITE_NULL => None,
-
-                    _ => {
-                        return Err(Error::TablePlugin(
-                            "The table plugin has generated an invalid column type".to_string(),
-                        ));
-                    }
-                };
-
-                current_row.insert(column_name, column_value);
-            }
-
-            query_data.row_list.push(current_row);
-        }
-
-        unsafe {
-            libsqlite3::sqlite3_finalize(stmt);
-        }
-
-        Ok(query_data)
+        Ok(QueryData {
+            column_order: column_name_list,
+            row_list,
+        })
     }
 
     /// Registers a new table plugin
@@ -191,33 +113,23 @@ impl Database {
             return Err(Error::DuplicatedTableName(table_plugin.name()));
         }
 
-        let table_name = CString::new(table_plugin.name()).map_err(|_| {
-            Error::InvalidTablePluginName("The table plugin name is not valid".to_string())
-        })?;
-
-        let mut table_plugin_wrapper = Box::new(TablePluginWrapper {
-            table_plugin: table_plugin.clone(),
-        });
-        let table_plugin_wrapper_ptr =
-            table_plugin_wrapper.as_mut() as *mut TablePluginWrapper as *mut os::raw::c_void;
-
-        if unsafe {
-            sqlite3_create_module(
-                self.sqlite,
-                table_name.as_ptr(),
-                &SQLITE_TABLE_MODULE,
-                table_plugin_wrapper_ptr,
-            ) as u32
-        } != SQLITE_OK
-        {
-            return Err(Error::TablePluginRegistration(format!(
-                "The table plugin {} could not be registered",
-                table_plugin.name()
-            )));
-        }
+        let module = eponymous_only_module::<PluginVTab>();
+        self.conn
+            .create_module(
+                table_plugin.name().as_str(),
+                module,
+                Some(table_plugin.clone()),
+            )
+            .map_err(|e| {
+                Error::TablePluginRegistration(format!(
+                    "Failed to register table {}: {}",
+                    table_plugin.name(),
+                    e
+                ))
+            })?;
 
         self.table_plugin_map
-            .insert(table_plugin.name(), table_plugin_wrapper);
+            .insert(table_plugin.name(), table_plugin);
 
         Ok(())
     }
@@ -230,357 +142,156 @@ impl Database {
     }
 
     /// Returns the schema for a specific table
-    pub fn get_table_schema(
-        &self,
-        table_name: &str,
-    ) -> Option<std::collections::BTreeMap<String, ColumnType>> {
+    pub fn get_table_schema(&self, table_name: &str) -> Option<BTreeMap<String, ColumnType>> {
         self.table_plugin_map
             .get(table_name)
-            .map(|wrapper| wrapper.table_plugin.schema())
+            .map(|plugin| plugin.schema())
     }
 }
 
-/// Closes the database when it goes out of scope
-impl Drop for Database {
-    /// Closes the sqlite3 database
-    fn drop(&mut self) {
-        unsafe {
-            sqlite3_close(self.sqlite);
-        }
-    }
-}
-
-/// A wrapper around the sqlite3 virtual table structure
+/// Virtual table implementation for table plugins
 #[repr(C)]
-struct VirtualTable {
-    /// The sqlite3 virtual table structure
-    sqlite_vtab: sqlite3_vtab,
+struct PluginVTab<'vtab> {
+    /// Base class. Must be first
+    base: rusqlite::vtab::sqlite3_vtab,
 
-    /// A reference to the table plugin
-    table_plugin_ref: Arc<dyn TablePlugin>,
+    /// Reference to the table plugin
+    plugin: Arc<dyn TablePlugin>,
+
+    /// Phantom data for lifetime
+    phantom: PhantomData<&'vtab ()>,
 }
 
-/// Returns the sqlite column type
-fn get_sqlite_column_type(column_type: &ColumnType) -> &str {
-    match column_type {
-        ColumnType::SignedInteger => "INTEGER",
-        ColumnType::String => "TEXT",
-        ColumnType::Double => "REAL",
-    }
-}
+unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
+    type Aux = Arc<dyn TablePlugin>;
+    type Cursor = PluginVTabCursor<'vtab>;
 
-/// Generates the CREATE TABLE statement for the table plugin
-fn generate_create_table_statement(table_plugin: &dyn TablePlugin) -> Result<CString> {
-    let mut column_declarations = String::new();
+    fn connect(
+        _db: &mut VTabConnection,
+        aux: Option<&Self::Aux>,
+        _args: &[&[u8]],
+    ) -> rusqlite::Result<(String, Self)> {
+        let plugin = aux
+            .ok_or_else(|| rusqlite::Error::ModuleError("No plugin provided".to_string()))?
+            .clone();
 
-    for (column_name, column_type) in table_plugin.schema() {
-        if !column_declarations.is_empty() {
-            column_declarations.push_str(", ");
+        let schema = plugin.schema();
+        let mut column_declarations = Vec::new();
+
+        for (column_name, column_type) in schema {
+            let sql_type = match column_type {
+                ColumnType::SignedInteger => "INTEGER",
+                ColumnType::String => "TEXT",
+                ColumnType::Double => "REAL",
+            };
+
+            column_declarations.push(format!("{} {}", column_name, sql_type));
         }
 
-        column_declarations.push_str(&format!(
-            "{} {}",
-            column_name,
-            get_sqlite_column_type(&column_type)
-        ));
-    }
-
-    CString::new(format!(
-        "CREATE TABLE {} ({})",
-        table_plugin.name(),
-        column_declarations
-    ))
-    .map_err(|_| {
-        Error::Internal("Failed to allocate the string for the CREATE TABLE statemenet".to_string())
-    })
-}
-
-/// This is the callback invoked by sqlite to create the virtual table
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_connect_callback(
-    arg1: *mut libsqlite3::sqlite3,
-    pAux: *mut os::raw::c_void,
-    _argc: os::raw::c_int,
-    _argv: *const *const os::raw::c_char,
-    ppVTab: *mut *mut libsqlite3::sqlite3_vtab,
-    _arg2: *mut *mut os::raw::c_char,
-) -> os::raw::c_int {
-    let table_plugin_wrapper = &*(pAux as *const TablePluginWrapper);
-    let table_plugin = table_plugin_wrapper.table_plugin.clone();
-
-    let raw_vtab = Box::into_raw(Box::new(VirtualTable {
-        sqlite_vtab: sqlite3_vtab {
-            pModule: std::ptr::null(),
-            nRef: 0,
-            zErrMsg: std::ptr::null_mut(),
-        },
-
-        table_plugin_ref: table_plugin_wrapper.table_plugin.clone(),
-    }));
-
-    let create_table_statement = generate_create_table_statement(table_plugin.as_ref())
-        .expect("Failed to generate the CREATE TABLE statement");
-
-    libsqlite3::sqlite3_declare_vtab(arg1, create_table_statement.as_ptr());
-
-    *ppVTab = raw_vtab as *mut sqlite3_vtab;
-    SQLITE_OK as os::raw::c_int
-}
-
-/// Unused
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_xbest_index_callback(
-    _pVTab: *mut sqlite3_vtab,
-    _arg1: *mut libsqlite3::sqlite3_index_info,
-) -> os::raw::c_int {
-    SQLITE_OK as os::raw::c_int
-}
-
-/// Destroys the virtual table
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_disconnect_callback(
-    pVTab: *mut libsqlite3::sqlite3_vtab,
-) -> os::raw::c_int {
-    drop(Box::from_raw(pVTab as *mut VirtualTable));
-    SQLITE_OK as os::raw::c_int
-}
-
-/// A wrapper around the sqlite3 virtual table cursor structure
-#[repr(C)]
-struct VirtualTableCursor {
-    /// The sqlite3 virtual table cursor structure
-    sqlite_vtab_cursor: libsqlite3::sqlite3_vtab_cursor,
-
-    /// The list of rows generated by the table plugin
-    row_list: RowList,
-
-    /// The current row index
-    current_row: usize,
-}
-
-/// This is the callback invoked by sqlite to create new cursors
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_open_callback(
-    pVTab: *mut libsqlite3::sqlite3_vtab,
-    ppCursor: *mut *mut libsqlite3::sqlite3_vtab_cursor,
-) -> os::raw::c_int {
-    let table_cursor = Box::new(VirtualTableCursor {
-        sqlite_vtab_cursor: libsqlite3::sqlite3_vtab_cursor { pVtab: pVTab },
-        row_list: RowList::new(),
-        current_row: 0,
-    });
-
-    *ppCursor = Box::into_raw(table_cursor) as *mut libsqlite3::sqlite3_vtab_cursor;
-    SQLITE_OK as os::raw::c_int
-}
-
-/// This is the callback invoked by sqlite to destroy cursors
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_close_callback(
-    arg1: *mut libsqlite3::sqlite3_vtab_cursor,
-) -> os::raw::c_int {
-    drop(Box::from_raw(arg1 as *mut VirtualTableCursor));
-    SQLITE_OK as os::raw::c_int
-}
-
-/// Sets the error message in the sqlite3 virtual table structure
-fn set_vtab_error_message(sqlite_vtab: &mut sqlite3_vtab, message: String) {
-    if !sqlite_vtab.zErrMsg.is_null() {
-        unsafe { libsqlite3::sqlite3_free(sqlite_vtab.zErrMsg as *mut std::ffi::c_void) };
-        sqlite_vtab.zErrMsg = std::ptr::null_mut();
-    }
-
-    let cstring_message = match CString::new(message) {
-        Ok(cstring_message) => cstring_message,
-
-        Err(_) => CString::new("The table plugin has generated an invalid error message")
-            .expect("Failed to initialize the default vtab error message"),
-    };
-
-    let cstring_message_ptr = cstring_message.as_ptr() as *mut i8;
-    let cstring_message_len = cstring_message.as_bytes().len() as i32;
-
-    let error_message_buffer = unsafe {
-        let error_message_buffer = libsqlite3::sqlite3_malloc(cstring_message_len + 1) as *mut i8;
-
-        std::ptr::copy_nonoverlapping(
-            cstring_message_ptr,
-            error_message_buffer,
-            cstring_message_len as usize,
+        let create_table_sql = format!(
+            "CREATE TABLE {} ({})",
+            plugin.name(),
+            column_declarations.join(", ")
         );
 
-        error_message_buffer
-    };
+        let vtab = Self {
+            base: rusqlite::vtab::sqlite3_vtab::default(),
+            plugin,
+            phantom: PhantomData,
+        };
 
-    sqlite_vtab.zErrMsg = error_message_buffer;
+        Ok((create_table_sql, vtab))
+    }
+
+    fn best_index(&self, info: &mut IndexInfo) -> rusqlite::Result<()> {
+        info.set_estimated_cost(1.0);
+        Ok(())
+    }
+
+    fn open(&'vtab mut self) -> rusqlite::Result<Self::Cursor> {
+        Ok(PluginVTabCursor {
+            base: rusqlite::vtab::sqlite3_vtab_cursor::default(),
+            plugin: self.plugin.clone(),
+            rows: Vec::new(),
+            current_row: 0,
+            phantom: PhantomData,
+        })
+    }
 }
 
-/// This is where the table plugin is invoked to generate the rows
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_xfilter_callback(
-    arg1: *mut libsqlite3::sqlite3_vtab_cursor,
-    _idxNum: os::raw::c_int,
-    _idxStr: *const os::raw::c_char,
-    _argc: os::raw::c_int,
-    _argv: *mut *mut libsqlite3::sqlite3_value,
-) -> os::raw::c_int {
-    let virtual_table = &mut *((*arg1).pVtab as *mut VirtualTable);
-    let table_plugin = &virtual_table.table_plugin_ref;
+/// Virtual table cursor implementation
+#[repr(C)]
+struct PluginVTabCursor<'vtab> {
+    /// Base class. Must be first
+    base: rusqlite::vtab::sqlite3_vtab_cursor,
 
-    let table_cursor = &mut *(arg1 as *mut VirtualTableCursor);
-    table_cursor.current_row = 0;
-    table_cursor.row_list = match table_plugin.generate() {
-        Err(error) => {
-            set_vtab_error_message(&mut virtual_table.sqlite_vtab, format!("{error:?}"));
-            return SQLITE_ERROR as os::raw::c_int;
+    /// Reference to the table plugin
+    plugin: Arc<dyn TablePlugin>,
+
+    /// Generated rows
+    rows: RowList,
+
+    /// Current row index
+    current_row: usize,
+
+    /// Phantom data for lifetime
+    phantom: PhantomData<&'vtab PluginVTab<'vtab>>,
+}
+
+unsafe impl VTabCursor for PluginVTabCursor<'_> {
+    fn filter(
+        &mut self,
+        _idx_num: c_int,
+        _idx_str: Option<&str>,
+        _args: &Filters<'_>,
+    ) -> rusqlite::Result<()> {
+        self.rows = self
+            .plugin
+            .generate()
+            .map_err(|e| rusqlite::Error::ModuleError(format!("{:?}", e)))?;
+
+        self.current_row = 0;
+        Ok(())
+    }
+
+    fn next(&mut self) -> rusqlite::Result<()> {
+        self.current_row += 1;
+        Ok(())
+    }
+
+    fn eof(&self) -> bool {
+        self.current_row >= self.rows.len()
+    }
+
+    fn column(&self, ctx: &mut Context, col: c_int) -> rusqlite::Result<()> {
+        let row = self
+            .rows
+            .get(self.current_row)
+            .ok_or_else(|| rusqlite::Error::ModuleError("Invalid row index".to_string()))?;
+
+        let column = row
+            .iter()
+            .nth(col as usize)
+            .ok_or_else(|| rusqlite::Error::ModuleError("Invalid column index".to_string()))?;
+
+        match &column.1 {
+            None => ctx.set_result(&rusqlite::types::Null),
+            Some(value) => match value {
+                ColumnValue::SignedInteger(i) => ctx.set_result(i),
+                ColumnValue::Double(f) => ctx.set_result(f),
+                ColumnValue::String(s) => ctx.set_result(&s.as_str()),
+            },
         }
-
-        Ok(row_list) => row_list,
-    };
-
-    SQLITE_OK as os::raw::c_int
-}
-
-/// This is the callback invoked by sqlite to advance the cursor
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_xnext_callback(
-    arg1: *mut libsqlite3::sqlite3_vtab_cursor,
-) -> os::raw::c_int {
-    let table_cursor = &mut *(arg1 as *mut VirtualTableCursor);
-    table_cursor.current_row += 1;
-
-    SQLITE_OK as os::raw::c_int
-}
-
-/// This is the callback invoked by sqlite to check if the cursor has reached the end of the generated rows
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_xeof_callback(
-    arg1: *mut libsqlite3::sqlite3_vtab_cursor,
-) -> os::raw::c_int {
-    let table_cursor = &mut *(arg1 as *mut VirtualTableCursor);
-    if table_cursor.current_row >= table_cursor.row_list.len() {
-        1
-    } else {
-        0
-    }
-}
-
-/// This is the callback invoked by sqlite to release CString objects returned by the xColumn callback
-unsafe extern "C" fn release_cstring(cstring: *mut ::std::os::raw::c_void) {
-    drop(CString::from_raw(cstring as *mut _));
-}
-
-/// This is the callback invoked by sqlite to retrieve the column value
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_xcolumn_callback(
-    arg1: *mut libsqlite3::sqlite3_vtab_cursor,
-    arg2: *mut libsqlite3::sqlite3_context,
-    arg3: os::raw::c_int,
-) -> os::raw::c_int {
-    let table_cursor = &mut *(arg1 as *mut VirtualTableCursor);
-    if table_cursor.current_row >= table_cursor.row_list.len() {
-        return SQLITE_ERROR as os::raw::c_int;
     }
 
-    let current_row = match table_cursor.row_list.get(table_cursor.current_row) {
-        Some(row) => row,
-        None => return SQLITE_ERROR as os::raw::c_int,
-    };
-
-    let column_number = arg3 as usize;
-    if column_number >= current_row.len() {
-        return SQLITE_ERROR as os::raw::c_int;
+    fn rowid(&self) -> rusqlite::Result<i64> {
+        Ok((self.current_row + 1) as i64)
     }
-
-    let current_column = match current_row.iter().nth(column_number) {
-        Some(column) => column,
-        None => return SQLITE_ERROR as os::raw::c_int,
-    };
-
-    match &current_column.1 {
-        None => {
-            libsqlite3::sqlite3_result_null(arg2);
-        }
-
-        Some(value) => match value {
-            ColumnValue::Double(value) => {
-                libsqlite3::sqlite3_result_double(arg2, *value);
-            }
-
-            ColumnValue::SignedInteger(value) => {
-                libsqlite3::sqlite3_result_int64(arg2, *value);
-            }
-
-            ColumnValue::String(value) => {
-                let c_string = match CString::new(&value[..]) {
-                    Ok(c_string) => c_string.into_raw(),
-                    Err(error) => {
-                        let virtual_table =
-                            &mut *(table_cursor.sqlite_vtab_cursor.pVtab as *mut VirtualTable);
-
-                        set_vtab_error_message(&mut virtual_table.sqlite_vtab, format!("The table plugin has generated an invalid text column value. {error:?}"));
-                        return SQLITE_ERROR as os::raw::c_int;
-                    }
-                };
-
-                libsqlite3::sqlite3_result_text(
-                    arg2,
-                    c_string,
-                    value.len() as i32,
-                    Some(release_cstring),
-                );
-            }
-        },
-    };
-
-    SQLITE_OK as os::raw::c_int
 }
-
-/// This is the callback invoked by sqlite to retrieve the rowid
-#[allow(non_snake_case, non_camel_case_types)]
-unsafe extern "C" fn sqlite_xrowid_callback(
-    arg1: *mut libsqlite3::sqlite3_vtab_cursor,
-    pRowid: *mut libsqlite3::sqlite3_int64,
-) -> os::raw::c_int {
-    let table_cursor = &mut *(arg1 as *mut VirtualTableCursor);
-    *pRowid = (table_cursor.current_row + 1) as libsqlite3::sqlite3_int64;
-
-    SQLITE_OK as os::raw::c_int
-}
-
-/// The sqlite3 module that is passed to sqlite3_create_module
-const SQLITE_TABLE_MODULE: sqlite3_module = sqlite3_module {
-    iVersion: 3,
-    xCreate: Some(sqlite_connect_callback),
-    xConnect: Some(sqlite_connect_callback),
-    xBestIndex: Some(sqlite_xbest_index_callback),
-    xDisconnect: Some(sqlite_disconnect_callback),
-    xDestroy: Some(sqlite_disconnect_callback),
-    xOpen: Some(sqlite_open_callback),
-    xClose: Some(sqlite_close_callback),
-    xFilter: Some(sqlite_xfilter_callback),
-    xNext: Some(sqlite_xnext_callback),
-    xEof: Some(sqlite_xeof_callback),
-    xColumn: Some(sqlite_xcolumn_callback),
-    xRowid: Some(sqlite_xrowid_callback),
-    xUpdate: None,
-    xBegin: None,
-    xSync: None,
-    xCommit: None,
-    xRollback: None,
-    xFindFunction: None,
-    xRename: None,
-    xSavepoint: None,
-    xRelease: None,
-    xRollbackTo: None,
-    xShadowName: None,
-    xIntegrity: None,
-};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
 
     struct TestTablePlugin {
         return_error: bool,
@@ -598,7 +309,6 @@ mod tests {
             schema.insert("column1".to_owned(), ColumnType::SignedInteger);
             schema.insert("column2".to_owned(), ColumnType::String);
             schema.insert("column3".to_owned(), ColumnType::Double);
-
             schema
         }
 
@@ -625,29 +335,6 @@ mod tests {
 
             Ok(vec![row])
         }
-    }
-
-    #[test]
-    fn test_get_sqlite_column_type() {
-        assert_eq!(
-            get_sqlite_column_type(&ColumnType::SignedInteger),
-            "INTEGER"
-        );
-        assert_eq!(get_sqlite_column_type(&ColumnType::String), "TEXT");
-        assert_eq!(get_sqlite_column_type(&ColumnType::Double), "REAL");
-    }
-
-    #[test]
-    fn test_generate_create_table_statement() {
-        let table_plugin = TestTablePlugin::new(false);
-        let create_table_statement =
-            generate_create_table_statement(table_plugin.as_ref()).unwrap();
-        let create_table_statement = create_table_statement.to_string_lossy();
-
-        assert_eq!(
-            create_table_statement,
-            "CREATE TABLE test_table (column1 INTEGER, column2 TEXT, column3 REAL)"
-        );
     }
 
     #[test]
