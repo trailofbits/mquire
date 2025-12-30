@@ -10,7 +10,7 @@ use crate::{
     core::{
         entities::{
             file::File, network_interface::NetworkInterface, system_information::SystemInformation,
-            system_version::SystemVersion, task::Task,
+            system_version::SystemVersion,
         },
         error::Result,
     },
@@ -26,9 +26,6 @@ pub trait OperatingSystem: Send + Sync {
 
     /// Returns the system information.
     fn get_system_information(&self) -> Result<SystemInformation>;
-
-    /// Returns the task list.
-    fn get_task_list(&self) -> Result<Vec<Task>>;
 
     /// Returns the list of open files.
     fn get_task_open_file_list(&self) -> Result<Vec<File>>;

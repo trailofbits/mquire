@@ -9,15 +9,13 @@
 use crate::{
     core::{
         architecture::Architecture,
-        entities::{
-            ip_address::IPAddress,
-            network_connection::{IPAddressType, NetworkConnection, Protocol},
-        },
+        entities::ip_address::IPAddress,
         error::{Error, ErrorKind, Result},
         virtual_memory_reader::VirtualMemoryReader,
     },
     memory::{primitives::PhysicalAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
+        entities::network_connection::{IPAddressType, NetworkConnection, Protocol},
         list::{List, ListValue},
         operating_system::LinuxOperatingSystem,
         utils::get_struct_size,

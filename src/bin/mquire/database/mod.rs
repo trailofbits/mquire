@@ -10,13 +10,17 @@ mod table_plugins;
 
 use crate::{
     database::table_plugins::{
-        boot_time::BootTimeTablePlugin, cgroups::CgroupsTablePlugin, dmesg::DmesgTablePlugin,
-        kallsyms::KallsymsTablePlugin, kernel_modules::KernelModulesTablePlugin,
-        log_messages::LogMessagesTablePlugin, memory_mappings::MemoryMappingsTablePlugin,
-        network_connections::NetworkConnectionsTablePlugin,
-        network_interfaces::NetworkInterfacesTablePlugin, os_version::OSVersionTablePlugin,
-        syslog_file::SyslogFileTablePlugin, system_info::SystemInfoTablePlugin,
-        task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
+        common::{
+            log_messages::LogMessagesTablePlugin, network_interfaces::NetworkInterfacesTablePlugin,
+            os_version::OSVersionTablePlugin, system_info::SystemInfoTablePlugin,
+        },
+        linux::{
+            boot_time::BootTimeTablePlugin, cgroups::CgroupsTablePlugin, dmesg::DmesgTablePlugin,
+            kallsyms::KallsymsTablePlugin, kernel_modules::KernelModulesTablePlugin,
+            memory_mappings::MemoryMappingsTablePlugin,
+            network_connections::NetworkConnectionsTablePlugin, syslog_file::SyslogFileTablePlugin,
+            task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
+        },
     },
     sqlite::{
         database::{Database as SqliteDatabase, QueryData},
@@ -59,23 +63,43 @@ impl Database {
         let system = LinuxOperatingSystem::new(memory_dump, IntelArchitecture::new())?;
 
         let mut sqlite_db = SqliteDatabase::new()?;
+        Self::register_common_plugins(&mut sqlite_db, system.clone())?;
+        Self::register_linux_plugins(&mut sqlite_db, system)?;
+
+        sqlite_db.load_autostart_files();
+        Ok(Self { sqlite_db })
+    }
+
+    /// Registers OS-agnostic table plugins
+    fn register_common_plugins(
+        sqlite_db: &mut SqliteDatabase,
+        system: Arc<LinuxOperatingSystem>,
+    ) -> Result<()> {
         sqlite_db.register_table_plugin(OSVersionTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(SystemInfoTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(BootTimeTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(TaskOpenFilesTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(NetworkInterfacesTablePlugin::new(system))?;
+        sqlite_db.register_table_plugin(LogMessagesTablePlugin::new())?;
+
+        Ok(())
+    }
+
+    /// Registers Linux-specific table plugins
+    fn register_linux_plugins(
+        sqlite_db: &mut SqliteDatabase,
+        system: Arc<LinuxOperatingSystem>,
+    ) -> Result<()> {
         sqlite_db.register_table_plugin(TasksTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(TaskOpenFilesTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(BootTimeTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(CgroupsTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(DmesgTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(KallsymsTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(KernelModulesTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(LogMessagesTablePlugin::new())?;
-        sqlite_db.register_table_plugin(SyslogFileTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(MemoryMappingsTablePlugin::new(system.clone()))?;
         sqlite_db.register_table_plugin(NetworkConnectionsTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(NetworkInterfacesTablePlugin::new(system.clone()))?;
+        sqlite_db.register_table_plugin(SyslogFileTablePlugin::new(system))?;
 
-        sqlite_db.load_autostart_files();
-        Ok(Self { sqlite_db })
+        Ok(())
     }
 
     /// Executes the given SQL query, returning raw query data
