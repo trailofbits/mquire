@@ -16,6 +16,7 @@ use crate::{
         operating_system::LinuxOperatingSystem, task_struct_iterator::TaskStructIterator,
         virtual_struct::VirtualStruct,
     },
+    try_chain,
 };
 
 use {btfparse::TypeInformation, log::debug};
@@ -71,8 +72,21 @@ impl LinuxOperatingSystem {
         let vmem_reader = VirtualMemoryReader::new(readable, architecture);
 
         let comm = task_struct.traverse("comm")?.read_string_lossy(Some(16))?;
-        let kernel_pid = task_struct.traverse("pid")?.read_u32()?; // Thread ID
-        let kernel_tgid = task_struct.traverse("tgid")?.read_u32()?; // Process ID
+        let pid = task_struct.traverse("pid")?.read_u32()?;
+        let tgid = task_struct.traverse("tgid")?.read_u32()?;
+
+        let ppid = try_chain!(task_struct
+            .traverse("parent")?
+            .dereference()?
+            .traverse("tgid")?
+            .read_u32())
+        .inspect_err(|error| {
+            debug!(
+                "Could not determine the parent process id for process {:?}: {error:?}",
+                task_struct.virtual_address()
+            )
+        })
+        .ok();
 
         let cred = task_struct.traverse("cred")?.dereference()?;
         let uid = cred.traverse("uid")?.read_u32()?;
@@ -211,9 +225,10 @@ impl LinuxOperatingSystem {
             name: Some(comm),
             command_line,
             environment_variable_map,
-            pid: kernel_tgid,
-            tid: kernel_pid,
-            main_thread: kernel_pid == kernel_tgid,
+            pid: tgid,
+            ppid,
+            tid: pid,
+            main_thread: pid == tgid,
             uid,
             gid,
         })
