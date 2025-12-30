@@ -34,6 +34,9 @@ pub struct Task {
     /// The process identifier
     pub pid: u32,
 
+    /// The parent process identifier
+    pub ppid: Option<u32>,
+
     /// The thread identifier
     pub tid: u32,
 

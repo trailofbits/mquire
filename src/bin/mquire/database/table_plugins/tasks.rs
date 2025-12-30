@@ -37,6 +37,7 @@ impl TablePlugin for TasksTablePlugin {
         schema.insert(String::from("comm"), ColumnType::String);
         schema.insert(String::from("command_line"), ColumnType::String);
         schema.insert(String::from("environment"), ColumnType::String);
+        schema.insert(String::from("ppid"), ColumnType::SignedInteger);
         schema.insert(String::from("pid"), ColumnType::SignedInteger);
         schema.insert(String::from("tid"), ColumnType::SignedInteger);
         schema.insert(String::from("main_thread"), ColumnType::SignedInteger);
@@ -90,6 +91,12 @@ impl TablePlugin for TasksTablePlugin {
             row.insert(
                 String::from("environment"),
                 environment.map(ColumnValue::String),
+            );
+
+            row.insert(
+                String::from("ppid"),
+                task.ppid
+                    .map(|parent_pid| ColumnValue::SignedInteger(parent_pid as i64)),
             );
 
             row.insert(
