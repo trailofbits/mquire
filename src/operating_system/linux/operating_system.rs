@@ -24,8 +24,8 @@ use crate::{
     core::{
         architecture::{Architecture, Endianness},
         entities::{
-            file::File, network_connection::NetworkConnection, network_interface::NetworkInterface,
-            system_information::SystemInformation, system_version::SystemVersion, task::Task,
+            file::File, network_interface::NetworkInterface, system_information::SystemInformation,
+            system_version::SystemVersion,
         },
         error::{Error, ErrorKind, Result},
         operating_system::OperatingSystem,
@@ -42,7 +42,7 @@ use crate::{
         entities::{
             boot_time::BootTime, cgroup::Cgroup, dmesg::DmesgEntry,
             kallsyms_symbol::KallsymsSymbol, memory_mapping::MemoryMapping,
-            syslog_file::SyslogFile,
+            network_connection::NetworkConnection, syslog_file::SyslogFile, task::Task,
         },
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
@@ -143,6 +143,11 @@ impl LinuxOperatingSystem {
     /// Returns the cgroup list
     pub fn get_cgroup_list(&self) -> Result<Vec<Cgroup>> {
         self.get_cgroup_list_impl()
+    }
+
+    /// Returns the task list
+    pub fn get_task_list(&self) -> Result<Vec<Task>> {
+        self.get_task_list_impl()
     }
 
     /// Returns the list of memory mappings in the given task
@@ -403,10 +408,6 @@ impl OperatingSystem for LinuxOperatingSystem {
 
     fn get_system_information(&self) -> Result<SystemInformation> {
         self.get_system_information_impl()
-    }
-
-    fn get_task_list(&self) -> Result<Vec<Task>> {
-        self.get_task_list_impl()
     }
 
     fn get_task_open_file_list(&self) -> Result<Vec<File>> {

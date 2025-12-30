@@ -11,18 +11,18 @@ use crate::sqlite::{
     table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
 };
 
-use mquire::core::operating_system::OperatingSystem;
+use mquire::operating_system::linux::operating_system::LinuxOperatingSystem;
 
 use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that lists active tasks
 pub struct TasksTablePlugin {
-    system: Arc<dyn OperatingSystem>,
+    system: Arc<LinuxOperatingSystem>,
 }
 
 impl TasksTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new(system: Arc<dyn OperatingSystem>) -> Arc<Self> {
+    pub fn new(system: Arc<LinuxOperatingSystem>) -> Arc<Self> {
         Arc::new(Self { system })
     }
 }
@@ -38,6 +38,7 @@ impl TablePlugin for TasksTablePlugin {
         schema.insert(String::from("command_line"), ColumnType::String);
         schema.insert(String::from("environment"), ColumnType::String);
         schema.insert(String::from("ppid"), ColumnType::SignedInteger);
+        schema.insert(String::from("real_ppid"), ColumnType::SignedInteger);
         schema.insert(String::from("pid"), ColumnType::SignedInteger);
         schema.insert(String::from("tid"), ColumnType::SignedInteger);
         schema.insert(String::from("main_thread"), ColumnType::SignedInteger);
@@ -96,6 +97,12 @@ impl TablePlugin for TasksTablePlugin {
             row.insert(
                 String::from("ppid"),
                 task.ppid
+                    .map(|parent_pid| ColumnValue::SignedInteger(parent_pid as i64)),
+            );
+
+            row.insert(
+                String::from("real_ppid"),
+                task.real_ppid
                     .map(|parent_pid| ColumnValue::SignedInteger(parent_pid as i64)),
             );
 

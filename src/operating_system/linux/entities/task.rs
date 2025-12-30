@@ -34,8 +34,11 @@ pub struct Task {
     /// The process identifier
     pub pid: u32,
 
-    /// The parent process identifier
+    /// The parent process identifier, taken from task_struct::parent::tgid
     pub ppid: Option<u32>,
+
+    /// The parent process identifier, taken from task_struct::real_parent::tgid
+    pub real_ppid: Option<u32>,
 
     /// The thread identifier
     pub tid: u32,

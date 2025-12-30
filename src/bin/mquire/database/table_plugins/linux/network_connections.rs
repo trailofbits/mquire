@@ -11,9 +11,8 @@ use crate::sqlite::{
     table_plugin::{ColumnType, ColumnValue, Row, RowList, TablePlugin},
 };
 
-use mquire::{
-    core::entities::network_connection::IPAddressType,
-    operating_system::linux::operating_system::LinuxOperatingSystem,
+use mquire::operating_system::linux::{
+    entities::network_connection::IPAddressType, operating_system::LinuxOperatingSystem,
 };
 
 use std::{collections::BTreeMap, sync::Arc};

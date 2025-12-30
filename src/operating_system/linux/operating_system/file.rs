@@ -7,10 +7,7 @@
 //
 
 use crate::{
-    core::{
-        entities::file::File, error::Result, operating_system::OperatingSystem,
-        virtual_memory_reader::VirtualMemoryReader,
-    },
+    core::{entities::file::File, error::Result, virtual_memory_reader::VirtualMemoryReader},
     memory::virtual_address::VirtualAddress,
     operating_system::linux::{
         operating_system::LinuxOperatingSystem, virtual_struct::VirtualStruct,

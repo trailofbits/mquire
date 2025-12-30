@@ -7,14 +7,11 @@
 //
 
 use crate::{
-    core::{
-        architecture::Architecture, entities::task::Task, error::Result,
-        virtual_memory_reader::VirtualMemoryReader,
-    },
+    core::{architecture::Architecture, error::Result, virtual_memory_reader::VirtualMemoryReader},
     memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
-        operating_system::LinuxOperatingSystem, task_struct_iterator::TaskStructIterator,
-        virtual_struct::VirtualStruct,
+        entities::task::Task, operating_system::LinuxOperatingSystem,
+        task_struct_iterator::TaskStructIterator, virtual_struct::VirtualStruct,
     },
     try_chain,
 };
@@ -83,6 +80,19 @@ impl LinuxOperatingSystem {
         .inspect_err(|error| {
             debug!(
                 "Could not determine the parent process id for process {:?}: {error:?}",
+                task_struct.virtual_address()
+            )
+        })
+        .ok();
+
+        let real_ppid = try_chain!(task_struct
+            .traverse("real_parent")?
+            .dereference()?
+            .traverse("tgid")?
+            .read_u32())
+        .inspect_err(|error| {
+            debug!(
+                "Could not determine the real parent process id for process {:?}: {error:?}",
                 task_struct.virtual_address()
             )
         })
@@ -227,6 +237,7 @@ impl LinuxOperatingSystem {
             environment_variable_map,
             pid: tgid,
             ppid,
+            real_ppid,
             tid: pid,
             main_thread: pid == tgid,
             uid,

@@ -11,18 +11,21 @@ use crate::sqlite::{
     table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
 };
 
-use mquire::core::operating_system::OperatingSystem;
+use mquire::{
+    core::operating_system::OperatingSystem,
+    operating_system::linux::operating_system::LinuxOperatingSystem,
+};
 
 use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that lists task open files
 pub struct TaskOpenFilesTablePlugin {
-    system: Arc<dyn OperatingSystem>,
+    system: Arc<LinuxOperatingSystem>,
 }
 
 impl TaskOpenFilesTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new(system: Arc<dyn OperatingSystem>) -> Arc<Self> {
+    pub fn new(system: Arc<LinuxOperatingSystem>) -> Arc<Self> {
         Arc::new(Self { system })
     }
 }
