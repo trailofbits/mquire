@@ -99,13 +99,21 @@ impl LinuxOperatingSystem {
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
         for task in self.get_task_list_impl()? {
-            let task_struct = VirtualStruct::from_name(
+            let task_struct = match VirtualStruct::from_name(
                 &vmem_reader,
                 &self.kernel_type_info,
                 "task_struct",
                 &task.virtual_address,
-            )
-            .inspect_err(|err| debug!("{err:?}"))?;
+            ) {
+                Ok(ts) => ts,
+                Err(err) => {
+                    debug!(
+                        "Failed to create VirtualStruct from task.virtual_address {:?}: {err:?}",
+                        task.virtual_address
+                    );
+                    continue;
+                }
+            };
 
             match try_chain!(task_struct.traverse("mm")?.read_vaddr()) {
                 Ok(mm_virtual_address) => {
@@ -124,17 +132,29 @@ impl LinuxOperatingSystem {
                 match try_chain!(task_struct.traverse("mm")?.dereference()?.traverse("mm_mt")) {
                     Ok(obj) => obj,
                     Err(err) => {
-                        debug!("{err:?}");
+                        debug!(
+                            "Failed to traverse mm->mm_mt for task {:?}: {err:?}",
+                            task.virtual_address
+                        );
                         continue;
                     }
                 };
 
-            let maple_tree = MapleTree::<VmAreaStruct>::new(
+            let maple_tree = match MapleTree::<VmAreaStruct>::new(
                 self.memory_dump.as_ref(),
                 self.architecture.as_ref(),
                 &self.kernel_type_info,
                 mm_mt.virtual_address(),
-            )?;
+            ) {
+                Ok(tree) => tree,
+                Err(err) => {
+                    debug!(
+                        "Failed to create MapleTree for task {:?}: {err:?}",
+                        task.virtual_address
+                    );
+                    continue;
+                }
+            };
 
             for entry in maple_tree.entries() {
                 let vma_info = &entry.value;
