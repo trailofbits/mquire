@@ -17,10 +17,10 @@ use crate::{
     memory::{readable::Readable, virtual_address::VirtualAddress},
 };
 
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 /// Common interface for operating system implementations.
-pub trait OperatingSystem: Send + Sync {
+pub trait OperatingSystem: Send + Sync + Any {
     /// Returns the OS version.
     fn get_os_version(&self) -> Result<SystemVersion>;
 
@@ -30,9 +30,12 @@ pub trait OperatingSystem: Send + Sync {
     /// Returns the list of open files.
     fn get_task_open_file_list(&self) -> Result<Vec<File>>;
 
-    /// Returns the network interface list
+    /// Returns the network interface list.
     fn get_network_interface_list(&self) -> Result<Vec<NetworkInterface>>;
 
-    /// Returns a reader for the file struct at the given virtual address
+    /// Returns a reader for the file struct at the given virtual address.
     fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>>;
+
+    /// Converts this Arc to an Arc<dyn Any> for downcasting.
+    fn as_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 }

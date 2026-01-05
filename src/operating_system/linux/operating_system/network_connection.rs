@@ -16,6 +16,7 @@ use crate::{
     memory::{primitives::PhysicalAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
         entities::network_connection::{IPAddressType, NetworkConnection, Protocol},
+        kallsyms::Kallsyms,
         list::{List, ListValue},
         operating_system::LinuxOperatingSystem,
         utils::get_struct_size,
@@ -405,7 +406,7 @@ impl LinuxOperatingSystem {
         connection_list: &mut Vec<NetworkConnection>,
         readable: &dyn Readable,
         architecture: &dyn Architecture,
-        kallsyms: &crate::operating_system::linux::kallsyms::Kallsyms,
+        kallsyms: &Kallsyms,
     ) -> Result<()> {
         let udp_table_vaddr = kallsyms
             .get("udp_table")

@@ -29,8 +29,8 @@ impl OutputFormat {
     }
 }
 
-pub fn execute_query(database: &Database, query: &str, format: OutputFormat) -> io::Result<()> {
-    if query.eq_ignore_ascii_case(".tables") {
+pub fn execute_query(database: &Database, input: &str, format: OutputFormat) -> io::Result<()> {
+    if input.eq_ignore_ascii_case(".tables") {
         let table_names = database.get_table_names();
 
         for table_name in table_names {
@@ -38,7 +38,14 @@ pub fn execute_query(database: &Database, query: &str, format: OutputFormat) -> 
         }
 
         println!();
-    } else if query.eq_ignore_ascii_case(".schema") {
+    } else if input.eq_ignore_ascii_case(".commands") {
+        let commands = database.command_registry().list_commands();
+
+        println!("Available commands:");
+        for (name, description) in commands {
+            println!("  .{:<20} {}", name, description);
+        }
+    } else if input.eq_ignore_ascii_case(".schema") {
         let table_names = database.get_table_names();
 
         for table_name in &table_names {
@@ -46,7 +53,7 @@ pub fn execute_query(database: &Database, query: &str, format: OutputFormat) -> 
                 display_table_schema(table_name, &schema);
             }
         }
-    } else if let Some(table_name) = query.strip_prefix(".schema ") {
+    } else if let Some(table_name) = input.strip_prefix(".schema ") {
         let table_name = table_name.trim();
 
         if let Some(schema) = database.get_table_schema(table_name) {
@@ -57,10 +64,18 @@ pub fn execute_query(database: &Database, query: &str, format: OutputFormat) -> 
                 format!("Table '{}' not found", table_name),
             ));
         }
+    } else if input.starts_with('.') {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "Unknown command: '{}'. Use 'mquire command' to execute custom commands or '.commands' to list them.",
+                input
+            ),
+        ));
     } else {
         match format {
             OutputFormat::Json => {
-                let json = database.json(query).map_err(|error| {
+                let json = database.json(input).map_err(|error| {
                     io::Error::other(format!("Failed to query the mquire database: {error:?}"))
                 })?;
 
@@ -68,7 +83,7 @@ pub fn execute_query(database: &Database, query: &str, format: OutputFormat) -> 
             }
 
             OutputFormat::Table => {
-                let query_data = database.query(query).map_err(|error| {
+                let query_data = database.query(input).map_err(|error| {
                     io::Error::other(format!("Failed to query the mquire database: {error:?}"))
                 })?;
 

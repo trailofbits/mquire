@@ -7,30 +7,21 @@
 //
 
 mod table_plugins;
+mod table_registry;
 
 use crate::{
-    database::table_plugins::{
-        common::{
-            log_messages::LogMessagesTablePlugin, network_interfaces::NetworkInterfacesTablePlugin,
-            os_version::OSVersionTablePlugin, system_info::SystemInfoTablePlugin,
-        },
-        linux::{
-            boot_time::BootTimeTablePlugin, cgroups::CgroupsTablePlugin, dmesg::DmesgTablePlugin,
-            kallsyms::KallsymsTablePlugin, kernel_modules::KernelModulesTablePlugin,
-            memory_mappings::MemoryMappingsTablePlugin,
-            network_connections::NetworkConnectionsTablePlugin, syslog_file::SyslogFileTablePlugin,
-            task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
-        },
-    },
+    commands::command_registry::{self as commands, CommandRegistry},
     sqlite::{
         database::{Database as SqliteDatabase, QueryData},
         error::{Error, Result},
         table_plugin::ColumnType,
     },
+    utils::{ArchitectureType, OperatingSystemType},
 };
 
 use mquire::{
     architecture::intel::architecture::IntelArchitecture,
+    core::{architecture::Architecture, operating_system::OperatingSystem},
     memory::readable::Readable,
     operating_system::linux::operating_system::LinuxOperatingSystem,
     snapshot::{lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot},
@@ -38,14 +29,41 @@ use mquire::{
 
 use std::{path::Path, sync::Arc};
 
+/// Creates an Architecture instance based on the specified architecture type
+fn create_architecture(arch_type: ArchitectureType) -> Result<Arc<dyn Architecture>> {
+    match arch_type {
+        ArchitectureType::Intel => Ok(IntelArchitecture::new()),
+    }
+}
+
+/// Creates an OperatingSystem instance based on the specified OS type
+fn create_operating_system(
+    os_type: OperatingSystemType,
+    memory_dump: Arc<dyn Readable>,
+    architecture: Arc<dyn Architecture>,
+) -> Result<Arc<dyn OperatingSystem>> {
+    match os_type {
+        OperatingSystemType::Linux => {
+            let system = LinuxOperatingSystem::new(memory_dump, architecture)?;
+            Ok(system as Arc<dyn OperatingSystem>)
+        }
+    }
+}
+
 /// Provides database-like access to an mquire OperatingSystem object
 pub struct Database {
     sqlite_db: SqliteDatabase,
+    command_registry: CommandRegistry,
+    system: Arc<dyn OperatingSystem>,
 }
 
 impl Database {
     /// Creates a new database instance by opening the specified memory dump
-    pub fn new(memory_dump_path: &Path) -> Result<Self> {
+    pub fn new(
+        memory_dump_path: &Path,
+        os_type: OperatingSystemType,
+        arch_type: ArchitectureType,
+    ) -> Result<Self> {
         let memory_dump: Arc<dyn Readable> = match memory_dump_path
             .extension()
             .and_then(|extension| extension.to_str())
@@ -60,46 +78,22 @@ impl Database {
             }
         };
 
-        let system = LinuxOperatingSystem::new(memory_dump, IntelArchitecture::new())?;
+        let architecture = create_architecture(arch_type)?;
+        let system = create_operating_system(os_type, memory_dump, architecture)?;
 
         let mut sqlite_db = SqliteDatabase::new()?;
-        Self::register_common_plugins(&mut sqlite_db, system.clone())?;
-        Self::register_linux_plugins(&mut sqlite_db, system)?;
 
+        table_registry::register_all_tables(os_type, arch_type, &mut sqlite_db, system.clone())?;
         sqlite_db.load_autostart_files();
-        Ok(Self { sqlite_db })
-    }
 
-    /// Registers OS-agnostic table plugins
-    fn register_common_plugins(
-        sqlite_db: &mut SqliteDatabase,
-        system: Arc<LinuxOperatingSystem>,
-    ) -> Result<()> {
-        sqlite_db.register_table_plugin(OSVersionTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(SystemInfoTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(NetworkInterfacesTablePlugin::new(system))?;
-        sqlite_db.register_table_plugin(LogMessagesTablePlugin::new())?;
+        let mut command_registry = CommandRegistry::new();
+        commands::register_all_commands(os_type, arch_type, &mut command_registry);
 
-        Ok(())
-    }
-
-    /// Registers Linux-specific table plugins
-    fn register_linux_plugins(
-        sqlite_db: &mut SqliteDatabase,
-        system: Arc<LinuxOperatingSystem>,
-    ) -> Result<()> {
-        sqlite_db.register_table_plugin(TasksTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(TaskOpenFilesTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(BootTimeTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(CgroupsTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(DmesgTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(KallsymsTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(KernelModulesTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(MemoryMappingsTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(NetworkConnectionsTablePlugin::new(system.clone()))?;
-        sqlite_db.register_table_plugin(SyslogFileTablePlugin::new(system))?;
-
-        Ok(())
+        Ok(Self {
+            sqlite_db,
+            command_registry,
+            system,
+        })
     }
 
     /// Executes the given SQL query, returning raw query data
@@ -127,5 +121,15 @@ impl Database {
         table_name: &str,
     ) -> Option<std::collections::BTreeMap<String, ColumnType>> {
         self.sqlite_db.get_table_schema(table_name)
+    }
+
+    /// Returns a reference to the command registry
+    pub fn command_registry(&self) -> &CommandRegistry {
+        &self.command_registry
+    }
+
+    /// Returns a reference to the operating system
+    pub fn system(&self) -> &Arc<dyn OperatingSystem> {
+        &self.system
     }
 }

@@ -11,21 +11,20 @@ use crate::sqlite::{
     table_plugin::{ColumnType, ColumnValue, Row, RowList, TablePlugin},
 };
 
-use mquire::{
-    core::{entities::network_interface::NetworkInterface, operating_system::OperatingSystem},
-    operating_system::linux::operating_system::LinuxOperatingSystem,
+use mquire::core::{
+    entities::network_interface::NetworkInterface, operating_system::OperatingSystem,
 };
 
 use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that lists network interfaces
 pub struct NetworkInterfacesTablePlugin {
-    system: Arc<LinuxOperatingSystem>,
+    system: Arc<dyn OperatingSystem>,
 }
 
 impl NetworkInterfacesTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new(system: Arc<LinuxOperatingSystem>) -> Arc<Self> {
+    pub fn new(system: Arc<dyn OperatingSystem>) -> Arc<Self> {
         Arc::new(Self { system })
     }
 

@@ -239,7 +239,6 @@ impl LinuxOperatingSystem {
             ppid,
             real_ppid,
             tid: pid,
-            main_thread: pid == tgid,
             uid,
             gid,
         })

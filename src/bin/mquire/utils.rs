@@ -13,6 +13,21 @@ use crate::sqlite::{
 
 use std::io;
 
+/// Represents the operating system type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatingSystemType {
+    /// Linux operating system
+    Linux,
+}
+
+/// Represents the architecture type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArchitectureType {
+    /// Intel/x86_64 architecture
+    Intel,
+}
+
+/// Displays the schema for the given table
 pub fn display_table_schema(
     table_name: &str,
     schema: &std::collections::BTreeMap<String, ColumnType>,
@@ -27,6 +42,7 @@ pub fn display_table_schema(
     println!("CREATE TABLE {table_name}\n{}\n);", columns.join("\n"));
 }
 
+/// Displays the query output
 pub fn display_query_data(query_data: &QueryData) -> Result<(), io::Error> {
     for row in &query_data.row_list {
         for column_name in &query_data.column_order {
@@ -52,6 +68,7 @@ pub fn display_query_data(query_data: &QueryData) -> Result<(), io::Error> {
     Ok(())
 }
 
+/// Converts the given column type to a sqlite type
 fn column_type_to_sql_type(column_type: &ColumnType) -> &str {
     match column_type {
         ColumnType::SignedInteger => "INTEGER",

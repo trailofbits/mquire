@@ -75,11 +75,49 @@ mquire provides SQL tables to query different aspects of the system or the state
 
 ## Commands
 
-mquire provides three main commands:
+mquire provides four main commands:
 
 - **`mquire shell`** - Start an interactive SQL shell to query memory snapshots
 - **`mquire query`** - Execute a single SQL query and output results (supports JSON or table format)
+- **`mquire command`** - Execute custom commands on memory snapshots (e.g., `.task_tree`, `.system_version`)
 - **`mquire dump`** - Extract files from the kernel's file cache to recover files directly from memory. Currently works with files opened through file descriptors (from the process file descriptor table). Does not yet support extracting data from memory-mapped files.
+
+## Dot Commands
+
+mquire provides special commands prefixed with a dot (`.`) to distinguish them from SQL queries.
+
+### Built-in Commands
+
+These commands work in the interactive shell and with `mquire query`:
+
+- **`.tables`** - List all available tables
+- **`.schema`** - Show schema for all tables
+- **`.schema <table>`** - Show schema for a specific table
+- **`.commands`** - List all available custom commands
+- **`.exit`** - Exit the interactive shell (shell only)
+
+### Custom Commands
+
+These commands work in the interactive shell and with `mquire command`:
+
+Use `--help` with any command to see available options and usage information. For example: `.task_tree --help`
+
+#### `.system_version`
+
+Display the operating system version information.
+
+This is a convenience command equivalent to `SELECT * FROM os_version`, but with formatted output.
+
+#### `.task_tree`
+
+Display a hierarchical tree of running processes and threads, similar to the `pstree` command on Linux.
+
+**Options:**
+- `--show-threads` - Include threads in addition to processes. When enabled, displays both PID and TID for each entry.
+- `--use-real-parent` - Use the `real_parent` field instead of `parent` for building the tree structure. The `real_parent` field shows the original parent process before any reparenting (useful for tracking process creation chains even after parent processes exit).
+
+**Notes:**
+- The format is `[PID TID]` when showing threads, or `[PID]` when threads are hidden. For main threads (where PID == TID), both values will be the same.
 
 ## Use cases
 
@@ -124,7 +162,7 @@ cargo build --release
 
 ## Getting started
 
-Once you have a memory snapshot, you can query it using SQL. mquire provides three ways to interact with snapshots:
+Once you have a memory snapshot, you can interact with it using SQL queries and custom commands. mquire provides three ways to interact with snapshots:
 
 ### Interactive shell
 
@@ -134,18 +172,19 @@ Start an interactive SQL shell:
 mquire shell /path/to/memory.raw
 ```
 
-This opens a prompt where you can run queries interactively:
+This opens a prompt where you can run both SQL queries and commands interactively:
 
 ```bash
-mquire> .tables              # List all available tables
-mquire> .schema tasks        # Show schema for a specific table
-mquire> SELECT * FROM tasks; # Run SQL queries
-mquire> .exit                # Exit the shell
+mquire> .tables                      # List all available tables
+mquire> .schema tasks                # Show schema for a specific table
+mquire> SELECT * FROM tasks;         # Run SQL queries
+mquire> .task_tree --show-threads    # Run custom commands
+mquire> .exit                        # Exit the shell
 ```
 
-### One-off queries
+### One-off SQL queries
 
-Execute a single query from the command line:
+Execute a single SQL query or built-in command from the command line:
 
 ```bash
 # Output as JSON (default)
@@ -154,9 +193,30 @@ mquire query /path/to/memory.raw "SELECT * FROM os_version"
 # Output as table format
 mquire query /path/to/memory.raw "SELECT * FROM tasks" --format table
 
-# Special commands work too
+# Built-in commands work too
 mquire query /path/to/memory.raw ".tables"
 mquire query /path/to/memory.raw ".schema tasks"
+```
+
+### Execute custom commands
+
+Run custom commands for specialized analysis:
+
+```bash
+# List all available commands (default behavior)
+mquire command /path/to/memory.raw
+
+# Display system version
+mquire command /path/to/memory.raw ".system_version"
+
+# Show process tree
+mquire command /path/to/memory.raw ".task_tree"
+
+# Show process tree with threads
+mquire command /path/to/memory.raw ".task_tree --show-threads"
+
+# Get help for a command
+mquire command /path/to/memory.raw ".task_tree --help"
 ```
 
 ## Autostart SQL Files
@@ -434,7 +494,7 @@ path:"/usr/lib/firefox/browser/features/formautofill@mozilla.org.xpi"
 path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/extensions/uBlock0@raymondhill.net.xpi"
 ```
 
-#### One-off queries
+#### Command-line query examples
 
 ##### JSON output (default)
 
@@ -455,6 +515,44 @@ $ mquire query --format=json ubuntu2404_6.14.0-37-generic.lime "SELECT * FROM os
 $ mquire query --format=table ubuntu2404_6.14.0-37-generic.lime "SELECT * FROM os_version"
 arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2"
 ```
+
+#### Custom command examples
+
+##### List available commands
+
+```bash
+$ mquire command ubuntu2404_6.14.0-37-generic.lime
+Available commands:
+  .system_version      Display the operating system version
+  .task_tree           Display a hierarchical task tree
+```
+
+##### Display system version
+
+```bash
+$ mquire command ubuntu2404_6.14.0-37-generic.lime ".system_version"
+System Version: #37~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 10:25:38 UTC 2
+Kernel Version: 6.14.0-37-generic
+Architecture: x86_64
+```
+
+##### Display process tree
+
+```bash
+$ mquire command ubuntu2404_6.14.0-37-generic.lime ".task_tree" | head -n 10
+Parent: task_struct::parent
+Threads: Disabled
+Page Table: PhysicalAddress(0x0000000001A60000)
+
+└─ [0] (ffffffff90c0fcc0) swapper/0
+   ╎   ↳ [0] (ffff982a00e33518) \xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd,)\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd\x0e
+   ├─ [1] (ffff982a0084a8c0) systemd
+   │  ├─ [430] (ffff982a0d27a8c0) systemd-journal
+   │  ├─ [495] (ffff982a08a88000) systemd-udevd
+   │  ├─ [786] (ffff982a07a60000) systemd-oomd
+```
+
+**Note:** When multiple `task_struct` entries exist with the same TID (which can occur due to memory corruption or snapshot timing), duplicate entries are displayed with the continuation symbol `╎   ↳` indented under the primary entry. The format is `[PID] (virtual_address) name` for each entry.
 
 #### Extract files from memory
 

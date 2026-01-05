@@ -43,9 +43,6 @@ pub struct Task {
     /// The thread identifier
     pub tid: u32,
 
-    /// Whether this is the main thread of the process.
-    pub main_thread: bool,
-
     /// The user identifier of the task.
     pub uid: u32,
 
