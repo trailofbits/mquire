@@ -296,8 +296,8 @@ fn dump_file(
     }
 }
 
-/// Dumps all open files from the memory dump to the output directory
-pub fn dump_files(memory_dump_path: &Path, output_dir: &Path) -> io::Result<()> {
+/// Dumps all the task open files
+pub fn dump_task_open_files(memory_dump_path: &Path, output_dir: &Path) -> io::Result<()> {
     log::info!("Opening memory dump: {}", memory_dump_path.display());
 
     let memory_dump: Arc<dyn Readable> =

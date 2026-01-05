@@ -41,8 +41,9 @@ use crate::{
         btf::BtfparseReadableAdapter,
         entities::{
             boot_time::BootTime, cgroup::Cgroup, dmesg::DmesgEntry,
-            kallsyms_symbol::KallsymsSymbol, memory_mapping::MemoryMapping,
-            network_connection::NetworkConnection, syslog_file::SyslogFile, task::Task,
+            kallsyms_symbol::KallsymsSymbol, kernel_module::KernelModule,
+            memory_mapping::MemoryMapping, network_connection::NetworkConnection,
+            syslog_file::SyslogFile, task::Task,
         },
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
@@ -181,9 +182,7 @@ impl LinuxOperatingSystem {
     }
 
     /// Returns the list of loaded kernel modules
-    pub fn get_kernel_module_list(
-        &self,
-    ) -> Result<Vec<crate::operating_system::linux::entities::kernel_module::KernelModule>> {
+    pub fn get_kernel_module_list(&self) -> Result<Vec<KernelModule>> {
         self.get_kernel_module_list_impl()
     }
 
@@ -436,6 +435,10 @@ impl OperatingSystem for LinuxOperatingSystem {
             kallsyms,
             file,
         )
+    }
+
+    fn as_any_arc(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
     }
 }
 

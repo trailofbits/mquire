@@ -118,7 +118,7 @@ impl TablePlugin for TasksTablePlugin {
 
             row.insert(
                 String::from("main_thread"),
-                Some(ColumnValue::SignedInteger(if task.main_thread {
+                Some(ColumnValue::SignedInteger(if task.pid == task.tid {
                     1
                 } else {
                     0
