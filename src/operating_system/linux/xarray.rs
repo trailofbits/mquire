@@ -108,7 +108,9 @@ impl XArray {
             _ => {
                 let err = Error::new(
                     ErrorKind::TypeInformationError,
-                    &format!("Failed to acquire the type information for `struct xa_node` from tid {tid}"),
+                    &format!(
+                        "Failed to acquire the type information for `struct xa_node` from tid {tid}"
+                    ),
                 );
 
                 debug!("{err:?}");

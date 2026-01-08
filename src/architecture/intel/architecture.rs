@@ -8,7 +8,7 @@
 
 use crate::{
     architecture::intel::page_table_entry::{
-        PageTableEntry, PageTableLevel, SHIFT_PDPT_INDEX, SHIFT_PD_INDEX, SHIFT_PML4_INDEX,
+        PageTableEntry, PageTableLevel, SHIFT_PD_INDEX, SHIFT_PDPT_INDEX, SHIFT_PML4_INDEX,
         SHIFT_PT_INDEX,
     },
     core::{
@@ -425,25 +425,24 @@ impl Architecture for IntelArchitecture {
 
                         if let Ok(PageTableEntry::Page(page)) =
                             PageTableEntry::new(PageTableLevel::Pt, raw_table_entry)
+                            && page.present
                         {
-                            if page.present {
-                                let raw_virtual_address = RawVirtualAddress::new(
-                                    (pml4_index << SHIFT_PML4_INDEX)
-                                        | (pdpt_index << SHIFT_PDPT_INDEX)
-                                        | (pd_index << SHIFT_PD_INDEX)
-                                        | (pt_index << SHIFT_PT_INDEX),
-                                );
+                            let raw_virtual_address = RawVirtualAddress::new(
+                                (pml4_index << SHIFT_PML4_INDEX)
+                                    | (pdpt_index << SHIFT_PDPT_INDEX)
+                                    | (pd_index << SHIFT_PD_INDEX)
+                                    | (pt_index << SHIFT_PT_INDEX),
+                            );
 
-                                region_list.push(Region {
-                                    virtual_address: VirtualAddress::new(
-                                        root_page_table,
-                                        raw_virtual_address,
-                                    )
-                                    .canonicalized(),
-                                    physical_address: PhysicalAddress::new(page.physical_address),
-                                    size: page.size,
-                                });
-                            }
+                            region_list.push(Region {
+                                virtual_address: VirtualAddress::new(
+                                    root_page_table,
+                                    raw_virtual_address,
+                                )
+                                .canonicalized(),
+                                physical_address: PhysicalAddress::new(page.physical_address),
+                                size: page.size,
+                            });
                         }
                     }
                 }

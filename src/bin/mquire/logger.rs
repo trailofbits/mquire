@@ -37,10 +37,10 @@ impl Logger {
 
     /// Retrieves a vector containing all log entries collected by the logger.
     pub fn get_messages() -> Vec<LogEntry> {
-        if let Some(logger) = LOGGER.get() {
-            if let Ok(logs) = logger.log_entry_list.lock() {
-                return logs.clone();
-            }
+        if let Some(logger) = LOGGER.get()
+            && let Ok(logs) = logger.log_entry_list.lock()
+        {
+            return logs.clone();
         }
 
         Vec::new()

@@ -14,7 +14,7 @@ use crate::{
     memory::virtual_address::VirtualAddress,
     operating_system::linux::{
         entities::dmesg::{DmesgDataSource, DmesgEntry},
-        operating_system::{syslog_file::is_valid_text, LinuxOperatingSystem},
+        operating_system::{LinuxOperatingSystem, syslog_file::is_valid_text},
         virtual_struct::VirtualStruct,
     },
 };
@@ -294,7 +294,9 @@ impl LinuxOperatingSystem {
                         let msg = String::from_utf8_lossy(&text_buffer).to_string();
 
                         if !is_valid_text(&msg, 1) {
-                            debug!("Invalid/corrupted message text at index {index}: not enough printable characters");
+                            debug!(
+                                "Invalid/corrupted message text at index {index}: not enough printable characters"
+                            );
                             continue;
                         }
 

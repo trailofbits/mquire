@@ -72,11 +72,13 @@ impl LinuxOperatingSystem {
         let pid = task_struct.traverse("pid")?.read_u32()?;
         let tgid = task_struct.traverse("tgid")?.read_u32()?;
 
-        let ppid = try_chain!(task_struct
-            .traverse("parent")?
-            .dereference()?
-            .traverse("tgid")?
-            .read_u32())
+        let ppid = try_chain!(
+            task_struct
+                .traverse("parent")?
+                .dereference()?
+                .traverse("tgid")?
+                .read_u32()
+        )
         .inspect_err(|error| {
             debug!(
                 "Could not determine the parent process id for process {:?}: {error:?}",
@@ -85,11 +87,13 @@ impl LinuxOperatingSystem {
         })
         .ok();
 
-        let real_ppid = try_chain!(task_struct
-            .traverse("real_parent")?
-            .dereference()?
-            .traverse("tgid")?
-            .read_u32())
+        let real_ppid = try_chain!(
+            task_struct
+                .traverse("real_parent")?
+                .dereference()?
+                .traverse("tgid")?
+                .read_u32()
+        )
         .inspect_err(|error| {
             debug!(
                 "Could not determine the real parent process id for process {:?}: {error:?}",

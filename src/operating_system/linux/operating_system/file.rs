@@ -39,14 +39,15 @@ impl LinuxOperatingSystem {
             )
             .inspect_err(|err| debug!("{err:?}"))?;
 
-            let fd_array = match try_chain!(task_struct
-                .traverse("files")?
-                .dereference()?
-                .traverse("fdt")?
-                .dereference()?
-                .traverse("fd")?
-                .dereference())
-            {
+            let fd_array = match try_chain!(
+                task_struct
+                    .traverse("files")?
+                    .dereference()?
+                    .traverse("fdt")?
+                    .dereference()?
+                    .traverse("fd")?
+                    .dereference()
+            ) {
                 Ok(fd_array) => fd_array,
                 Err(err) => {
                     debug!("{err:?}");
