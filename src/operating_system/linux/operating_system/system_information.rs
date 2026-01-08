@@ -55,31 +55,39 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))?;
 
-        let new_utsname = try_chain!(init_task_struct
-            .traverse("nsproxy")?
-            .dereference()?
-            .traverse("uts_ns")?
-            .dereference()?
-            .traverse("name"))
+        let new_utsname = try_chain!(
+            init_task_struct
+                .traverse("nsproxy")?
+                .dereference()?
+                .traverse("uts_ns")?
+                .dereference()?
+                .traverse("name")
+        )
         .inspect_err(|err| debug!("{err:?}"))?;
 
-        let kernel_version = try_chain!(new_utsname
-            .traverse("release")?
-            .read_string_lossy(Some(release_array_len)))
+        let kernel_version = try_chain!(
+            new_utsname
+                .traverse("release")?
+                .read_string_lossy(Some(release_array_len))
+        )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
-        let system_version = try_chain!(new_utsname
-            .traverse("version")?
-            .read_string_lossy(Some(version_array_len)))
+        let system_version = try_chain!(
+            new_utsname
+                .traverse("version")?
+                .read_string_lossy(Some(version_array_len))
+        )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
-        let arch = try_chain!(new_utsname
-            .traverse("machine")?
-            .read_string_lossy(Some(machine_array_len)))
+        let arch = try_chain!(
+            new_utsname
+                .traverse("machine")?
+                .read_string_lossy(Some(machine_array_len))
+        )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
@@ -112,24 +120,30 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))?;
 
-        let new_utsname = try_chain!(init_task_struct
-            .traverse("nsproxy")?
-            .dereference()?
-            .traverse("uts_ns")?
-            .dereference()?
-            .traverse("name"))
+        let new_utsname = try_chain!(
+            init_task_struct
+                .traverse("nsproxy")?
+                .dereference()?
+                .traverse("uts_ns")?
+                .dereference()?
+                .traverse("name")
+        )
         .inspect_err(|err| debug!("{err:?}"))?;
 
-        let hostname = try_chain!(new_utsname
-            .traverse("nodename")?
-            .read_string_lossy(Some(nodename_array_len)))
+        let hostname = try_chain!(
+            new_utsname
+                .traverse("nodename")?
+                .read_string_lossy(Some(nodename_array_len))
+        )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
 
-        let domain = try_chain!(new_utsname
-            .traverse("domainname")?
-            .read_string_lossy(Some(domainname_array_len)))
+        let domain = try_chain!(
+            new_utsname
+                .traverse("domainname")?
+                .read_string_lossy(Some(domainname_array_len))
+        )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
         .and_then(|s| if s.is_empty() { None } else { Some(s) });
@@ -163,7 +177,9 @@ impl LinuxOperatingSystem {
             _ => {
                 let err = Error::new(
                     ErrorKind::TypeInformationError,
-                    &format!("Failed to acquire the type information for `struct {struct_name}` from tid {tid}"),
+                    &format!(
+                        "Failed to acquire the type information for `struct {struct_name}` from tid {tid}"
+                    ),
                 );
 
                 debug!("{err:?}");

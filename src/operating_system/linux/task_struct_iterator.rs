@@ -202,11 +202,13 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                         try_chain!(mm_struct.traverse("exe_file")?.read_vaddr())
                     {
                         if !exe_file_vaddr.is_null() {
-                            read_error = try_chain!(mm_struct
-                                .traverse("exe_file")?
-                                .dereference()?
-                                .traverse("f_path.dentry")?
-                                .read_u8())
+                            read_error = try_chain!(
+                                mm_struct
+                                    .traverse("exe_file")?
+                                    .dereference()?
+                                    .traverse("f_path.dentry")?
+                                    .read_u8()
+                            )
                             .is_err();
                         }
                     } else {

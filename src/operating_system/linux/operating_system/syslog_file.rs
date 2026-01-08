@@ -81,21 +81,22 @@ impl LinuxOperatingSystem {
                         let region_size = region.end - region.start;
                         let mut buffer = vec![0; region_size as usize];
 
-                        let buffer =
-                            match reader.read(&mut buffer, region.start).map(|bytes_read| {
+                        let buffer = match reader.read(&mut buffer, region.start).map(
+                            |bytes_read| {
                                 buffer.truncate(bytes_read);
                                 buffer
-                            }) {
-                                Ok(buffer) => buffer,
+                            },
+                        ) {
+                            Ok(buffer) => buffer,
 
-                                Err(err) => {
-                                    debug!(
-                                "Failed to read region {:?} for {SYSLOG_PATH} at {:?}: {err:?}",
-                                region, file.virtual_address
-                            );
-                                    return None;
-                                }
-                            };
+                            Err(err) => {
+                                debug!(
+                                    "Failed to read region {:?} for {SYSLOG_PATH} at {:?}: {err:?}",
+                                    region, file.virtual_address
+                                );
+                                return None;
+                            }
+                        };
 
                         let lines = extract_valid_lines(&buffer, 10);
                         if lines.is_empty() {

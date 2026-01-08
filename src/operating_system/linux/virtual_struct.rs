@@ -108,7 +108,7 @@ impl<'a> VirtualStruct<'a> {
                     return Err(Error::new(
                         ErrorKind::TypeInformationError,
                         &format!("Invalid offset: {destination_offset:?}"),
-                    ))
+                    ));
                 }
             };
 

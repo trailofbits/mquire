@@ -118,16 +118,17 @@ impl LinuxOperatingSystem {
             TaskStructIterator::new(&vmem_reader, &self.kernel_type_info, self.init_task_vaddr)?;
 
         for task_struct in task_iter {
-            let mut kn = match try_chain!(task_struct
-                .traverse("cgroups")?
-                .dereference()?
-                .traverse(&format!("subsys[{cpuset_cgrp_id}]"))?
-                .dereference()?
-                .traverse("cgroup")?
-                .dereference()?
-                .traverse("kn")?
-                .dereference())
-            {
+            let mut kn = match try_chain!(
+                task_struct
+                    .traverse("cgroups")?
+                    .dereference()?
+                    .traverse(&format!("subsys[{cpuset_cgrp_id}]"))?
+                    .dereference()?
+                    .traverse("cgroup")?
+                    .dereference()?
+                    .traverse("kn")?
+                    .dereference()
+            ) {
                 Ok(kn) => kn,
                 Err(err) => {
                     debug!("{err:?}");

@@ -13,11 +13,11 @@ use crate::sqlite::{
 
 use {
     rusqlite::{
+        Connection,
         types::Value,
         vtab::{
-            eponymous_only_module, Context, Filters, IndexInfo, VTab, VTabConnection, VTabCursor,
+            Context, Filters, IndexInfo, VTab, VTabConnection, VTabCursor, eponymous_only_module,
         },
-        Connection,
     },
     serde::Serialize,
 };
@@ -88,7 +88,7 @@ impl Database {
                                 column_index,
                                 column_name.clone(),
                                 rusqlite::types::Type::Blob,
-                            ))
+                            ));
                         }
                     };
 

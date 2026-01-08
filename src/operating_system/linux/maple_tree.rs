@@ -252,11 +252,11 @@ where
                 .inspect_err(|err| debug!("Failed to create maple_node VirtualStruct: {err:?}"))?;
 
         // Check if node is dead
-        if let Ok(is_dead) = Self::is_dead_node(&ma_node) {
-            if is_dead {
-                debug!("Skipping dead node at 0x{:x}", node_vaddr.value().value());
-                return Ok(());
-            }
+        if let Ok(is_dead) = Self::is_dead_node(&ma_node)
+            && is_dead
+        {
+            debug!("Skipping dead node at 0x{:x}", node_vaddr.value().value());
+            return Ok(());
         }
 
         // Handle different node types

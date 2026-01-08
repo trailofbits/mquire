@@ -137,11 +137,11 @@ fn dump_file(
         return FileState::Skipped;
     }
 
-    if let Some(parent) = output_path.parent() {
-        if let Err(e) = fs::create_dir_all(parent) {
-            log::error!("Failed to create directory {}: {}", parent.display(), e);
-            return FileState::Error;
-        }
+    if let Some(parent) = output_path.parent()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        log::error!("Failed to create directory {}: {}", parent.display(), e);
+        return FileState::Error;
     }
 
     let file_size = match reader.len() {

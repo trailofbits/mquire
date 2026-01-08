@@ -12,7 +12,7 @@ use mquire::operating_system::linux::{
     entities::task::Task, operating_system::LinuxOperatingSystem,
 };
 
-use clap::{error::ErrorKind as ClapErrorKind, Parser};
+use clap::{Parser, error::ErrorKind as ClapErrorKind};
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -244,14 +244,14 @@ impl Command for TaskTreeCommand {
                     primary_task.ppid
                 };
 
-                if let Some(parent_pid) = selected_parent_pid {
-                    if parent_pid != primary_task.pid {
-                        tree_state
-                            .children_map
-                            .entry(parent_pid)
-                            .or_default()
-                            .push(*tid);
-                    }
+                if let Some(parent_pid) = selected_parent_pid
+                    && parent_pid != primary_task.pid
+                {
+                    tree_state
+                        .children_map
+                        .entry(parent_pid)
+                        .or_default()
+                        .push(*tid);
                 }
             }
         }
