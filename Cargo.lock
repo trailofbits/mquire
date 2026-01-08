@@ -75,9 +75,9 @@ checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "btfparse"
-version = "1.3.8"
+version = "1.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a36ee744379e955387e9a08506b5242d9913d9ac17f039ed9ec67ddc008b416"
+checksum = "eb58753cb657327cef7fcabd72f88ea33adf32edee7d1e0c06301b685b498c75"
 
 [[package]]
 name = "bumpalo"
@@ -350,7 +350,7 @@ dependencies = [
 
 [[package]]
 name = "mquire"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "btfparse",
  "chrono",
