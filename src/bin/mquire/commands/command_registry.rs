@@ -11,7 +11,10 @@ use crate::{
     utils::{ArchitectureType, OperatingSystemType},
 };
 
-use mquire::core::operating_system::OperatingSystem;
+use mquire::{
+    core::{architecture::Architecture, operating_system::OperatingSystem},
+    memory::readable::Readable,
+};
 
 use std::{io, sync::Arc};
 
@@ -19,6 +22,12 @@ use std::{io, sync::Arc};
 pub struct CommandContext {
     /// The operating system plugin
     pub system: Arc<dyn OperatingSystem>,
+
+    /// The target architecture
+    pub architecture: Arc<dyn Architecture>,
+
+    /// The memory dump
+    pub snapshot: Arc<dyn Readable>,
 }
 
 /// Trait for implementing custom commands that can be invoked from the shell or query interface
@@ -150,6 +159,7 @@ macro_rules! generate_command_registry {
 // Central registry of all available commands
 generate_command_registry! {
     Common, Common => {
+        common::carve::CarveCommand,
         common::system_version::SystemVersionCommand,
     },
 

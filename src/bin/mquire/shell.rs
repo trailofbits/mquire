@@ -12,11 +12,21 @@ use crate::{
     utils::{display_query_data, display_table_schema},
 };
 
+use mquire::{
+    core::{architecture::Architecture, operating_system::OperatingSystem},
+    memory::readable::Readable,
+};
+
 use rustyline::DefaultEditor;
 
-use std::io;
+use std::{io, sync::Arc};
 
-pub fn run_interactive_shell(database: &Database) -> io::Result<()> {
+pub fn run_interactive_shell(
+    system: Arc<dyn OperatingSystem>,
+    architecture: Arc<dyn Architecture>,
+    snapshot: Arc<dyn Readable>,
+    database: &Database,
+) -> io::Result<()> {
     println!("mquire interactive shell");
     println!("Enter SQL queries or special commands:");
     println!("  .tables           - List all tables");
@@ -28,6 +38,12 @@ pub fn run_interactive_shell(database: &Database) -> io::Result<()> {
 
     let mut editor = DefaultEditor::new()
         .map_err(|e| io::Error::other(format!("Failed to create editor: {e}")))?;
+
+    let command_context = CommandContext {
+        system,
+        architecture,
+        snapshot,
+    };
 
     loop {
         let readline = editor.readline("mquire> ");
@@ -50,7 +66,7 @@ pub fn run_interactive_shell(database: &Database) -> io::Result<()> {
                 break;
             }
 
-            process_command(database, input);
+            process_command(database, &command_context, input);
         } else {
             match database.query(input) {
                 Ok(query_data) => display_query_data(&query_data)?,
@@ -67,7 +83,7 @@ pub fn run_interactive_shell(database: &Database) -> io::Result<()> {
     Ok(())
 }
 
-fn process_command(database: &Database, input: &str) {
+fn process_command(database: &Database, context: &CommandContext, input: &str) {
     if input.eq_ignore_ascii_case(".tables") {
         let table_names = database.get_table_names();
         for table_name in table_names {
@@ -93,14 +109,8 @@ fn process_command(database: &Database, input: &str) {
         } else {
             println!("Table '{table_name}' not found");
         }
-    } else {
-        let context = CommandContext {
-            system: database.system().clone(),
-        };
-
-        if let Err(error) = database.command_registry().execute(input, &context) {
-            println!("Command execution failed: {error}");
-        }
+    } else if let Err(error) = database.command_registry().execute(input, context) {
+        println!("Command execution failed: {error}");
     }
 
     println!();

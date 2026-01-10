@@ -19,13 +19,26 @@ mod utils;
 use crate::dump::dump_task_open_files;
 
 use {
+    commands::command_registry::CommandContext,
     database::Database,
     utils::{ArchitectureType, OperatingSystemType},
 };
 
 use clap::{Parser, Subcommand};
 
-use std::{io, path::PathBuf};
+use mquire::{
+    architecture::intel::architecture::IntelArchitecture,
+    core::{architecture::Architecture, operating_system::OperatingSystem},
+    memory::readable::Readable,
+    operating_system::linux::operating_system::LinuxOperatingSystem,
+    snapshot::{lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot},
+};
+
+use std::{
+    io,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 #[derive(Parser)]
 #[command(name = "mquire")]
@@ -114,6 +127,52 @@ fn parse_architecture(arch_str: &str) -> io::Result<ArchitectureType> {
     }
 }
 
+/// Creates an Architecture instance based on the specified architecture type
+fn create_architecture(arch_type: ArchitectureType) -> Arc<dyn Architecture> {
+    match arch_type {
+        ArchitectureType::Intel => IntelArchitecture::new(),
+    }
+}
+
+/// Creates an OperatingSystem instance based on the specified OS type
+fn create_operating_system(
+    os_type: OperatingSystemType,
+    memory_dump: Arc<dyn Readable>,
+    architecture: Arc<dyn Architecture>,
+) -> io::Result<Arc<dyn OperatingSystem>> {
+    match os_type {
+        OperatingSystemType::Linux => {
+            let system = LinuxOperatingSystem::new(memory_dump, architecture).map_err(|e| {
+                io::Error::other(format!("Failed to create operating system: {e:?}"))
+            })?;
+
+            Ok(system as Arc<dyn OperatingSystem>)
+        }
+    }
+}
+
+/// Opens a memory dump file and returns a Readable instance
+fn open_memory_dump(path: &Path) -> io::Result<Arc<dyn Readable>> {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some("raw") => {
+            let snapshot: Arc<dyn Readable> = RawSnapshot::new(path)
+                .map_err(|e| io::Error::other(format!("Failed to open raw snapshot: {e:?}")))?;
+
+            Ok(snapshot)
+        }
+        Some("lime") => {
+            let snapshot: Arc<dyn Readable> = LimeSnapshot::new(path)
+                .map_err(|e| io::Error::other(format!("Failed to open lime snapshot: {e:?}")))?;
+
+            Ok(snapshot)
+        }
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Unsupported memory dump format. Use .raw or .lime files.",
+        )),
+    }
+}
+
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
@@ -136,11 +195,20 @@ fn main() -> io::Result<()> {
                 ));
             }
 
-            let database = Database::new(&snapshot, os_type, arch_type).map_err(|error| {
+            let readable = open_memory_dump(&snapshot)?;
+            let architecture = create_architecture(arch_type);
+            let system = create_operating_system(os_type, readable.clone(), architecture.clone())?;
+
+            let database = Database::new(os_type, arch_type, system.clone()).map_err(|error| {
                 io::Error::other(format!("Failed to create the mquire database: {error:?}"))
             })?;
 
-            shell::run_interactive_shell(&database)?;
+            shell::run_interactive_shell(
+                system.clone(),
+                architecture.clone(),
+                readable.clone(),
+                &database,
+            )?;
         }
 
         Commands::Query {
@@ -163,7 +231,11 @@ fn main() -> io::Result<()> {
             let output_format = query::OutputFormat::from_str(&format)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
-            let database = Database::new(&snapshot, os_type, arch_type).map_err(|error| {
+            let readable = open_memory_dump(&snapshot)?;
+            let architecture = create_architecture(arch_type);
+            let system = create_operating_system(os_type, readable, architecture)?;
+
+            let database = Database::new(os_type, arch_type, system).map_err(|error| {
                 io::Error::other(format!("Failed to create the mquire database: {error:?}"))
             })?;
 
@@ -186,11 +258,21 @@ fn main() -> io::Result<()> {
                 ));
             }
 
-            let database = Database::new(&snapshot, os_type, arch_type).map_err(|error| {
+            let readable = open_memory_dump(&snapshot)?;
+            let architecture = create_architecture(arch_type);
+            let system = create_operating_system(os_type, readable.clone(), architecture.clone())?;
+
+            let database = Database::new(os_type, arch_type, system.clone()).map_err(|error| {
                 io::Error::other(format!("Failed to create the mquire database: {error:?}"))
             })?;
 
-            command::execute_command(&database, &command_line)?;
+            let context = CommandContext {
+                system,
+                architecture,
+                snapshot: readable,
+            };
+
+            command::execute_command(database.command_registry(), &context, &command_line)?;
         }
 
         Commands::Dump { snapshot, output } => {
