@@ -172,10 +172,7 @@ impl Command for TaskTreeCommand {
                     return Ok(());
                 }
 
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    format!("Failed to parse arguments: {}", e),
-                ));
+                return Err(io::Error::new(io::ErrorKind::InvalidInput, e.to_string()));
             }
         };
 

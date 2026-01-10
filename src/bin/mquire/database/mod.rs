@@ -19,68 +19,23 @@ use crate::{
     utils::{ArchitectureType, OperatingSystemType},
 };
 
-use mquire::{
-    architecture::intel::architecture::IntelArchitecture,
-    core::{architecture::Architecture, operating_system::OperatingSystem},
-    memory::readable::Readable,
-    operating_system::linux::operating_system::LinuxOperatingSystem,
-    snapshot::{lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot},
-};
+use mquire::core::operating_system::OperatingSystem;
 
-use std::{path::Path, sync::Arc};
-
-/// Creates an Architecture instance based on the specified architecture type
-fn create_architecture(arch_type: ArchitectureType) -> Result<Arc<dyn Architecture>> {
-    match arch_type {
-        ArchitectureType::Intel => Ok(IntelArchitecture::new()),
-    }
-}
-
-/// Creates an OperatingSystem instance based on the specified OS type
-fn create_operating_system(
-    os_type: OperatingSystemType,
-    memory_dump: Arc<dyn Readable>,
-    architecture: Arc<dyn Architecture>,
-) -> Result<Arc<dyn OperatingSystem>> {
-    match os_type {
-        OperatingSystemType::Linux => {
-            let system = LinuxOperatingSystem::new(memory_dump, architecture)?;
-            Ok(system as Arc<dyn OperatingSystem>)
-        }
-    }
-}
+use std::sync::Arc;
 
 /// Provides database-like access to an mquire OperatingSystem object
 pub struct Database {
     sqlite_db: SqliteDatabase,
     command_registry: CommandRegistry,
-    system: Arc<dyn OperatingSystem>,
 }
 
 impl Database {
-    /// Creates a new database instance by opening the specified memory dump
+    /// Creates a new database instance from pre-created components
     pub fn new(
-        memory_dump_path: &Path,
         os_type: OperatingSystemType,
         arch_type: ArchitectureType,
+        system: Arc<dyn OperatingSystem>,
     ) -> Result<Self> {
-        let memory_dump: Arc<dyn Readable> = match memory_dump_path
-            .extension()
-            .and_then(|extension| extension.to_str())
-        {
-            Some("raw") => RawSnapshot::new(memory_dump_path)?,
-            Some("lime") => LimeSnapshot::new(memory_dump_path)?,
-
-            _ => {
-                return Err(Error::Internal(
-                    "Unsupported memory dump format".to_string(),
-                ));
-            }
-        };
-
-        let architecture = create_architecture(arch_type)?;
-        let system = create_operating_system(os_type, memory_dump, architecture)?;
-
         let mut sqlite_db = SqliteDatabase::new()?;
 
         table_registry::register_all_tables(os_type, arch_type, &mut sqlite_db, system.clone())?;
@@ -92,7 +47,6 @@ impl Database {
         Ok(Self {
             sqlite_db,
             command_registry,
-            system,
         })
     }
 
@@ -126,10 +80,5 @@ impl Database {
     /// Returns a reference to the command registry
     pub fn command_registry(&self) -> &CommandRegistry {
         &self.command_registry
-    }
-
-    /// Returns a reference to the operating system
-    pub fn system(&self) -> &Arc<dyn OperatingSystem> {
-        &self.system
     }
 }

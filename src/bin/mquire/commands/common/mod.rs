@@ -6,4 +6,5 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+pub mod carve;
 pub mod system_version;
