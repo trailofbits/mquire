@@ -119,6 +119,20 @@ Display a hierarchical tree of running processes and threads, similar to the `ps
 **Notes:**
 - The format is `[PID TID]` when showing threads, or `[PID]` when threads are hidden. For main threads (where PID == TID), both values will be the same.
 
+#### `.carve`
+
+Carve a region of virtual memory to disk. This command extracts raw memory content from a specific virtual address range using a given page table, useful for extracting process memory, heap contents, or other memory regions.
+
+**Arguments:**
+- `ROOT_PAGE_TABLE` - The physical address of the root page table (hex string with optional 0x prefix). This determines the address space to use for translation.
+- `VIRTUAL_ADDRESS` - The virtual address to start carving from (hex string with optional 0x prefix).
+- `SIZE` - Number of bytes to carve.
+- `DESTINATION_PATH` - Output file path where the carved memory will be written.
+
+**Notes:**
+- The command shows a summary of mapped vs unmapped regions before writing.
+- Unmapped regions are filled with zeros in the output file.
+
 ## Use cases
 
 mquire is designed for:
@@ -523,6 +537,7 @@ arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubu
 ```bash
 $ mquire command ubuntu2404_6.14.0-37-generic.lime
 Available commands:
+  .carve               Carve a region of virtual memory to disk
   .system_version      Display the operating system version
   .task_tree           Display a hierarchical task tree
 ```
