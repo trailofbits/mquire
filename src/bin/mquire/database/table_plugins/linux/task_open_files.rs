@@ -7,14 +7,18 @@
 //
 
 use crate::sqlite::{
-    error::Result,
-    table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
+    error::{Error, Result},
+    table_plugin::{
+        ColumnDef, ColumnType, ColumnValue, Constraints, OptionalColumnValue, RowList, TablePlugin,
+    },
 };
 
 use mquire::{
-    core::operating_system::OperatingSystem,
-    operating_system::linux::operating_system::LinuxOperatingSystem,
+    memory::virtual_address::VirtualAddress,
+    operating_system::linux::{entities::file::File, operating_system::LinuxOperatingSystem},
 };
+
+use log::error;
 
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -28,66 +32,148 @@ impl TaskOpenFilesTablePlugin {
     pub fn new(system: Arc<LinuxOperatingSystem>) -> Arc<Self> {
         Arc::new(Self { system })
     }
+
+    /// Parses the optional 'task' constraint as a VirtualAddress
+    fn parse_task_constraint(constraints: &Constraints) -> Result<Option<VirtualAddress>> {
+        constraints
+            .iter()
+            .find_map(|constraint| {
+                (constraint.column == "task").then(|| match &constraint.value {
+                    ColumnValue::String(value) => value.parse().map_err(|_| {
+                        Error::TablePlugin(format!(
+                            "Invalid VirtualAddress format for 'task': {}",
+                            value
+                        ))
+                    }),
+
+                    other => Err(Error::TablePlugin(format!(
+                        "Expected string for 'task', got {:?}",
+                        other
+                    ))),
+                })
+            })
+            .transpose()
+    }
+
+    /// Generates a row from an open file
+    fn generate_row_from_file(file: &File) -> BTreeMap<String, OptionalColumnValue> {
+        BTreeMap::from([
+            (
+                String::from("tgid"),
+                Some(ColumnValue::SignedInteger(file.tgid as i64)),
+            ),
+            (
+                String::from("fd"),
+                Some(ColumnValue::SignedInteger(file.fd as i64)),
+            ),
+            (
+                String::from("virtual_address"),
+                Some(ColumnValue::String(format!("{}", file.virtual_address))),
+            ),
+            (
+                String::from("task"),
+                Some(ColumnValue::String(format!("{}", file.task))),
+            ),
+            (
+                String::from("path"),
+                Some(ColumnValue::String(file.path.clone())),
+            ),
+            (
+                String::from("inode"),
+                file.inode.map(|i| ColumnValue::SignedInteger(i as i64)),
+            ),
+        ])
+    }
+
+    /// Generates rows for open files of a single task
+    fn generate_for_single_task(
+        system: &LinuxOperatingSystem,
+        task: VirtualAddress,
+    ) -> Result<RowList> {
+        let files_iter = match system.iter_task_open_files(task) {
+            Ok(iter) => iter,
+
+            Err(e) => {
+                error!("Failed to iterate open files for task {}: {:?}", task, e);
+                return Ok(Vec::new());
+            }
+        };
+
+        let row_list = files_iter
+            .filter_map(|r| {
+                r.inspect_err(|e| error!("Failed to parse open file: {e:?}"))
+                    .ok()
+            })
+            .map(|file| Self::generate_row_from_file(&file))
+            .collect();
+
+        Ok(row_list)
+    }
+
+    /// Generates rows for open files across all tasks
+    fn generate_for_all_tasks(system: &LinuxOperatingSystem) -> Result<RowList> {
+        let row_list: RowList = system
+            .iter_tasks()
+            .map_err(|error| Error::TablePlugin(format!("Failed to iterate tasks: {:?}", error)))?
+            .filter_map(|task_result| match task_result {
+                Ok(task) => match Self::generate_for_single_task(system, task.virtual_address) {
+                    Ok(row_list) => Some(row_list),
+
+                    Err(error) => {
+                        error!("Failed to generate the task rows: {error:?}");
+                        None
+                    }
+                },
+
+                Err(error) => {
+                    error!("Failed to parse the task: {error:?}");
+                    None
+                }
+            })
+            .flatten()
+            .collect();
+
+        Ok(row_list)
+    }
 }
 
 impl TablePlugin for TaskOpenFilesTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("pid"), ColumnType::SignedInteger);
-        schema.insert(String::from("virtual_address"), ColumnType::String);
-        schema.insert(String::from("task"), ColumnType::String);
-        schema.insert(String::from("path"), ColumnType::String);
-        schema.insert(String::from("inode"), ColumnType::SignedInteger);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("tgid"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("fd"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("virtual_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (String::from("task"), ColumnDef::visible(ColumnType::String)),
+            (String::from("path"), ColumnDef::visible(ColumnType::String)),
+            (
+                String::from("inode"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("task_open_files")
     }
 
-    fn generate(&self) -> Result<RowList> {
-        let task_open_file_list = self.system.get_task_open_file_list()?;
+    fn generator_inputs(&self) -> Vec<String> {
+        vec![String::from("task")]
+    }
 
-        let mut row_list = Vec::new();
-
-        for task_open_file in task_open_file_list {
-            let mut row = BTreeMap::<String, OptionalColumnValue>::new();
-
-            row.insert(
-                String::from("pid"),
-                Some(ColumnValue::SignedInteger(task_open_file.pid as i64)),
-            );
-
-            row.insert(
-                String::from("virtual_address"),
-                Some(ColumnValue::String(format!(
-                    "{:?}",
-                    task_open_file.virtual_address
-                ))),
-            );
-
-            row.insert(
-                String::from("task"),
-                Some(ColumnValue::String(format!("{:?}", task_open_file.task))),
-            );
-
-            row.insert(
-                String::from("path"),
-                Some(ColumnValue::String(task_open_file.path)),
-            );
-
-            row.insert(
-                String::from("inode"),
-                task_open_file
-                    .inode
-                    .map(|i| ColumnValue::SignedInteger(i as i64)),
-            );
-
-            row_list.push(row)
+    fn generate(&self, constraints: &Constraints) -> Result<RowList> {
+        if let Some(task_vaddr) = Self::parse_task_constraint(constraints)? {
+            Self::generate_for_single_task(self.system.as_ref(), task_vaddr)
+        } else {
+            Self::generate_for_all_tasks(self.system.as_ref())
         }
-
-        Ok(row_list)
     }
 }

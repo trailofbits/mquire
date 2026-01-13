@@ -7,7 +7,6 @@
 //
 
 mod boot_time;
-mod cgroup;
 mod dmesg;
 mod file;
 mod kallsyms_symbol;
@@ -24,7 +23,7 @@ use crate::{
     core::{
         architecture::{Architecture, Endianness},
         entities::{
-            file::File, network_interface::NetworkInterface, system_information::SystemInformation,
+            network_interface::NetworkInterface, system_information::SystemInformation,
             system_version::SystemVersion,
         },
         error::{Error, ErrorKind, Result},
@@ -40,16 +39,22 @@ use crate::{
     operating_system::linux::{
         btf::BtfparseReadableAdapter,
         entities::{
-            boot_time::BootTime, cgroup::Cgroup, dmesg::DmesgEntry,
-            kallsyms_symbol::KallsymsSymbol, kernel_module::KernelModule,
-            memory_mapping::MemoryMapping, network_connection::NetworkConnection,
-            syslog_file::SyslogFile, task::Task,
+            boot_time::BootTime, kernel_module::KernelModule, network_connection::Protocol,
+            task::Task,
         },
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
-        operating_system::readable_file_linux_object::ReadableLinuxFileObject,
+        operating_system::{
+            dmesg::DmesgEntryIterator, file::TaskOpenFilesIterator,
+            kallsyms_symbol::KallsymsSymbolIterator, kernel_module::KernelModuleIterator,
+            memory_mapping::MemoryMappingIterator, network_connection::NetworkConnectionIterator,
+            network_interface::NetworkInterfaceIterator,
+            readable_file_linux_object::ReadableLinuxFileObject, syslog_file::SyslogFileIterator,
+            task::TaskIterator,
+        },
         task_struct_iterator::TaskStructIterator,
         utils::get_struct_member_byte_offset,
+        virtual_struct::VirtualStruct,
     },
     try_chain,
     utils::reader::Reader,
@@ -105,8 +110,8 @@ impl LinuxOperatingSystem {
             .inspect_err(|err| debug!("{err:?}"))?;
 
         let init_task_vaddr = Self::get_init_task_vaddr(
-            memory_dump.as_ref(),
-            architecture.as_ref(),
+            memory_dump.clone(),
+            architecture.clone(),
             &kernel_type_info,
         )?;
 
@@ -140,49 +145,101 @@ impl LinuxOperatingSystem {
         }))
     }
 
-    /// Returns the cgroup list
-    pub fn get_cgroup_list(&self) -> Result<Vec<Cgroup>> {
-        self.get_cgroup_list_impl()
+    /// Returns a task at the given virtual address
+    pub fn task_at(&self, vaddr: VirtualAddress) -> Result<Task> {
+        self.task_at_impl(vaddr)
     }
 
-    /// Returns the task list
-    pub fn get_task_list(&self) -> Result<Vec<Task>> {
-        self.get_task_list_impl()
+    /// Returns an iterator over all tasks starting from init_task
+    pub fn iter_tasks(&self) -> Result<TaskIterator<'_>> {
+        self.iter_tasks_impl()
     }
 
-    /// Returns the list of memory mappings in the given task
-    pub fn get_task_memory_mappings(&self) -> Result<Vec<MemoryMapping>> {
-        self.get_task_memory_mappings_impl()
+    /// Returns an iterator over tasks starting from a custom root
+    pub fn iter_tasks_from(&self, root: VirtualAddress) -> Result<TaskIterator<'_>> {
+        self.iter_tasks_from_impl(root)
     }
 
-    /// Returns the syslog file data from memory
-    pub fn get_syslog_file_regions(&self) -> Result<Vec<SyslogFile>> {
-        self.get_syslog_file_regions_impl()
+    /// Returns an iterator over open files for a single task
+    pub fn iter_task_open_files(
+        &self,
+        task_vaddr: VirtualAddress,
+    ) -> Result<TaskOpenFilesIterator<'_>> {
+        self.iter_task_open_files_impl(task_vaddr)
     }
 
-    /// Returns kernel log messages (dmesg) from the printk_ringbuffer
-    pub fn get_dmesg_entries(&self) -> Result<Vec<DmesgEntry>> {
-        self.get_dmesg_entries_impl()
+    /// Returns an iterator over memory mappings for a single task
+    pub fn iter_task_memory_mappings(
+        &self,
+        task_vaddr: VirtualAddress,
+    ) -> Result<MemoryMappingIterator<'_>> {
+        self.iter_task_memory_mappings_impl(task_vaddr)
     }
 
-    /// Returns the list of kernel symbols from kallsyms
-    pub fn get_kallsyms_symbols(&self) -> Result<Vec<KallsymsSymbol>> {
-        self.get_kallsyms_symbols_impl()
+    /// Returns an iterator over syslog file regions from memory
+    pub fn iter_syslog_file_regions(&self) -> Result<SyslogFileIterator<'_>> {
+        self.iter_syslog_file_regions_impl()
+    }
+
+    /// Returns an iterator over kernel log messages (dmesg) from the printk_ringbuffer
+    pub fn iter_dmesg_entries(&self) -> Result<DmesgEntryIterator<'_>> {
+        self.iter_dmesg_entries_impl()
+    }
+
+    /// Returns an iterator over kernel symbols from kallsyms
+    pub fn iter_kallsyms_symbols(&self) -> Result<KallsymsSymbolIterator> {
+        self.iter_kallsyms_symbols_impl()
     }
 
     /// Returns the system boot time
-    pub fn get_boot_time(&self) -> Result<Vec<BootTime>> {
+    pub fn get_boot_time(&self) -> Result<BootTime> {
         self.get_boot_time_impl()
     }
 
-    /// Returns the list of network connections
-    pub fn get_network_connection_list(&self) -> Result<Vec<NetworkConnection>> {
-        self.get_network_connection_list_impl()
+    /// Returns an iterator over network connections filtered by protocol
+    ///
+    /// If `protocol_filter` is empty, all protocols are included.
+    pub fn iter_network_connections(
+        &self,
+        protocol_filter: &[Protocol],
+    ) -> Result<NetworkConnectionIterator<'_>> {
+        self.iter_network_connections_impl(protocol_filter)
     }
 
-    /// Returns the list of loaded kernel modules
-    pub fn get_kernel_module_list(&self) -> Result<Vec<KernelModule>> {
-        self.get_kernel_module_list_impl()
+    /// Returns a kernel module at the given virtual address
+    pub fn kernel_module_at(&self, vaddr: VirtualAddress) -> Result<KernelModule> {
+        self.kernel_module_at_impl(vaddr)
+    }
+
+    /// Returns an iterator over loaded kernel modules starting from the default list head
+    pub fn iter_kernel_modules(&self) -> Result<KernelModuleIterator> {
+        self.iter_kernel_modules_impl()
+    }
+
+    /// Returns an iterator over loaded kernel modules starting from the given list head
+    pub fn iter_kernel_modules_from(
+        &self,
+        list_head_vaddr: VirtualAddress,
+    ) -> Result<KernelModuleIterator> {
+        self.iter_kernel_modules_from_impl(list_head_vaddr)
+    }
+
+    /// Returns a network interface at the given virtual address
+    pub fn network_interface_at(&self, vaddr: VirtualAddress) -> Result<NetworkInterface> {
+        self.network_interface_at_impl(vaddr)
+    }
+
+    /// Returns an iterator over network interfaces starting from the kernel's net device list
+    pub fn iter_network_interfaces(&self) -> Result<NetworkInterfaceIterator<'_>> {
+        self.iter_network_interfaces_impl()
+    }
+
+    /// Returns an iterator over network interfaces starting from a custom list head
+    pub fn iter_network_interfaces_from(
+        &self,
+        list_head_vaddr: VirtualAddress,
+    ) -> Result<NetworkInterfaceIterator<'_>> {
+        self.iter_network_interfaces_from_impl(list_head_vaddr)
     }
 
     /// Scans the given `Readable` object for the kernel BTF debug symbols
@@ -335,33 +392,42 @@ impl LinuxOperatingSystem {
 
     /// Returns the virtual address of the swapper task_struct
     fn get_init_task_vaddr(
-        readable: &dyn Readable,
-        architecture: &dyn Architecture,
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
         kernel_type_info: &TypeInformation,
     ) -> Result<VirtualAddress> {
         let (swapper_struct_physical_addr, swapper_struct_raw_vaddr) =
-            Self::get_swapper_struct_location(readable, architecture, kernel_type_info)?;
+            Self::get_swapper_struct_location(
+                memory_dump.as_ref(),
+                architecture.as_ref(),
+                kernel_type_info,
+            )?;
 
         let discovered_page_table = architecture.locate_page_table_for_virtual_address(
-            readable,
+            memory_dump.as_ref(),
             swapper_struct_physical_addr,
             swapper_struct_raw_vaddr,
         )?;
 
-        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
         let mut task_iter = TaskStructIterator::new(
-            &vmem_reader,
+            memory_dump.clone(),
+            architecture.clone(),
             kernel_type_info,
             VirtualAddress::new(discovered_page_table, swapper_struct_raw_vaddr),
         )?;
 
-        let init_task = task_iter.find_map(|task_struct| {
+        let vmem_reader = VirtualMemoryReader::new(memory_dump.as_ref(), architecture.as_ref());
+        let init_task = task_iter.find_map(|task_vaddr| {
+            let task_struct = VirtualStruct::from_name(
+                &vmem_reader,
+                kernel_type_info,
+                "task_struct",
+                &task_vaddr,
+            )
+            .ok()?;
+
             if let Ok(pid) = try_chain!(task_struct.traverse("tgid")?.read_u32()) {
-                if pid == 1 {
-                    Some(task_struct.virtual_address())
-                } else {
-                    None
-                }
+                if pid == 1 { Some(task_vaddr) } else { None }
             } else {
                 None
             }
@@ -388,12 +454,10 @@ impl OperatingSystem for LinuxOperatingSystem {
         self.get_system_information_impl()
     }
 
-    fn get_task_open_file_list(&self) -> Result<Vec<File>> {
-        self.get_task_open_file_list_impl()
-    }
-
-    fn get_network_interface_list(&self) -> Result<Vec<NetworkInterface>> {
-        self.get_network_interface_list_impl()
+    fn iter_network_interfaces(
+        &self,
+    ) -> Result<Box<dyn Iterator<Item = Result<NetworkInterface>> + '_>> {
+        Ok(Box::new(self.iter_network_interfaces_impl()?))
     }
 
     fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>> {

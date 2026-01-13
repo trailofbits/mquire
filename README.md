@@ -52,9 +52,8 @@ mquire provides SQL tables to query different aspects of the system or the state
 #### Process information
 
 - **tasks** - Running processes with command lines and binary paths
-- **task_open_files** - Files opened by each process
-- **cgroups** - Control groups for processes
-- **memory_mappings** - Memory regions mapped by each process
+- **task_open_files** - Files opened by each process (requires `task` constraint - see examples below)
+- **memory_mappings** - Memory regions mapped by each process (requires `task` constraint)
 
 #### Kernel modules
 
@@ -75,12 +74,11 @@ mquire provides SQL tables to query different aspects of the system or the state
 
 ## Commands
 
-mquire provides four main commands:
+mquire provides three main commands:
 
 - **`mquire shell`** - Start an interactive SQL shell to query memory snapshots
 - **`mquire query`** - Execute a single SQL query and output results (supports JSON or table format)
-- **`mquire command`** - Execute custom commands on memory snapshots (e.g., `.task_tree`, `.system_version`)
-- **`mquire dump`** - Extract files from the kernel's file cache to recover files directly from memory. Currently works with files opened through file descriptors (from the process file descriptor table). Does not yet support extracting data from memory-mapped files.
+- **`mquire command`** - Execute custom commands on memory snapshots (e.g., `.task_tree`, `.system_version`, `.dump`)
 
 ## Dot Commands
 
@@ -113,11 +111,11 @@ This is a convenience command equivalent to `SELECT * FROM os_version`, but with
 Display a hierarchical tree of running processes and threads, similar to the `pstree` command on Linux.
 
 **Options:**
-- `--show-threads` - Include threads in addition to processes. When enabled, displays both PID and TID for each entry.
+- `--show-threads` - Include threads in addition to processes. When enabled, displays both TGID and TID for each entry.
 - `--use-real-parent` - Use the `real_parent` field instead of `parent` for building the tree structure. The `real_parent` field shows the original parent process before any reparenting (useful for tracking process creation chains even after parent processes exit).
 
 **Notes:**
-- The format is `[PID TID]` when showing threads, or `[PID]` when threads are hidden. For main threads (where PID == TID), both values will be the same.
+- The format is `[TGID TID]` when showing threads, or `[TGID]` when threads are hidden. TGID (Thread Group ID) is what's commonly called PID. For main threads (where TGID == TID), both values will be the same.
 
 #### `.carve`
 
@@ -132,6 +130,19 @@ Carve a region of virtual memory to disk. This command extracts raw memory conte
 **Notes:**
 - The command shows a summary of mapped vs unmapped regions before writing.
 - Unmapped regions are filled with zeros in the output file.
+
+#### `.dump`
+
+Extract files from the kernel's file cache to recover files directly from memory. This command iterates through all tasks and their open file descriptors, extracting file contents from the page cache.
+
+**Arguments:**
+- `OUTPUT` - Output directory for extracted files. Files are organized by TGID (e.g., `tgid_1234/path/to/file`).
+
+**Notes:**
+- Currently works with files opened through file descriptors (from the process file descriptor table).
+- Does not yet support extracting data from memory-mapped files.
+- Empty files (no data in page cache) are skipped.
+- Regions with read errors are zero-padded in the output.
 
 ## Use cases
 
@@ -166,7 +177,7 @@ cd mquire
 cargo build --release
 
 # The binary will be in target/release/
-# - mquire: Unified tool with shell, query, and dump commands
+# - mquire: Unified tool with shell, query, and command modes
 ```
 
 ## Acquiring a memory snapshot
@@ -247,48 +258,25 @@ mquire automatically loads and executes SQL files from `~/.config/trailofbits/mq
 - Errors are displayed but don't block execution
 - Works with both `mquire shell` and `mquire query` commands
 
-**Example: Creating a process network connections view**
+**Example: Creating a parameterized query for process network connections**
 
-Create `~/.config/trailofbits/mquire/autostart/001_process_network_connections.sql`:
+To find network connections for a specific process, use a query like this:
 
 ```sql
-CREATE VIEW IF NOT EXISTS process_network_connections AS
-WITH
-  network_connections_mat AS MATERIALIZED (
-    SELECT * FROM network_connections
-  ),
-
-  task_open_files_mat AS MATERIALIZED (
-    SELECT * FROM task_open_files
-  ),
-
-  tasks_mat AS MATERIALIZED (
-    SELECT * FROM tasks WHERE main_thread = 1
-  )
-
+-- Find network connections for sshd process
 SELECT
-  t.pid,
+  t.tgid,
   t.comm,
-  t.binary_path,
   nc.protocol,
   nc.local_address,
   nc.local_port,
   nc.remote_address,
   nc.remote_port,
-  nc.state,
-  nc.type as ip_type,
-  nc.inode
-FROM network_connections_mat nc
-JOIN task_open_files_mat tof ON nc.inode = tof.inode
-JOIN tasks_mat t ON tof.task = t.virtual_address
-ORDER BY t.pid, nc.local_port;
-```
-
-Once created, you can query the view directly:
-
-```bash
-$ mquire shell /path/to/memory.raw
-mquire> SELECT * FROM process_network_connections LIMIT 5;
+  nc.state
+FROM tasks t
+JOIN task_open_files tof ON tof.task = t.virtual_address
+JOIN network_connections nc ON nc.inode = tof.inode
+WHERE t.comm = 'sshd';
 ```
 
 ## Query Optimization
@@ -307,21 +295,18 @@ Use the `AS MATERIALIZED` hint to cache table results when tables are used in JO
 **Example:**
 
 ```sql
+-- Find network connections for a specific process using materialization
 WITH
-  tasks_mat AS MATERIALIZED (
-    SELECT * FROM tasks
+  target_tasks AS MATERIALIZED (
+    SELECT * FROM tasks WHERE comm = 'sshd' AND main_thread = 1
   ),
 
   network_connections_mat AS MATERIALIZED (
     SELECT * FROM network_connections
-  ),
-
-  task_open_files_mat AS MATERIALIZED (
-    SELECT * FROM task_open_files
   )
 
 SELECT
-  t.pid,
+  t.tgid,
   t.comm,
   nc.local_address,
   nc.local_port,
@@ -329,10 +314,12 @@ SELECT
   nc.remote_port,
   nc.state,
   nc.protocol
-FROM network_connections_mat nc
-JOIN task_open_files_mat tof ON nc.inode = tof.inode
-JOIN tasks_mat t ON tof.pid = t.pid;
+FROM target_tasks t
+JOIN task_open_files tof ON tof.task = t.virtual_address
+JOIN network_connections_mat nc ON nc.inode = tof.inode;
 ```
+
+**Note:** The `task_open_files` and `memory_mappings` tables use the `task` column as a generator input. When joined with the `tasks` table, SQLite automatically passes the constraint via nested loop joins, making direct JOINs efficient.
 
 **Performance impact:** Materialization can provide significant speedup for queries with JOINs (typically 2-5x faster)
 
@@ -355,16 +342,13 @@ JOIN tasks_mat t ON tof.pid = t.pid;
 - `task_open_files`: largest - all open file descriptors
 
 **Optimal order:**
-```sql
--- Good: Starts with smallest table
-FROM network_connections_mat nc           -- ~50 rows
-JOIN task_open_files_mat tof ON ...      -- ~2000 rows
-JOIN tasks_mat t ON ...                   -- ~350 rows
 
--- Less optimal: Starts with larger table
-FROM task_open_files_mat tof             -- ~2000 rows
-JOIN network_connections_mat nc ON ...    -- ~50 rows
-JOIN tasks_mat t ON ...                   -- ~350 rows
+Start with the filtered tasks table and join toward larger tables:
+
+```sql
+FROM target_tasks t                                       -- filtered tasks
+JOIN task_open_files tof ON tof.task = t.virtual_address  -- open files
+JOIN network_connections_mat nc ON nc.inode = tof.inode   -- matching connections
 ```
 
 ### Understanding Query Execution
@@ -374,9 +358,9 @@ Use `EXPLAIN QUERY PLAN` to see how SQLite executes your query:
 ```sql
 EXPLAIN QUERY PLAN
 SELECT ...
-FROM network_connections_mat nc
-JOIN task_open_files_mat tof ON nc.inode = tof.inode
-JOIN tasks_mat t ON tof.pid = t.pid;
+FROM target_tasks t
+JOIN task_open_files tof ON tof.task = t.virtual_address
+JOIN network_connections_mat nc ON nc.inode = tof.inode;
 ```
 
 Look for:
@@ -398,7 +382,7 @@ Look for:
 Extract files from memory to disk:
 
 ```bash
-mquire dump /path/to/memory.raw /output/directory
+mquire command /path/to/memory.raw ".dump /output/directory"
 ```
 
 ### Example queries
@@ -450,62 +434,48 @@ comm:"systemd-timesyn" binary_path:"/usr/lib/systemd/systemd-timesyncd" command_
 
 #### Connections
 
-Note: This query uses materialization for better performance (see [Query Optimization](#query-optimization) section).
+Find network connections for a specific process by joining tasks, task_open_files, and network_connections.
 
 ```bash
 $ mquire shell ubuntu2404_6.14.0-37-generic.lime
-mquire> WITH
-  network_connections_mat AS MATERIALIZED (
-    SELECT * FROM network_connections
-  ),
-
-  task_open_files_mat AS MATERIALIZED (
-    SELECT * FROM task_open_files
-  ),
-
-  tasks_mat AS MATERIALIZED (
-    SELECT * FROM tasks WHERE main_thread = 1
-  )
-
-SELECT
-  t.pid,
+mquire> SELECT
+  t.tgid,
   t.comm,
-  t.binary_path,
   nc.protocol,
   nc.local_address,
   nc.local_port,
   nc.remote_address,
   nc.remote_port,
-  nc.state,
-  nc.type as ip_type,
-  nc.inode
-FROM network_connections_mat nc
-JOIN task_open_files_mat tof ON nc.inode = tof.inode
-JOIN tasks_mat t ON tof.task = t.virtual_address
-ORDER BY t.pid, nc.local_port
-LIMIT 5;
-pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"::" local_port:"5353" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv6" inode:"17696" 
-pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"0.0.0.0" local_port:"5353" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv4" inode:"17695" 
-pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"0.0.0.0" local_port:"35022" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv4" inode:"17697" 
-pid:"826" comm:"avahi-daemon" binary_path:"/usr/sbin/avahi-daemon" protocol:"udp" local_address:"::" local_port:"36728" remote_address:"<null>" remote_port:"<null>" state:"close" ip_type:"ipv6" inode:"17698" 
-pid:"1081" comm:"cupsd" binary_path:"/usr/sbin/cupsd" protocol:"tcp" local_address:"127.0.0.1" local_port:"631" remote_address:"<null>" remote_port:"<null>" state:"listen" ip_type:"ipv4" inode:"8800"
+  nc.state
+FROM tasks t
+JOIN task_open_files tof ON tof.task = t.virtual_address
+JOIN network_connections nc ON nc.inode = tof.inode
+WHERE t.comm = 'sshd';
+tgid:"1134" comm:"sshd" protocol:"tcp" local_address:"0.0.0.0" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"listen"
+tgid:"1134" comm:"sshd" protocol:"tcp" local_address:"::" local_port:"22" remote_address:"<null>" remote_port:"<null>" state:"listen"
 ```
 
 #### Task open files
 
+List open files for specific processes by joining `tasks` with `task_open_files`:
+
 ```bash
 $ mquire shell ubuntu2404_6.14.0-37-generic.lime
-mquire> SELECT path FROM task_open_files WHERE path LIKE '%firefox%' LIMIT 10;
-path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/cookies.sqlite"
-path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/.parentlock"
-path:"/usr/lib/firefox/omni.ja"
-path:"/usr/lib/firefox/browser/omni.ja"
-path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/startupCache.8.little"
-path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/scriptCache-child-current.bin"
-path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/storage.sqlite"
-path:"/home/alessandro/snap/firefox/common/.cache/mozilla/firefox/4f1wza57.default/startupCache/scriptCache-current.bin"
-path:"/usr/lib/firefox/browser/features/formautofill@mozilla.org.xpi"
-path:"/home/alessandro/snap/firefox/common/.mozilla/firefox/4f1wza57.default/extensions/uBlock0@raymondhill.net.xpi"
+mquire> SELECT t.comm, tof.path
+FROM tasks t
+JOIN task_open_files tof ON tof.task = t.virtual_address
+WHERE t.comm LIKE '%systemd%'
+LIMIT 10;
+comm:"systemd" path:"/null"
+comm:"systemd" path:"/null"
+comm:"systemd" path:"/null"
+comm:"systemd" path:"/kmsg"
+comm:"systemd" path:"[eventpoll]"
+comm:"systemd" path:"[signalfd]"
+comm:"systemd" path:"inotify"
+comm:"systemd" path:"/"
+comm:"systemd" path:"[timerfd]"
+comm:"systemd" path:"/usr/lib/systemd/systemd-executor"
 ```
 
 #### Command-line query examples
@@ -554,7 +524,7 @@ Architecture: x86_64
 ##### Display process tree
 
 ```bash
-$ mquire command ubuntu2404_6.14.0-37-generic.lime ".task_tree" | head -n 10
+$ mquire command ubuntu2404_6.8.0-63-generic.lime .task_tree | head -n 10
 Parent: task_struct::parent
 Threads: Disabled
 Page Table: PhysicalAddress(0x0000000001A60000)
@@ -567,22 +537,25 @@ Page Table: PhysicalAddress(0x0000000001A60000)
    │  ├─ [786] (ffff982a07a60000) systemd-oomd
 ```
 
-**Note:** When multiple `task_struct` entries exist with the same TID (which can occur due to memory corruption or snapshot timing), duplicate entries are displayed with the continuation symbol `╎   ↳` indented under the primary entry. The format is `[PID] (virtual_address) name` for each entry.
+**Note:** When multiple `task_struct` entries exist with the same TID (Thread ID, which can occur due to memory corruption or snapshot timing), duplicate entries are displayed with the continuation symbol `╎   ↳` indented under the primary entry. The format is `[TGID] (virtual_address) name` when threads are hidden, or `[TGID TID]` when showing threads (where TGID is the Thread Group ID, commonly known as PID).
 
 #### Extract files from memory
 
 ```bash
-$ mquire dump ubuntu2404_6.14.0-37-generic.lime ./extracted_files
-Opening memory dump: ubuntu2404_6.14.0-37-generic.lime
-Initializing Linux operating system analyzer...
-Getting task open file list...
-Found 1234 open files
+$ mquire command ubuntu2404_6.14.0-37-generic.lime ".dump ./extracted_files"
+Legend: SK = skipped, OK = all good, ER = errored
 
 Summary:
-  Total files found: 1234
+  Total files processed: 1234
   Successfully dumped: 1156
   Skipped: 45
   Errors: 33
+
+File Status:
+  OK /usr/lib/systemd/systemd (TGID 1)
+  OK /etc/passwd (TGID 1)
+  SK /dev/null (TGID 1)
+  ...
 ```
 
 ## Contributing

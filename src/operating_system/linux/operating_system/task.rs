@@ -18,7 +18,7 @@ use crate::{
 
 use {btfparse::TypeInformation, log::debug};
 
-use std::{collections::BTreeMap, ops::Sub, path::PathBuf};
+use std::{collections::BTreeMap, ops::Sub, path::PathBuf, sync::Arc};
 
 /// Maximum size for command line arguments buffer (1 MB)
 const MAX_ARG_SIZE: usize = 1024 * 1024;
@@ -26,37 +26,110 @@ const MAX_ARG_SIZE: usize = 1024 * 1024;
 /// Maximum size for environment variables buffer (1 MB)
 const MAX_ENV_SIZE: usize = 1024 * 1024;
 
-impl LinuxOperatingSystem {
-    /// Returns the list of tasks
-    pub(super) fn get_task_list_impl(&self) -> Result<Vec<Task>> {
-        let mut task_list = Vec::new();
+/// Public iterator over Linux tasks
+pub struct TaskIterator<'a> {
+    task_struct_it: TaskStructIterator<'a>,
+    memory_dump: Arc<dyn Readable>,
+    architecture: Arc<dyn Architecture>,
+    kernel_type_info: &'a TypeInformation,
+    root_task: VirtualAddress,
+}
+
+impl<'a> TaskIterator<'a> {
+    /// Creates a new TaskIterator
+    pub fn new(
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
+        kernel_type_info: &'a TypeInformation,
+        start_vaddr: VirtualAddress,
+    ) -> Result<Self> {
+        let inner = TaskStructIterator::new(
+            memory_dump.clone(),
+            architecture.clone(),
+            kernel_type_info,
+            start_vaddr,
+        )?;
+
+        Ok(Self {
+            task_struct_it: inner,
+            memory_dump,
+            architecture,
+            kernel_type_info,
+            root_task: start_vaddr,
+        })
+    }
+
+    /// Returns the virtual address of the root task used for iteration
+    pub fn root_task(&self) -> VirtualAddress {
+        self.root_task
+    }
+}
+
+impl<'a> Iterator for TaskIterator<'a> {
+    type Item = Result<Task>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let addr = self.task_struct_it.next()?;
+
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        let task_iter =
-            TaskStructIterator::new(&vmem_reader, &self.kernel_type_info, self.init_task_vaddr)?;
+        let task_struct = match VirtualStruct::from_name(
+            &vmem_reader,
+            self.kernel_type_info,
+            "task_struct",
+            &addr,
+        ) {
+            Ok(ts) => ts,
+            Err(err) => return Some(Err(err)),
+        };
 
-        for task_struct in task_iter {
-            match Self::parse_virtual_task_struct(
-                self.memory_dump.as_ref(),
-                self.architecture.as_ref(),
-                &self.kernel_type_info,
-                &task_struct,
-            ) {
-                Ok(task) => {
-                    task_list.push(task);
-                }
+        let result = LinuxOperatingSystem::parse_virtual_task_struct(
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            self.kernel_type_info,
+            &task_struct,
+        );
 
-                Err(err) => {
-                    debug!(
-                        "Failed to read the task_struct from vaddr {:?}: {err:?}",
-                        task_struct.virtual_address()
-                    );
-                }
-            }
-        }
+        Some(result)
+    }
+}
 
-        Ok(task_list)
+impl LinuxOperatingSystem {
+    /// Returns a task at the given virtual address
+    pub(super) fn task_at_impl(&self, vaddr: VirtualAddress) -> Result<Task> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        let task_struct =
+            VirtualStruct::from_name(&vmem_reader, &self.kernel_type_info, "task_struct", &vaddr)?;
+
+        Self::parse_virtual_task_struct(
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            &self.kernel_type_info,
+            &task_struct,
+        )
+    }
+
+    /// Returns an iterator over tasks starting from init_task
+    pub(super) fn iter_tasks_impl(&self) -> Result<TaskIterator<'_>> {
+        TaskIterator::new(
+            self.memory_dump.clone(),
+            self.architecture.clone(),
+            &self.kernel_type_info,
+            self.init_task_vaddr,
+        )
+    }
+
+    /// Returns an iterator over tasks starting from the given root
+    pub(super) fn iter_tasks_from_impl(&self, root: VirtualAddress) -> Result<TaskIterator<'_>> {
+        TaskIterator::new(
+            self.memory_dump.clone(),
+            self.architecture.clone(),
+            &self.kernel_type_info,
+            root,
+        )
     }
 
     /// Returns a snapshot for the task entity at the given VirtualAddress
@@ -239,10 +312,10 @@ impl LinuxOperatingSystem {
             name: Some(comm),
             command_line,
             environment_variable_map,
-            pid: tgid,
+            tgid,
             ppid,
             real_ppid,
-            tid: pid,
+            pid,
             uid,
             gid,
         })

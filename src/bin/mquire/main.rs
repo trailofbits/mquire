@@ -9,14 +9,11 @@
 mod command;
 mod commands;
 mod database;
-mod dump;
 mod logger;
 mod query;
 mod shell;
 mod sqlite;
 mod utils;
-
-use crate::dump::dump_task_open_files;
 
 use {
     commands::command_registry::CommandContext,
@@ -31,14 +28,10 @@ use mquire::{
     core::{architecture::Architecture, operating_system::OperatingSystem},
     memory::readable::Readable,
     operating_system::linux::operating_system::LinuxOperatingSystem,
-    snapshot::{lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot},
+    snapshot::open_memory,
 };
 
-use std::{
-    io,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{io, path::PathBuf, sync::Arc};
 
 #[derive(Parser)]
 #[command(name = "mquire")]
@@ -48,9 +41,9 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 
-    /// Enable verbose logging
+    /// Enable debug logging
     #[arg(short, long, global = true)]
-    verbose: bool,
+    debug: bool,
 
     /// Operating system type (linux, all)
     #[arg(long, global = true, default_value = "linux")]
@@ -90,15 +83,6 @@ enum Commands {
         /// Command to execute (defaults to .commands to list available commands)
         #[arg(default_value = ".commands")]
         command_line: String,
-    },
-
-    /// Extract all open files from a snapshot to disk
-    Dump {
-        /// Path to the memory snapshot (.raw or .lime)
-        snapshot: PathBuf,
-
-        /// Output directory for extracted files
-        output: PathBuf,
     },
 }
 
@@ -151,32 +135,10 @@ fn create_operating_system(
     }
 }
 
-/// Opens a memory dump file and returns a Readable instance
-fn open_memory_dump(path: &Path) -> io::Result<Arc<dyn Readable>> {
-    match path.extension().and_then(|ext| ext.to_str()) {
-        Some("raw") => {
-            let snapshot: Arc<dyn Readable> = RawSnapshot::new(path)
-                .map_err(|e| io::Error::other(format!("Failed to open raw snapshot: {e:?}")))?;
-
-            Ok(snapshot)
-        }
-        Some("lime") => {
-            let snapshot: Arc<dyn Readable> = LimeSnapshot::new(path)
-                .map_err(|e| io::Error::other(format!("Failed to open lime snapshot: {e:?}")))?;
-
-            Ok(snapshot)
-        }
-        _ => Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "Unsupported memory dump format. Use .raw or .lime files.",
-        )),
-    }
-}
-
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
-    logger::Logger::initialize();
+    logger::Logger::initialize(cli.debug);
 
     let os_type = parse_operating_system(&cli.operating_system)?;
     let arch_type = parse_architecture(&cli.architecture)?;
@@ -195,7 +157,7 @@ fn main() -> io::Result<()> {
                 ));
             }
 
-            let readable = open_memory_dump(&snapshot)?;
+            let readable = open_memory(&snapshot)?;
             let architecture = create_architecture(arch_type);
             let system = create_operating_system(os_type, readable.clone(), architecture.clone())?;
 
@@ -231,7 +193,7 @@ fn main() -> io::Result<()> {
             let output_format = query::OutputFormat::from_str(&format)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
-            let readable = open_memory_dump(&snapshot)?;
+            let readable = open_memory(&snapshot)?;
             let architecture = create_architecture(arch_type);
             let system = create_operating_system(os_type, readable, architecture)?;
 
@@ -258,7 +220,7 @@ fn main() -> io::Result<()> {
                 ));
             }
 
-            let readable = open_memory_dump(&snapshot)?;
+            let readable = open_memory(&snapshot)?;
             let architecture = create_architecture(arch_type);
             let system = create_operating_system(os_type, readable.clone(), architecture.clone())?;
 
@@ -273,21 +235,6 @@ fn main() -> io::Result<()> {
             };
 
             command::execute_command(database.command_registry(), &context, &command_line)?;
-        }
-
-        Commands::Dump { snapshot, output } => {
-            if !snapshot.exists() {
-                eprintln!(
-                    "Error: Snapshot file does not exist: {}",
-                    snapshot.display()
-                );
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "Snapshot file not found",
-                ));
-            }
-
-            dump_task_open_files(&snapshot, &output)?;
         }
     }
 

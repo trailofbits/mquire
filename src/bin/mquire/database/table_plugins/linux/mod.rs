@@ -7,12 +7,12 @@
 //
 
 pub mod boot_time;
-pub mod cgroups;
 pub mod dmesg;
 pub mod kallsyms;
 pub mod kernel_modules;
 pub mod memory_mappings;
 pub mod network_connections;
+pub mod network_interfaces;
 pub mod syslog_file;
 pub mod task_open_files;
 pub mod tasks;

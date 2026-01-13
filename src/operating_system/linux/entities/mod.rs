@@ -7,8 +7,8 @@
 //
 
 pub mod boot_time;
-pub mod cgroup;
 pub mod dmesg;
+pub mod file;
 pub mod kallsyms_symbol;
 pub mod kernel_module;
 pub mod memory_mapping;

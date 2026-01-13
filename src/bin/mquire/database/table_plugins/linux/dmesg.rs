@@ -8,10 +8,12 @@
 
 use crate::sqlite::{
     error::Result,
-    table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
+    table_plugin::{ColumnDef, ColumnType, ColumnValue, Constraints, RowList, TablePlugin},
 };
 
 use mquire::operating_system::linux::operating_system::LinuxOperatingSystem;
+
+use log::error;
 
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -28,70 +30,84 @@ impl DmesgTablePlugin {
 }
 
 impl TablePlugin for DmesgTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("sequence"), ColumnType::SignedInteger);
-        schema.insert(String::from("timestamp_ns"), ColumnType::SignedInteger);
-        schema.insert(String::from("level"), ColumnType::SignedInteger);
-        schema.insert(String::from("facility"), ColumnType::SignedInteger);
-        schema.insert(String::from("caller_id"), ColumnType::SignedInteger);
-        schema.insert(String::from("message"), ColumnType::String);
-        schema.insert(String::from("data_source"), ColumnType::String);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("sequence"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("timestamp_ns"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("level"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("facility"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("caller_id"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("message"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("data_source"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("dmesg")
     }
 
-    fn generate(&self) -> Result<RowList> {
+    fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
         let row_list: RowList = self
             .system
-            .get_dmesg_entries()?
-            .into_iter()
+            .iter_dmesg_entries()?
+            .filter_map(|r| {
+                r.inspect_err(|e| error!("Failed to parse dmesg entry: {e:?}"))
+                    .ok()
+            })
             .map(|entry| {
-                let mut row = BTreeMap::<String, OptionalColumnValue>::new();
-
-                row.insert(
-                    String::from("sequence"),
-                    Some(ColumnValue::SignedInteger(entry.sequence as i64)),
-                );
-
-                row.insert(
-                    String::from("timestamp_ns"),
-                    Some(ColumnValue::SignedInteger(entry.timestamp_ns as i64)),
-                );
-
-                row.insert(
-                    String::from("level"),
-                    Some(ColumnValue::SignedInteger(entry.level as i64)),
-                );
-
-                row.insert(
-                    String::from("facility"),
-                    Some(ColumnValue::SignedInteger(entry.facility as i64)),
-                );
-
-                row.insert(
-                    String::from("caller_id"),
-                    entry
-                        .caller_id
-                        .map(|id| ColumnValue::SignedInteger(id as i64)),
-                );
-
-                row.insert(
-                    String::from("message"),
-                    Some(ColumnValue::String(entry.message)),
-                );
-
-                row.insert(
-                    String::from("data_source"),
-                    Some(ColumnValue::String(entry.data_source.as_str().to_string())),
-                );
-
-                row
+                BTreeMap::from([
+                    (
+                        String::from("sequence"),
+                        Some(ColumnValue::SignedInteger(entry.sequence as i64)),
+                    ),
+                    (
+                        String::from("timestamp_ns"),
+                        Some(ColumnValue::SignedInteger(entry.timestamp_ns as i64)),
+                    ),
+                    (
+                        String::from("level"),
+                        Some(ColumnValue::SignedInteger(entry.level as i64)),
+                    ),
+                    (
+                        String::from("facility"),
+                        Some(ColumnValue::SignedInteger(entry.facility as i64)),
+                    ),
+                    (
+                        String::from("caller_id"),
+                        entry
+                            .caller_id
+                            .map(|id| ColumnValue::SignedInteger(id as i64)),
+                    ),
+                    (
+                        String::from("message"),
+                        Some(ColumnValue::String(entry.message)),
+                    ),
+                    (
+                        String::from("data_source"),
+                        Some(ColumnValue::String(entry.data_source.as_str().to_string())),
+                    ),
+                ])
             })
             .collect();
 

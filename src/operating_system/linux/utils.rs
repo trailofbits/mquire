@@ -40,3 +40,8 @@ pub fn get_struct_size(type_info: &TypeInformation, struct_name: &str) -> Result
         )
     })
 }
+
+/// Get the pointer size for this kernel by looking at struct list_head
+pub fn get_pointer_size(type_info: &TypeInformation) -> Result<u64> {
+    get_struct_size(type_info, "list_head").map(|size| size / 2)
+}

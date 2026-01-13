@@ -8,10 +8,12 @@
 
 use crate::sqlite::{
     error::Result,
-    table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
+    table_plugin::{ColumnDef, ColumnType, ColumnValue, Constraints, RowList, TablePlugin},
 };
 
 use mquire::operating_system::linux::operating_system::LinuxOperatingSystem;
+
+use log::error;
 
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -61,99 +63,122 @@ impl SyslogFileTablePlugin {
 }
 
 impl TablePlugin for SyslogFileTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("file_virtual_address"), ColumnType::String);
-        schema.insert(String::from("task_virtual_address"), ColumnType::String);
-        schema.insert(String::from("pid"), ColumnType::SignedInteger);
-        schema.insert(String::from("data_source"), ColumnType::String);
-        schema.insert(String::from("region_start"), ColumnType::String);
-        schema.insert(String::from("region_end"), ColumnType::String);
-        schema.insert(String::from("timestamp"), ColumnType::String);
-        schema.insert(String::from("hostname"), ColumnType::String);
-        schema.insert(String::from("process"), ColumnType::String);
-        schema.insert(String::from("message"), ColumnType::String);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("file_virtual_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("task_virtual_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("tgid"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("data_source"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("region_start"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("region_end"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("timestamp"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("hostname"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("process"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("message"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("syslog_file")
     }
 
-    fn generate(&self) -> Result<RowList> {
-        let syslog_list = self.system.get_syslog_file_regions()?;
+    fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
+        let rows = self
+            .system
+            .iter_syslog_file_regions()?
+            .filter_map(|r| {
+                r.inspect_err(|e| error!("Failed to parse syslog file region: {e:?}"))
+                    .ok()
+            })
+            .flat_map(|syslog| {
+                let virtual_address = syslog.virtual_address;
+                let task = syslog.task;
+                let tgid = syslog.tgid;
+                let data_source = syslog.data_source;
 
-        let mut rows = Vec::new();
+                syslog.region_list.into_iter().flat_map(move |region| {
+                    let offset_range_start = region.offset_range.start;
+                    let offset_range_end = region.offset_range.end;
 
-        for syslog in syslog_list {
-            for region in &syslog.region_list {
-                for line in &region.lines {
-                    let parsed = Self::parse_syslog_line(line);
+                    region.lines.into_iter().map(move |line| {
+                        let parsed = Self::parse_syslog_line(&line);
 
-                    let mut row = BTreeMap::<String, OptionalColumnValue>::new();
-
-                    row.insert(
-                        String::from("file_virtual_address"),
-                        Some(ColumnValue::String(format!("{:?}", syslog.virtual_address))),
-                    );
-
-                    row.insert(
-                        String::from("task_virtual_address"),
-                        Some(ColumnValue::String(format!("{:?}", syslog.task))),
-                    );
-
-                    row.insert(
-                        String::from("pid"),
-                        Some(ColumnValue::SignedInteger(syslog.pid as i64)),
-                    );
-
-                    row.insert(
-                        String::from("data_source"),
-                        Some(ColumnValue::String(syslog.data_source.as_str().to_string())),
-                    );
-
-                    row.insert(
-                        String::from("region_start"),
-                        Some(ColumnValue::String(format!(
-                            "{:?}",
-                            region.offset_range.start
-                        ))),
-                    );
-
-                    row.insert(
-                        String::from("region_end"),
-                        Some(ColumnValue::String(format!(
-                            "{:?}",
-                            region.offset_range.end
-                        ))),
-                    );
-
-                    row.insert(
-                        String::from("timestamp"),
-                        Some(ColumnValue::String(parsed.timestamp)),
-                    );
-
-                    row.insert(
-                        String::from("hostname"),
-                        Some(ColumnValue::String(parsed.hostname)),
-                    );
-
-                    row.insert(
-                        String::from("process"),
-                        Some(ColumnValue::String(parsed.process)),
-                    );
-
-                    row.insert(
-                        String::from("message"),
-                        Some(ColumnValue::String(parsed.message)),
-                    );
-
-                    rows.push(row);
-                }
-            }
-        }
+                        BTreeMap::from([
+                            (
+                                String::from("file_virtual_address"),
+                                Some(ColumnValue::String(format!("{:?}", virtual_address))),
+                            ),
+                            (
+                                String::from("task_virtual_address"),
+                                Some(ColumnValue::String(format!("{:?}", task))),
+                            ),
+                            (
+                                String::from("tgid"),
+                                Some(ColumnValue::SignedInteger(tgid as i64)),
+                            ),
+                            (
+                                String::from("data_source"),
+                                Some(ColumnValue::String(data_source.as_str().to_string())),
+                            ),
+                            (
+                                String::from("region_start"),
+                                Some(ColumnValue::String(format!("{:?}", offset_range_start))),
+                            ),
+                            (
+                                String::from("region_end"),
+                                Some(ColumnValue::String(format!("{:?}", offset_range_end))),
+                            ),
+                            (
+                                String::from("timestamp"),
+                                Some(ColumnValue::String(parsed.timestamp)),
+                            ),
+                            (
+                                String::from("hostname"),
+                                Some(ColumnValue::String(parsed.hostname)),
+                            ),
+                            (
+                                String::from("process"),
+                                Some(ColumnValue::String(parsed.process)),
+                            ),
+                            (
+                                String::from("message"),
+                                Some(ColumnValue::String(parsed.message)),
+                            ),
+                        ])
+                    })
+                })
+            })
+            .collect();
 
         Ok(rows)
     }

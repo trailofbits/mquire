@@ -14,9 +14,12 @@ use crate::{
     },
 };
 
+/// Iterator over kernel symbols from kallsyms
+pub type KallsymsSymbolIterator = std::vec::IntoIter<KallsymsSymbol>;
+
 impl LinuxOperatingSystem {
-    /// Returns the list of kernel symbols from kallsyms
-    pub(super) fn get_kallsyms_symbols_impl(&self) -> Result<Vec<KallsymsSymbol>> {
+    /// Returns an iterator over kernel symbols from kallsyms
+    pub(super) fn iter_kallsyms_symbols_impl(&self) -> Result<KallsymsSymbolIterator> {
         let kallsyms = self.kallsyms.as_ref().ok_or_else(|| {
             Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
@@ -24,18 +27,17 @@ impl LinuxOperatingSystem {
             )
         })?;
 
-        let symbols = kallsyms
+        let root_page_table = self.init_task_vaddr.root_page_table();
+
+        let symbols: Vec<KallsymsSymbol> = kallsyms
             .symbols()
             .map(|(name, data)| KallsymsSymbol {
                 symbol_name: name.to_string(),
-                virtual_address: VirtualAddress::new(
-                    self.init_task_vaddr.root_page_table(),
-                    data.address,
-                ),
+                virtual_address: VirtualAddress::new(root_page_table, data.address),
                 symbol_type: data.symbol_type,
             })
             .collect();
 
-        Ok(symbols)
+        Ok(symbols.into_iter())
     }
 }

@@ -23,9 +23,48 @@ use crate::{
 
 use {btfparse::TypeInformation, log::debug};
 
+/// Iterator over loaded kernel modules
+pub struct KernelModuleIterator {
+    /// The underlying list iterator
+    inner: std::vec::IntoIter<Result<KernelModule>>,
+    /// The list head address used for iteration
+    list_head: VirtualAddress,
+}
+
+impl KernelModuleIterator {
+    /// Creates a new KernelModuleIterator
+    fn new(inner: std::vec::IntoIter<Result<KernelModule>>, list_head: VirtualAddress) -> Self {
+        Self { inner, list_head }
+    }
+
+    /// Returns the virtual address of the list head used for iteration
+    pub fn list_head(&self) -> VirtualAddress {
+        self.list_head
+    }
+}
+
+impl Iterator for KernelModuleIterator {
+    type Item = Result<KernelModule>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
 impl LinuxOperatingSystem {
-    /// Returns the list of loaded kernel modules
-    pub(super) fn get_kernel_module_list_impl(&self) -> Result<Vec<KernelModule>> {
+    /// Returns a kernel module at the given virtual address
+    pub(super) fn kernel_module_at_impl(&self, vaddr: VirtualAddress) -> Result<KernelModule> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        let module_struct =
+            VirtualStruct::from_name(&vmem_reader, &self.kernel_type_info, "module", &vaddr)?;
+
+        parse_kernel_module(&vmem_reader, &self.kernel_type_info, &module_struct)
+    }
+
+    /// Returns an iterator over loaded kernel modules starting from the default list head
+    pub(super) fn iter_kernel_modules_impl(&self) -> Result<KernelModuleIterator> {
         let kallsyms = self.kallsyms.as_ref().ok_or_else(|| {
             Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
@@ -43,6 +82,14 @@ impl LinuxOperatingSystem {
             })
             .inspect_err(|err| debug!("{err:?}"))?;
 
+        self.iter_kernel_modules_from_impl(modules_vaddr)
+    }
+
+    /// Returns an iterator over loaded kernel modules starting from the given list head
+    pub(super) fn iter_kernel_modules_from_impl(
+        &self,
+        list_head_vaddr: VirtualAddress,
+    ) -> Result<KernelModuleIterator> {
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
@@ -50,7 +97,7 @@ impl LinuxOperatingSystem {
             &vmem_reader,
             &self.kernel_type_info,
             "list_head",
-            &modules_vaddr,
+            &list_head_vaddr,
         )
         .inspect_err(|err| debug!("{err:?}"))?;
 
@@ -59,9 +106,12 @@ impl LinuxOperatingSystem {
             .and_then(|f| f.read_vaddr())
             .inspect_err(|err| debug!("{err:?}"))?;
 
-        if first_module_list_vaddr == modules_vaddr {
+        if first_module_list_vaddr == list_head_vaddr {
             debug!("[kernel_module] Module list is empty");
-            return Ok(Vec::new());
+            return Ok(KernelModuleIterator::new(
+                Vec::new().into_iter(),
+                list_head_vaddr,
+            ));
         }
 
         let module_list = List::<KernelModule>::builder()
@@ -73,11 +123,15 @@ impl LinuxOperatingSystem {
                 self.architecture.as_ref(),
                 &self.kernel_type_info,
                 first_module_list_vaddr,
-                self.init_task_vaddr.root_page_table(),
+                list_head_vaddr.root_page_table(),
             )
             .inspect_err(|err| debug!("{err:?}"))?;
 
-        Ok(module_list.into_iter().collect())
+        let results: Vec<Result<KernelModule>> = module_list.into_iter().map(Ok).collect();
+        Ok(KernelModuleIterator::new(
+            results.into_iter(),
+            list_head_vaddr,
+        ))
     }
 }
 

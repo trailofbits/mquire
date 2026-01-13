@@ -21,7 +21,7 @@ use crate::{
     operating_system::linux::{kallsyms::Kallsyms, virtual_struct::VirtualStruct, xarray::XArray},
 };
 
-use {btfparse::TypeInformation, log::debug};
+use btfparse::TypeInformation;
 
 use std::{collections::BTreeMap, ops::Range, sync::Arc};
 
@@ -30,6 +30,9 @@ const PAGE_SIZE: u64 = 4096;
 
 /// Max amount of pages per folio structure
 const MAX_FOLIO_PAGES: u64 = 512;
+
+/// PG_head flag bit indicating a large/compound folio
+const PG_HEAD_BIT: u64 = 1 << 6;
 
 /// Implements reading from a Linux file object in memory
 pub(super) struct ReadableLinuxFileObject {
@@ -99,22 +102,78 @@ impl ReadableLinuxFileObject {
             i_pages_vaddr,
         )?;
 
-        let page_vaddrs = xarray.entries();
+        let page_vaddr_list = xarray.entries();
         let mut cached_page_map = BTreeMap::new();
 
-        for &page_vaddr in page_vaddrs {
-            if let Ok(folio) =
-                VirtualStruct::from_name(&vmem_reader, type_information, "folio", &page_vaddr)
-            {
+        // Determine how to parse this data based on type availability, rather than
+        // checking for kernel version numbers.
+        let folio_tid = type_information.id_of("folio");
+
+        let folio_nr_pages_field = match folio_tid {
+            Some(tid) => {
+                if type_information.offset_of(tid, "_folio_nr_pages").is_ok() {
+                    log::debug!("Using folio nr_pages field: _folio_nr_pages");
+                    Some("_folio_nr_pages")
+                } else if type_information.offset_of(tid, "_nr_pages").is_ok() {
+                    log::debug!("Using folio nr_pages field: _nr_pages");
+                    Some("_nr_pages")
+                } else {
+                    return Err(Error::new(
+                        ErrorKind::TypeInformationError,
+                        "Could not find folio nr_pages field (_folio_nr_pages or _nr_pages) in BTF",
+                    ));
+                }
+            }
+
+            None => None,
+        };
+
+        for &page_vaddr in page_vaddr_list.iter() {
+            if folio_tid.is_some() {
+                let folio =
+                    VirtualStruct::from_name(&vmem_reader, type_information, "folio", &page_vaddr)?;
+
                 let page_index = folio.traverse("index")?.read_u64()?;
-                let nr_pages = folio
-                    .traverse("_folio_nr_pages")
-                    .and_then(|field| field.read_u32())
-                    .unwrap_or(1) as u64;
+
+                // The vmemmap is an array of `struct page` entries (64 bytes each). Folio objects
+                // are larger than a single entry, and are allocated at `struct page` granularity
+                // within this array.
+                //
+                // The first member in a folio is a union containing `struct page`, so the beginning
+                // of both structures overlap.
+                //
+                // Fields beyond the first 64 bytes (like `_folio_nr_pages` at offset 96) live in what
+                // would be the next `struct page` slot in vmemmap, so we need to check how large
+                // our folio is before we can use it.
+                //
+                // A folio can span one or more `struct page` entries:
+                //  ________________________________
+                // | struct page N | struct page N+1|
+                // |--------------------------------|
+                // |        struct folio N          |
+                // |________________________________|
+                // 0               64               128
+                //
+                // When PG_head is not set, we can only access the fields within folio
+                // that do not go beyond the first 64 bytes.
+                let flags = folio.traverse("flags")?.read_u64().unwrap_or_else(|err| {
+                    log::error!("Failed to read folio flags at {:?}: {err:?}", page_vaddr);
+                    0
+                });
+
+                let is_large_folio = (flags & PG_HEAD_BIT) != 0;
+                let nr_pages = if is_large_folio {
+                    folio_nr_pages_field
+                        .and_then(|field| folio.traverse(field).ok())
+                        .and_then(|field| field.read_u32().ok())
+                        .unwrap_or(1) as u64
+                } else {
+                    1
+                };
 
                 if nr_pages > MAX_FOLIO_PAGES {
                     log::error!(
-                        "  Folio has suspicious page count: {} (max: {}), treating as single page",
+                        "Folio has suspicious page count: {} (max: {}), treating as single page",
                         nr_pages,
                         MAX_FOLIO_PAGES
                     );
@@ -125,14 +184,12 @@ impl ReadableLinuxFileObject {
                         cached_page_map.insert(page_index + i, page_vaddr);
                     }
                 }
-            } else if let Ok(page) =
-                VirtualStruct::from_name(&vmem_reader, type_information, "page", &page_vaddr)
-            {
+            } else {
+                let page =
+                    VirtualStruct::from_name(&vmem_reader, type_information, "page", &page_vaddr)?;
+
                 let page_index = page.traverse("index")?.read_u64()?;
                 cached_page_map.insert(page_index, page_vaddr);
-            } else {
-                debug!("Failed to parse page/folio at vaddr {:?}", page_vaddr);
-                continue;
             }
         }
 

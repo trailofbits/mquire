@@ -6,7 +6,7 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use std::{fmt, ops};
+use std::{fmt, ops, str::FromStr};
 
 macro_rules! define_address_type {
     ("base_defs", $name:ident, $inner_type:ty) => {
@@ -94,6 +94,19 @@ macro_rules! define_address_type {
 
             fn sub(self, rhs: $name) -> Self::Output {
                 self.0.wrapping_sub(rhs.0)
+            }
+        }
+
+        impl FromStr for $name {
+            type Err = ();
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                let s = s.trim();
+                let s = s.strip_prefix(concat!(stringify!($name), "(0x")).ok_or(())?;
+                let s = s.strip_suffix(')').ok_or(())?;
+
+                let value = <$inner_type>::from_str_radix(s, 16).map_err(|_| ())?;
+                Ok(Self::new(value))
             }
         }
     };
@@ -283,6 +296,70 @@ macro_rules! define_address_type {
                 let result = addr - 1u64;
 
                 assert_eq!(result.value(), u64::MAX);
+            }
+
+            #[test]
+            fn test_from_str_valid() {
+                let input = format!("{}(0x0000000001A60000)", stringify!($name));
+                let result: $name = input.parse().unwrap();
+                assert_eq!(result, <$name>::new(0x0000000001A60000));
+            }
+
+            #[test]
+            fn test_from_str_lowercase() {
+                let input = format!("{}(0x0000000001a60000)", stringify!($name));
+                let result: $name = input.parse().unwrap();
+                assert_eq!(result, <$name>::new(0x0000000001a60000));
+            }
+
+            #[test]
+            fn test_from_str_with_whitespace() {
+                let input = format!("  {}(0x1234)  ", stringify!($name));
+                let result: $name = input.parse().unwrap();
+                assert_eq!(result, <$name>::new(0x1234));
+            }
+
+            #[test]
+            fn test_from_str_rejects_trailing_content() {
+                let input = format!("{}(0x1234) extra", stringify!($name));
+                let result: Result<$name, _> = input.parse();
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn test_from_str_rejects_leading_content() {
+                let input = format!("extra {}(0x1234)", stringify!($name));
+                let result: Result<$name, _> = input.parse();
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn test_from_str_missing_hex_prefix() {
+                let input = format!("{}(0000000001A60000)", stringify!($name));
+                let result: Result<$name, _> = input.parse();
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn test_from_str_invalid_hex() {
+                let input = format!("{}(0xGGGG)", stringify!($name));
+                let result: Result<$name, _> = input.parse();
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn test_from_str_empty_hex() {
+                let input = format!("{}(0x)", stringify!($name));
+                let result: Result<$name, _> = input.parse();
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn test_from_str_roundtrip() {
+                let original = <$name>::new(0x123456789ABCDEF0);
+                let formatted = format!("{}", original);
+                let parsed: $name = formatted.parse().unwrap();
+                assert_eq!(parsed, original);
             }
         }
     };

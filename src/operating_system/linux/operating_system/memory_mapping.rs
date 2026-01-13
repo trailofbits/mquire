@@ -11,14 +11,14 @@ use crate::{
     memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
         entities::memory_mapping::{FileBacking, MemoryMapping, MemoryProtection},
-        maple_tree::{MapleTree, MapleTreeValue},
+        maple_tree::{MapleTree, MapleTreeEntry, MapleTreeValue},
         operating_system::LinuxOperatingSystem,
         virtual_struct::VirtualStruct,
     },
     try_chain,
 };
 
-use {btfparse::TypeInformation, log::debug};
+use {btfparse::TypeInformation, log::debug, std::sync::Arc};
 
 use std::{ops::Range, path::PathBuf};
 
@@ -30,7 +30,7 @@ const VM_SHARED: u64 = 0x00000008;
 
 /// File backing information
 #[derive(Debug, Clone, Copy)]
-pub struct VmAreaStructBackingFile {
+struct VmAreaStructBackingFile {
     /// File virtual address
     pub file: VirtualAddress,
 
@@ -40,7 +40,7 @@ pub struct VmAreaStructBackingFile {
 
 /// A representation of a vm_area_struct object
 #[derive(Debug, Clone)]
-pub struct VmAreaStruct {
+struct VmAreaStruct {
     /// Virtual address of the vm_area_struct
     pub virtual_address: VirtualAddress,
 
@@ -90,138 +90,136 @@ impl MapleTreeValue for VmAreaStruct {
     }
 }
 
-impl LinuxOperatingSystem {
-    /// Returns the list of memory mappings in the given task
-    pub(super) fn get_task_memory_mappings_impl(&self) -> Result<Vec<MemoryMapping>> {
-        let mut memory_mapping_list = Vec::new();
+/// Iterator over memory mappings for a single task
+pub struct MemoryMappingIterator<'a> {
+    /// The memory dump
+    memory_dump: Arc<dyn Readable>,
+
+    /// The target architecture
+    architecture: Arc<dyn Architecture>,
+
+    /// Kernel debug symbols
+    kernel_type_info: &'a TypeInformation,
+
+    /// The task virtual address
+    task_vaddr: VirtualAddress,
+
+    /// The task's page table
+    task_page_table: VirtualAddress,
+
+    /// The maple tree entries iterator
+    entries: std::vec::IntoIter<MapleTreeEntry<VmAreaStruct>>,
+}
+
+impl Iterator for MemoryMappingIterator<'_> {
+    type Item = Result<MemoryMapping>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let entry = self.entries.next()?;
+        let vma_info = &entry.value;
 
         let vmem_reader =
             VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-        for task in self.get_task_list_impl()? {
-            let task_struct = match VirtualStruct::from_name(
+        let shared = vma_info.flags & VM_SHARED != 0;
+
+        let protection = MemoryProtection::new(
+            vma_info.flags & VM_READ != 0,
+            vma_info.flags & VM_WRITE != 0,
+            vma_info.flags & VM_EXEC != 0,
+        );
+
+        let file_backing = if let Some(backing_file) = vma_info.backing_file {
+            VirtualStruct::from_name(
                 &vmem_reader,
-                &self.kernel_type_info,
-                "task_struct",
-                &task.virtual_address,
-            ) {
-                Ok(ts) => ts,
-                Err(err) => {
-                    debug!(
-                        "Failed to create VirtualStruct from task.virtual_address {:?}: {err:?}",
-                        task.virtual_address
-                    );
-                    continue;
-                }
-            };
+                self.kernel_type_info,
+                "file",
+                &backing_file.file,
+            )
+            .inspect_err(|err| debug!("{err:?}"))
+            .ok()
+            .and_then(|file| {
+                let f_path_vaddr = match file.traverse("f_path") {
+                    Ok(f_path) => f_path.virtual_address(),
 
-            match try_chain!(task_struct.traverse("mm")?.read_vaddr()) {
-                Ok(mm_virtual_address) => {
-                    if mm_virtual_address.is_null() {
-                        continue;
-                    }
-                }
-
-                Err(err) => {
-                    debug!("{err:?}");
-                    continue;
-                }
-            };
-
-            let mm_mt =
-                match try_chain!(task_struct.traverse("mm")?.dereference()?.traverse("mm_mt")) {
-                    Ok(obj) => obj,
                     Err(err) => {
-                        debug!(
-                            "Failed to traverse mm->mm_mt for task {:?}: {err:?}",
-                            task.virtual_address
-                        );
-                        continue;
+                        debug!("{err:?}");
+                        return None;
                     }
                 };
 
-            let maple_tree = match MapleTree::<VmAreaStruct>::new(
-                self.memory_dump.as_ref(),
-                self.architecture.as_ref(),
-                &self.kernel_type_info,
-                mm_mt.virtual_address(),
-            ) {
-                Ok(tree) => tree,
-                Err(err) => {
-                    debug!(
-                        "Failed to create MapleTree for task {:?}: {err:?}",
-                        task.virtual_address
-                    );
-                    continue;
-                }
-            };
+                LinuxOperatingSystem::read_path(
+                    self.memory_dump.as_ref(),
+                    self.architecture.as_ref(),
+                    self.kernel_type_info,
+                    f_path_vaddr,
+                )
+                .map(|path| FileBacking {
+                    path: PathBuf::from(path),
+                    offset: backing_file.offset,
+                })
+                .inspect_err(|err| debug!("{err:?}"))
+                .ok()
+            })
+        } else {
+            None
+        };
 
-            for entry in maple_tree.entries() {
-                let vma_info = &entry.value;
-                let shared = vma_info.flags & VM_SHARED != 0;
+        let vm_start = VirtualAddress::new(
+            self.task_page_table.root_page_table(),
+            RawVirtualAddress::new(vma_info.region.start),
+        );
 
-                let protection = MemoryProtection::new(
-                    vma_info.flags & VM_READ != 0,
-                    vma_info.flags & VM_WRITE != 0,
-                    vma_info.flags & VM_EXEC != 0,
-                );
+        let vm_end = VirtualAddress::new(
+            self.task_page_table.root_page_table(),
+            RawVirtualAddress::new(vma_info.region.end),
+        );
 
-                let file_backing = if let Some(backing_file) = vma_info.backing_file {
-                    VirtualStruct::from_name(
-                        &vmem_reader,
-                        &self.kernel_type_info,
-                        "file",
-                        &backing_file.file,
-                    )
-                    .inspect_err(|err| debug!("{err:?}"))
-                    .ok()
-                    .and_then(|file| {
-                        let f_path_vaddr = match file.traverse("f_path") {
-                            Ok(f_path) => f_path.virtual_address(),
-                            Err(err) => {
-                                debug!("{err:?}");
-                                return None;
-                            }
-                        };
+        Some(Ok(MemoryMapping {
+            task: self.task_vaddr,
+            virtual_address: vma_info.virtual_address,
+            region: vm_start..vm_end,
+            protection,
+            shared,
+            file_backing,
+        }))
+    }
+}
 
-                        Self::read_path(
-                            self.memory_dump.as_ref(),
-                            self.architecture.as_ref(),
-                            &self.kernel_type_info,
-                            f_path_vaddr,
-                        )
-                        .map(|path| FileBacking {
-                            path: PathBuf::from(path),
-                            offset: backing_file.offset,
-                        })
-                        .inspect_err(|err| debug!("{err:?}"))
-                        .ok()
-                    })
-                } else {
-                    None
-                };
+impl LinuxOperatingSystem {
+    /// Returns an iterator over memory mappings for a single task
+    pub(super) fn iter_task_memory_mappings_impl(
+        &self,
+        task_vaddr: VirtualAddress,
+    ) -> Result<MemoryMappingIterator<'_>> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
 
-                let vm_start = VirtualAddress::new(
-                    task.page_table,
-                    RawVirtualAddress::new(vma_info.region.start),
-                );
+        let task_struct = VirtualStruct::from_name(
+            &vmem_reader,
+            &self.kernel_type_info,
+            "task_struct",
+            &task_vaddr,
+        )?;
 
-                let vm_end = VirtualAddress::new(
-                    task.page_table,
-                    RawVirtualAddress::new(vma_info.region.end),
-                );
+        let mm_vaddr = try_chain!(task_struct.traverse("mm")?.read_vaddr())?;
 
-                memory_mapping_list.push(MemoryMapping {
-                    task: task.virtual_address,
-                    virtual_address: vma_info.virtual_address,
-                    region: vm_start..vm_end,
-                    protection,
-                    shared,
-                    file_backing,
-                });
-            }
-        }
+        let mm_mt = try_chain!(task_struct.traverse("mm")?.dereference()?.traverse("mm_mt"))?;
 
-        Ok(memory_mapping_list)
+        let maple_tree = MapleTree::<VmAreaStruct>::new(
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            &self.kernel_type_info,
+            mm_mt.virtual_address(),
+        )?;
+
+        Ok(MemoryMappingIterator {
+            memory_dump: self.memory_dump.clone(),
+            architecture: self.architecture.clone(),
+            kernel_type_info: &self.kernel_type_info,
+            task_vaddr,
+            task_page_table: mm_vaddr,
+            entries: maple_tree.into_entries().into_iter(),
+        })
     }
 }

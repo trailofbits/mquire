@@ -14,7 +14,7 @@ use crate::{
     sqlite::{
         database::{Database as SqliteDatabase, QueryData},
         error::{Error, Result},
-        table_plugin::ColumnType,
+        table_plugin::ColumnDef,
     },
     utils::{ArchitectureType, OperatingSystemType},
 };
@@ -73,7 +73,7 @@ impl Database {
     pub fn get_table_schema(
         &self,
         table_name: &str,
-    ) -> Option<std::collections::BTreeMap<String, ColumnType>> {
+    ) -> Option<std::collections::BTreeMap<String, ColumnDef>> {
         self.sqlite_db.get_table_schema(table_name)
     }
 

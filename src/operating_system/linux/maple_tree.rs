@@ -88,9 +88,9 @@ impl<T> MapleTree<T>
 where
     T: MapleTreeValue,
 {
-    /// Returns the list of entries in the maple tree
-    pub fn entries(&self) -> &[MapleTreeEntry<T>] {
-        &self.entry_list
+    /// Consumes the maple tree and returns the owned list of entries
+    pub fn into_entries(self) -> Vec<MapleTreeEntry<T>> {
+        self.entry_list
     }
 
     /// Creates a new `MapleTree` parser instance

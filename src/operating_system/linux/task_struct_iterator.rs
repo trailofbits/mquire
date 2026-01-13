@@ -8,10 +8,11 @@
 
 use crate::{
     core::{
+        architecture::Architecture,
         error::{Error, ErrorKind, Result},
         virtual_memory_reader::VirtualMemoryReader,
     },
-    memory::{primitives::RawVirtualAddress, virtual_address::VirtualAddress},
+    memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
         utils::get_struct_member_byte_offset, virtual_struct::VirtualStruct,
     },
@@ -20,7 +21,10 @@ use crate::{
 
 use {btfparse::TypeInformation, log::debug};
 
-use std::collections::{BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeSet, VecDeque},
+    sync::Arc,
+};
 
 /// The base of the kernel virtual address space
 const KERNEL_VIRTUAL_ADDRESS_BASE: u64 = 0xFFFF000000000000;
@@ -38,9 +42,10 @@ struct TaskDiscoveryQueueItem {
     time_to_live: usize,
 }
 
-/// Iterator that yields VirtualStruct instances for related task_struct entries
+/// Iterator that yields virtual addresses of task_struct entries
 pub struct TaskStructIterator<'a> {
-    vmem_reader: &'a VirtualMemoryReader<'a>,
+    memory_dump: Arc<dyn Readable>,
+    architecture: Arc<dyn Architecture>,
     kernel_type_info: &'a TypeInformation,
     visited_raw_vaddrs: BTreeSet<RawVirtualAddress>,
     next_vaddr_queue: VecDeque<TaskDiscoveryQueueItem>,
@@ -51,7 +56,8 @@ pub struct TaskStructIterator<'a> {
 impl<'a> TaskStructIterator<'a> {
     /// Creates a new TaskStructIterator starting from the given task_struct address
     pub fn new(
-        vmem_reader: &'a VirtualMemoryReader<'a>,
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
         kernel_type_info: &'a TypeInformation,
         task_struct: VirtualAddress,
     ) -> Result<Self> {
@@ -72,7 +78,8 @@ impl<'a> TaskStructIterator<'a> {
         });
 
         Ok(Self {
-            vmem_reader,
+            memory_dump,
+            architecture,
             kernel_type_info,
             visited_raw_vaddrs: BTreeSet::new(),
             next_vaddr_queue: VecDeque::new(),
@@ -83,9 +90,12 @@ impl<'a> TaskStructIterator<'a> {
 }
 
 impl<'a> Iterator for TaskStructIterator<'a> {
-    type Item = VirtualStruct<'a>;
+    type Item = VirtualAddress;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
         loop {
             if self.current_vaddr_queue.is_empty() {
                 if self.next_vaddr_queue.is_empty() {
@@ -107,7 +117,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
             }
 
             let task_struct = match VirtualStruct::from_name(
-                self.vmem_reader,
+                &vmem_reader,
                 self.kernel_type_info,
                 "task_struct",
                 &queue_item.vaddr,
@@ -244,7 +254,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                     );
             }
 
-            return Some(task_struct);
+            return Some(queue_item.vaddr);
         }
     }
 }

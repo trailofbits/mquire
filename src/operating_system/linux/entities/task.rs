@@ -31,17 +31,17 @@ pub struct Task {
     /// The environment variables of the task.
     pub environment_variable_map: BTreeMap<String, String>,
 
-    /// The process identifier
-    pub pid: u32,
+    /// The thread group identifier (task_struct::tgid)
+    pub tgid: u32,
 
-    /// The parent process identifier, taken from task_struct::parent::tgid
+    /// The parent thread group identifier (task_struct::parent::tgid)
     pub ppid: Option<u32>,
 
-    /// The parent process identifier, taken from task_struct::real_parent::tgid
+    /// The real parent thread group identifier (task_struct::real_parent::tgid)
     pub real_ppid: Option<u32>,
 
-    /// The thread identifier
-    pub tid: u32,
+    /// The thread identifier (task_struct::pid)
+    pub pid: u32,
 
     /// The user identifier of the task.
     pub uid: u32,

@@ -8,10 +8,12 @@
 
 use crate::sqlite::{
     error::Result,
-    table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
+    table_plugin::{ColumnDef, ColumnType, ColumnValue, Constraints, RowList, TablePlugin},
 };
 
 use mquire::operating_system::linux::operating_system::LinuxOperatingSystem;
+
+use log::error;
 
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -28,47 +30,47 @@ impl BootTimeTablePlugin {
 }
 
 impl TablePlugin for BootTimeTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("virtual_address"), ColumnType::String);
-        schema.insert(String::from("boot_time"), ColumnType::SignedInteger);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("virtual_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("boot_time"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("boot_time")
     }
 
-    fn generate(&self) -> Result<RowList> {
-        let boot_times = match self.system.get_boot_time() {
-            Ok(boot_times) => boot_times,
-            Err(_) => return Ok(RowList::new()),
+    fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
+        let boot_time = match self.system.get_boot_time() {
+            Ok(boot_time) => boot_time,
+
+            Err(e) => {
+                error!("Failed to get boot time: {e:?}");
+                return Ok(RowList::new());
+            }
         };
 
-        let row_list: RowList = boot_times
-            .into_iter()
-            .map(|boot_time| {
-                let mut row = BTreeMap::<String, OptionalColumnValue>::new();
+        let row = BTreeMap::from([
+            (
+                String::from("virtual_address"),
+                Some(ColumnValue::String(format!(
+                    "{}",
+                    boot_time.virtual_address
+                ))),
+            ),
+            (
+                String::from("boot_time"),
+                Some(ColumnValue::SignedInteger(boot_time.boot_time as i64)),
+            ),
+        ]);
 
-                row.insert(
-                    String::from("virtual_address"),
-                    Some(ColumnValue::String(format!(
-                        "{}",
-                        boot_time.virtual_address
-                    ))),
-                );
-
-                row.insert(
-                    String::from("boot_time"),
-                    Some(ColumnValue::SignedInteger(boot_time.boot_time as i64)),
-                );
-
-                row
-            })
-            .collect();
-
-        Ok(row_list)
+        Ok(vec![row])
     }
 }

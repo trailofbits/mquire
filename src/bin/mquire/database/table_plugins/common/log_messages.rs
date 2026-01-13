@@ -10,7 +10,7 @@ use crate::{
     logger::Logger,
     sqlite::{
         error::Result,
-        table_plugin::{ColumnType, ColumnValue, RowList, TablePlugin},
+        table_plugin::{ColumnDef, ColumnType, ColumnValue, Constraints, RowList, TablePlugin},
     },
 };
 
@@ -27,57 +27,61 @@ impl LogMessagesTablePlugin {
 }
 
 impl TablePlugin for LogMessagesTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("time"), ColumnType::String);
-        schema.insert(String::from("location"), ColumnType::String);
-        schema.insert(String::from("level"), ColumnType::SignedInteger);
-        schema.insert(String::from("type"), ColumnType::String);
-        schema.insert(String::from("message"), ColumnType::String);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (String::from("time"), ColumnDef::visible(ColumnType::String)),
+            (
+                String::from("location"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("level"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (String::from("type"), ColumnDef::visible(ColumnType::String)),
+            (
+                String::from("message"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("log_messages")
     }
 
-    fn generate(&self) -> Result<RowList> {
-        let mut row_list = RowList::new();
-
-        for entry in Logger::get_messages() {
-            let mut row = BTreeMap::new();
-            row.insert(
-                "time".to_string(),
-                Some(ColumnValue::String(
-                    entry
-                        .time
-                        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-                )),
-            );
-            row.insert(
-                "location".to_string(),
-                Some(ColumnValue::String(entry.location.clone())),
-            );
-
-            row.insert(
-                "type".to_string(),
-                Some(ColumnValue::String(entry.level.to_string())),
-            );
-
-            row.insert(
-                "level".to_string(),
-                Some(ColumnValue::SignedInteger(entry.level as i64)),
-            );
-
-            row.insert(
-                "message".to_string(),
-                Some(ColumnValue::String(entry.message.clone())),
-            );
-
-            row_list.push(row);
-        }
+    fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
+        let row_list = Logger::get_messages()
+            .into_iter()
+            .map(|entry| {
+                BTreeMap::from([
+                    (
+                        "time".to_string(),
+                        Some(ColumnValue::String(
+                            entry
+                                .time
+                                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                        )),
+                    ),
+                    (
+                        "location".to_string(),
+                        Some(ColumnValue::String(entry.location)),
+                    ),
+                    (
+                        "type".to_string(),
+                        Some(ColumnValue::String(entry.level.to_string())),
+                    ),
+                    (
+                        "level".to_string(),
+                        Some(ColumnValue::SignedInteger(entry.level as i64)),
+                    ),
+                    (
+                        "message".to_string(),
+                        Some(ColumnValue::String(entry.message)),
+                    ),
+                ])
+            })
+            .collect();
 
         Ok(row_list)
     }

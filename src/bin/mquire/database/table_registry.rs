@@ -9,14 +9,14 @@
 use crate::{
     database::table_plugins::{
         common::{
-            log_messages::LogMessagesTablePlugin, network_interfaces::NetworkInterfacesTablePlugin,
-            os_version::OSVersionTablePlugin, system_info::SystemInfoTablePlugin,
+            log_messages::LogMessagesTablePlugin, os_version::OSVersionTablePlugin,
+            system_info::SystemInfoTablePlugin,
         },
         linux::{
-            boot_time::BootTimeTablePlugin, cgroups::CgroupsTablePlugin, dmesg::DmesgTablePlugin,
-            kallsyms::KallsymsTablePlugin, kernel_modules::KernelModulesTablePlugin,
-            memory_mappings::MemoryMappingsTablePlugin,
-            network_connections::NetworkConnectionsTablePlugin, syslog_file::SyslogFileTablePlugin,
+            boot_time::BootTimeTablePlugin, dmesg::DmesgTablePlugin, kallsyms::KallsymsTablePlugin,
+            kernel_modules::KernelModulesTablePlugin, memory_mappings::MemoryMappingsTablePlugin,
+            network_connections::NetworkConnectionsTablePlugin,
+            network_interfaces::NetworkInterfacesTablePlugin, syslog_file::SyslogFileTablePlugin,
             task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
         },
     },
@@ -104,7 +104,6 @@ generate_table_registry! {
     Common, Common => {
         os_version: OSVersionTablePlugin,
         system_info: SystemInfoTablePlugin,
-        network_interfaces: NetworkInterfacesTablePlugin,
     },
 
     Standalone, Common => {
@@ -115,12 +114,12 @@ generate_table_registry! {
         tasks: TasksTablePlugin,
         task_open_files: TaskOpenFilesTablePlugin,
         boot_time: BootTimeTablePlugin,
-        cgroups: CgroupsTablePlugin,
         dmesg: DmesgTablePlugin,
         kallsyms: KallsymsTablePlugin,
         kernel_modules: KernelModulesTablePlugin,
         memory_mappings: MemoryMappingsTablePlugin,
         network_connections: NetworkConnectionsTablePlugin,
+        network_interfaces: NetworkInterfacesTablePlugin,
         syslog_file: SyslogFileTablePlugin,
     },
 }

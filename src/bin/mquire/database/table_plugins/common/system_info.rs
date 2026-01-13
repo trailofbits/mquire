@@ -8,7 +8,7 @@
 
 use crate::sqlite::{
     error::Result,
-    table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
+    table_plugin::{ColumnDef, ColumnType, ColumnValue, Constraints, RowList, TablePlugin},
 };
 
 use mquire::core::operating_system::OperatingSystem;
@@ -28,32 +28,35 @@ impl SystemInfoTablePlugin {
 }
 
 impl TablePlugin for SystemInfoTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("hostname"), ColumnType::String);
-        schema.insert(String::from("domain"), ColumnType::String);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("hostname"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("domain"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("system_info")
     }
 
-    fn generate(&self) -> Result<RowList> {
+    fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
         let system_information = self.system.get_system_information()?;
-
-        let mut row = BTreeMap::<String, OptionalColumnValue>::new();
-        row.insert(
-            String::from("hostname"),
-            system_information.hostname.map(ColumnValue::String),
-        );
-
-        row.insert(
-            String::from("domain"),
-            system_information.domain.map(ColumnValue::String),
-        );
+        let row = BTreeMap::from([
+            (
+                String::from("hostname"),
+                system_information.hostname.map(ColumnValue::String),
+            ),
+            (
+                String::from("domain"),
+                system_information.domain.map(ColumnValue::String),
+            ),
+        ]);
 
         Ok(vec![row])
     }
