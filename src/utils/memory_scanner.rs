@@ -45,7 +45,11 @@ impl<'a> MemoryScanner<'a> {
             return Err(Error::new(ErrorKind::IOError, "Pattern cannot be empty"));
         }
 
-        let buffer_size = pattern.len() * 10;
+        // Use 16MB buffer or the size of the region to scan, whichever is smaller.
+        // Buffer must be at least pattern length for valid searching.
+        const MAX_BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB
+        let region_size = end.value().value().saturating_sub(start.value().value()) as usize;
+        let buffer_size = region_size.min(MAX_BUFFER_SIZE).max(pattern.len());
         let pattern_len = pattern.len();
 
         let mut range_list = Vec::new();
