@@ -142,12 +142,9 @@ impl BMH16ScanAlgorithm {
         }
 
         // Might be in table, binary search
-        match self
-            .skip_table
-            .binary_search_by_key(&bigram, |&(v, _)| v)
-        {
+        match self.skip_table.binary_search_by_key(&bigram, |&(v, _)| v) {
             Ok(idx) => self.skip_table[idx].1,
-            Err(_) => self.default_skip(bigram), // False positive from bloom filter
+            Err(_) => self.default_skip(bigram),
         }
     }
 
@@ -181,8 +178,7 @@ impl ScanAlgorithm for BMH16ScanAlgorithm {
 
         // Use a HashMap to build the table, keeping only the rightmost occurrence
         // of each bigram (which gives the smallest skip distance)
-        let mut table: std::collections::HashMap<u16, usize> =
-            std::collections::HashMap::new();
+        let mut table: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
 
         // Iterate through bigrams at positions 0 to pattern_len-3 (exclusive of last bigram)
         // For each bigram at position i, skip = pattern_len - 2 - i
@@ -242,6 +238,177 @@ impl ScanAlgorithm for BMH16ScanAlgorithm {
     }
 }
 
+/// Boyer-Moore-Horspool pattern matching algorithm (u32 variant).
+///
+/// Uses a u32 quadgram skip table with a bloom filter for fast rejection.
+/// Instead of a 4 billion-entry array, uses a sorted list of (quadgram, skip)
+/// pairs with a 4096-bit bloom filter to quickly reject quadgrams not
+/// in the pattern.
+///
+/// Optimized for longer patterns (10+ bytes) where the quadgram table
+/// provides better skip distances and dramatically fewer false positives
+/// compared to the u16 variant.
+pub struct BMH32ScanAlgorithm {
+    pattern: Vec<u8>,
+    /// Bloom filter - 4096 bits (64 x u64) indexed by 12-bit hash
+    bloom: [u64; 64],
+    /// Sorted list of (quadgram, skip_distance) pairs for quadgrams in the pattern
+    skip_table: Vec<(u32, usize)>,
+    /// First 3 bytes of pattern, used for edge case overlap checks
+    prefix: [u8; 3],
+}
+
+impl BMH32ScanAlgorithm {
+    /// Hash a u32 value to a 12-bit index (0-4095) using MurmurHash3 finalmix.
+    /// Provides excellent bit mixing to ensure all 32 input bits influence the output.
+    #[inline]
+    fn hash_u32(value: u32) -> u32 {
+        let mut h = value;
+        h ^= h >> 16;
+        h = h.wrapping_mul(0x85ebca6b);
+        h ^= h >> 13;
+        h = h.wrapping_mul(0xc2b2ae35);
+        h ^= h >> 16;
+        h >> 20 // 12-bit hash (0-4095)
+    }
+
+    /// Check if a bit is set in the bloom filter.
+    #[inline]
+    fn bloom_check(&self, hash: u32) -> bool {
+        let word_idx = (hash >> 6) as usize; // Upper 6 bits select the u64
+        let bit_idx = hash & 63; // Lower 6 bits select the bit
+        (self.bloom[word_idx] & (1u64 << bit_idx)) != 0
+    }
+
+    /// Set a bit in the bloom filter.
+    #[inline]
+    fn bloom_set(bloom: &mut [u64; 64], hash: u32) {
+        let word_idx = (hash >> 6) as usize;
+        let bit_idx = hash & 63;
+        bloom[word_idx] |= 1u64 << bit_idx;
+    }
+
+    /// Look up the skip distance for a quadgram.
+    #[inline]
+    fn get_skip(&self, quadgram: u32) -> usize {
+        let hash = Self::hash_u32(quadgram);
+
+        if !self.bloom_check(hash) {
+            // Definitely not in table - check edge cases
+            return self.default_skip(quadgram);
+        }
+
+        // Might be in table, binary search
+        match self.skip_table.binary_search_by_key(&quadgram, |&(v, _)| v) {
+            Ok(idx) => self.skip_table[idx].1,
+            Err(_) => self.default_skip(quadgram),
+        }
+    }
+
+    /// Calculate default skip when quadgram is not in the table.
+    /// Checks for potential overlaps between the quadgram's suffix and the pattern's prefix.
+    #[inline]
+    fn default_skip(&self, quadgram: u32) -> usize {
+        let bytes = quadgram.to_le_bytes();
+
+        // Check 3-byte overlap: bytes[1..4] == pattern[0..3]
+        if bytes[1] == self.prefix[0] && bytes[2] == self.prefix[1] && bytes[3] == self.prefix[2] {
+            return self.pattern.len() - 3;
+        }
+
+        // Check 2-byte overlap: bytes[2..4] == pattern[0..2]
+        if bytes[2] == self.prefix[0] && bytes[3] == self.prefix[1] {
+            return self.pattern.len() - 2;
+        }
+
+        // Check 1-byte overlap: bytes[3] == pattern[0]
+        if bytes[3] == self.prefix[0] {
+            return self.pattern.len() - 1;
+        }
+
+        // No overlap possible, skip full pattern
+        self.pattern.len()
+    }
+}
+
+impl ScanAlgorithm for BMH32ScanAlgorithm {
+    fn new(pattern: &[u8]) -> Result<Self> {
+        if pattern.len() < 4 {
+            return Err(Error::new(
+                ErrorKind::IOError,
+                "Pattern must be at least 4 bytes for BMH32",
+            ));
+        }
+
+        let pattern_len = pattern.len();
+        let prefix = [pattern[0], pattern[1], pattern[2]];
+        let mut bloom = [0u64; 64];
+
+        // Use a HashMap to build the table, keeping only the rightmost occurrence
+        // of each quadgram (which gives the smallest skip distance)
+        let mut table: std::collections::HashMap<u32, usize> = std::collections::HashMap::new();
+
+        // Iterate through quadgrams at positions 0 to pattern_len-5 (exclusive of last quadgram)
+        // For each quadgram at position i, skip = pattern_len - 4 - i
+        for i in 0..pattern_len.saturating_sub(4) {
+            let quadgram =
+                u32::from_le_bytes([pattern[i], pattern[i + 1], pattern[i + 2], pattern[i + 3]]);
+            let skip = pattern_len - 4 - i;
+
+            // Set bloom filter bit
+            Self::bloom_set(&mut bloom, Self::hash_u32(quadgram));
+
+            // Store in table (later occurrences overwrite earlier, giving smaller skip)
+            table.insert(quadgram, skip);
+        }
+
+        // Convert to sorted vec for binary search
+        let mut skip_table: Vec<(u32, usize)> = table.into_iter().collect();
+        skip_table.sort_by_key(|&(k, _)| k);
+
+        Ok(Self {
+            pattern: pattern.to_vec(),
+            bloom,
+            skip_table,
+            prefix,
+        })
+    }
+
+    fn pattern(&self) -> &[u8] {
+        &self.pattern
+    }
+
+    fn find_next_match(
+        &self,
+        buffer: &[u8],
+        start_offset: usize,
+        bytes_available: usize,
+    ) -> Option<usize> {
+        let pattern_len = self.pattern.len();
+        let mut offset = start_offset;
+
+        while offset + pattern_len <= bytes_available {
+            let window = &buffer[offset..offset + pattern_len];
+
+            if window == self.pattern.as_slice() {
+                return Some(offset);
+            }
+
+            // Get the last quadgram of the window (little-endian)
+            let last_quadgram = u32::from_le_bytes([
+                buffer[offset + pattern_len - 4],
+                buffer[offset + pattern_len - 3],
+                buffer[offset + pattern_len - 2],
+                buffer[offset + pattern_len - 1],
+            ]);
+
+            offset += self.get_skip(last_quadgram);
+        }
+
+        None
+    }
+}
+
 /// Scans virtual memory for a byte pattern using a configurable search algorithm.
 ///
 /// The scanner handles buffer management, I/O operations, and address range
@@ -261,10 +428,14 @@ pub struct MemoryScannerBase<'a, T: ScanAlgorithm> {
     overlap: usize,
 }
 
-/// Type alias for the default memory scanner - uses BMH16 (u16 bigram) algorithm.
-pub type MemoryScanner<'a> = MemoryScannerBase<'a, BMH16ScanAlgorithm>;
+/// Type alias for the default memory scanner - uses BMH32 (u32 quadgram) algorithm.
+/// Requires patterns of at least 4 bytes.
+pub type MemoryScanner<'a> = MemoryScannerBase<'a, BMH32ScanAlgorithm>;
 
-/// Type alias for the u8-based BMH scanner (for patterns < 2 bytes or compatibility).
+/// Type alias for the u16-based BMH scanner (for 2-3 byte patterns).
+pub type MemoryScannerU16<'a> = MemoryScannerBase<'a, BMH16ScanAlgorithm>;
+
+/// Type alias for the u8-based BMH scanner (for single-byte patterns or compatibility).
 pub type MemoryScannerU8<'a> = MemoryScannerBase<'a, BMHScanAlgorithm>;
 
 impl<'a, T: ScanAlgorithm> MemoryScannerBase<'a, T> {
@@ -537,15 +708,15 @@ mod tests {
 
     #[test]
     fn test_single_match() {
-        let data = vec![0x00, 0x11, 0xAA, 0xBB, 0xCC, 0x00];
+        let data = vec![0x00, 0x11, 0xAA, 0xBB, 0xCC, 0xDD, 0x00];
         let memory = MockMemory::new(data);
         let arch = MockArchitecture;
         let reader = VirtualMemoryReader::new(&memory, &arch);
 
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
-        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(6));
+        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(7));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xBB, 0xCC]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xBB, 0xCC, 0xDD]).unwrap();
         let results: Vec<_> = scanner.collect();
 
         // All results should be Ok
@@ -558,15 +729,19 @@ mod tests {
 
     #[test]
     fn test_multiple_matches() {
-        let data = vec![0xAA, 0xBB, 0x00, 0xAA, 0xBB, 0x00, 0xAA, 0xBB];
+        // Use 4-byte pattern for BMH32
+        let data = vec![
+            0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x00, 0xAA, 0xBB,
+            0xCC, 0xDD,
+        ];
         let memory = MockMemory::new(data);
         let arch = MockArchitecture;
         let reader = VirtualMemoryReader::new(&memory, &arch);
 
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
-        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(8));
+        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(16));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xBB]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xBB, 0xCC, 0xDD]).unwrap();
         let results: Vec<_> = scanner.collect();
 
         assert!(results.iter().all(|r| r.is_ok()));
@@ -574,12 +749,13 @@ mod tests {
         let matches: Vec<_> = results.into_iter().map(|r| r.unwrap()).collect();
         assert_eq!(matches.len(), 3);
         assert_eq!(matches[0].value().value(), 0);
-        assert_eq!(matches[1].value().value(), 3);
-        assert_eq!(matches[2].value().value(), 6);
+        assert_eq!(matches[1].value().value(), 6);
+        assert_eq!(matches[2].value().value(), 12);
     }
 
     #[test]
     fn test_overlapping_matches() {
+        // Use MemoryScannerU16 for 2-byte patterns
         let data = vec![0xAA, 0xAA, 0xAA, 0x00];
         let memory = MockMemory::new(data);
         let arch = MockArchitecture;
@@ -588,7 +764,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(4));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
+        let scanner = MemoryScannerU16::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
         let matches: Vec<_> = scanner.filter_map(|r| r.ok()).collect();
 
         assert_eq!(matches.len(), 2);
@@ -598,15 +774,15 @@ mod tests {
 
     #[test]
     fn test_no_matches() {
-        let data = vec![0x00, 0x11, 0x22, 0x33, 0x44];
+        let data = vec![0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77];
         let memory = MockMemory::new(data);
         let arch = MockArchitecture;
         let reader = VirtualMemoryReader::new(&memory, &arch);
 
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
-        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(5));
+        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(8));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xFF, 0xFF]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xFF, 0xFF, 0xFF, 0xFF]).unwrap();
         let results: Vec<_> = scanner.collect();
 
         assert!(results.iter().all(|r| r.is_ok()));
@@ -615,20 +791,22 @@ mod tests {
 
     #[test]
     fn test_pattern_at_boundaries() {
-        let data = vec![0xAA, 0xBB, 0x00, 0x00, 0x00, 0xAA, 0xBB];
+        let data = vec![
+            0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD,
+        ];
         let memory = MockMemory::new(data);
         let arch = MockArchitecture;
         let reader = VirtualMemoryReader::new(&memory, &arch);
 
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
-        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(7));
+        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(12));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xBB]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xBB, 0xCC, 0xDD]).unwrap();
         let matches: Vec<_> = scanner.filter_map(|r| r.ok()).collect();
 
         assert_eq!(matches.len(), 2);
         assert_eq!(matches[0].value().value(), 0);
-        assert_eq!(matches[1].value().value(), 5);
+        assert_eq!(matches[1].value().value(), 8);
     }
 
     #[test]
@@ -640,15 +818,21 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(10));
 
-        // BMH16 requires minimum 2 bytes
+        // BMH32 requires minimum 4 bytes
         let result = MemoryScanner::new(&reader, start, end, &[]);
         assert!(result.is_err());
 
         let result = MemoryScanner::new(&reader, start, end, &[0x42]);
         assert!(result.is_err());
+
+        let result = MemoryScanner::new(&reader, start, end, &[0x42, 0x43]);
+        assert!(result.is_err());
+
+        let result = MemoryScanner::new(&reader, start, end, &[0x42, 0x43, 0x44]);
+        assert!(result.is_err());
         if let Err(err) = result {
             assert_eq!(err.kind(), ErrorKind::IOError);
-            assert!(err.message().contains("at least 2 bytes"));
+            assert!(err.message().contains("at least 4 bytes"));
         }
     }
 
@@ -688,7 +872,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA, 0xAA, 0xAA]).unwrap();
 
         // The first read returns a short read (50 bytes instead of 100),
         // which is detected as a memory hole and returns an error immediately.
@@ -715,7 +899,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA, 0xAA, 0xAA]).unwrap();
 
         let results: Vec<_> = scanner.collect();
 
@@ -726,7 +910,7 @@ mod tests {
     #[test]
     fn test_short_read_at_end_boundary_is_ok() {
         // 50 bytes of data, but we request scanning only 50 bytes
-        // Pattern is 2 bytes, buffer is 20 bytes
+        // Pattern is 4 bytes for BMH32
         // This ensures buffer_size > requested range
         let data = vec![0xAA; 50];
         let memory = MockMemory::new(data);
@@ -736,7 +920,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(50));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA, 0xAA, 0xAA]).unwrap();
         let results: Vec<_> = scanner.collect();
 
         // Should find many matches without error
@@ -755,7 +939,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA, 0xAA, 0xAA]).unwrap();
 
         // Consume all results
         let results: Vec<_> = scanner.collect();
@@ -797,7 +981,8 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let mut scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
+        let mut scanner =
+            MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA, 0xAA, 0xAA]).unwrap();
 
         assert_eq!(scanner.bytes_read(), 0);
 
@@ -855,8 +1040,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bmh16_matches_brute_force() {
-        // Test case 1: Pattern with distinct bytes
+    fn test_bmh32_matches_brute_force() {
+        // Test case 1: Pattern with distinct bytes (4-byte minimum for BMH32)
         let data = vec![
             0x00, 0x11, 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xDE, 0xAD, 0xBE, 0xEF,
         ];
@@ -866,41 +1051,41 @@ mod tests {
             brute_force_search(&data, pattern)
         );
 
-        // Test case 2: Overlapping matches (repeated bytes)
-        let data = vec![0xAA, 0xAA, 0xAA, 0xAA, 0xAA];
-        let pattern = &[0xAA, 0xAA];
+        // Test case 2: Overlapping matches (repeated bytes) - 4-byte pattern
+        let data = vec![0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA];
+        let pattern = &[0xAA, 0xAA, 0xAA, 0xAA];
         assert_eq!(
             scanner_search(&data, pattern),
             brute_force_search(&data, pattern)
         );
 
-        // Test case 3: Pattern where last byte appears earlier
-        let data = vec![0x00, 0x01, 0x02, 0x01, 0x00, 0x01, 0x02, 0x03];
-        let pattern = &[0x01, 0x02, 0x03];
+        // Test case 3: Pattern where last bytes appear earlier
+        let data = vec![0x00, 0x01, 0x02, 0x03, 0x00, 0x01, 0x02, 0x03, 0x04];
+        let pattern = &[0x01, 0x02, 0x03, 0x04];
         assert_eq!(
             scanner_search(&data, pattern),
             brute_force_search(&data, pattern)
         );
 
         // Test case 4: Pattern at very end
-        let data = vec![0x00, 0x00, 0x00, 0xAB, 0xCD];
-        let pattern = &[0xAB, 0xCD];
+        let data = vec![0x00, 0x00, 0x00, 0xAB, 0xCD, 0xEF, 0x12];
+        let pattern = &[0xAB, 0xCD, 0xEF, 0x12];
         assert_eq!(
             scanner_search(&data, pattern),
             brute_force_search(&data, pattern)
         );
 
         // Test case 5: No matches
-        let data = vec![0x00, 0x11, 0x22, 0x33, 0x44];
-        let pattern = &[0xFF, 0xFF];
+        let data = vec![0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77];
+        let pattern = &[0xFF, 0xFF, 0xFF, 0xFF];
         assert_eq!(
             scanner_search(&data, pattern),
             brute_force_search(&data, pattern)
         );
 
         // Test case 6: Pattern same length as data
-        let data = vec![0xDE, 0xAD];
-        let pattern = &[0xDE, 0xAD];
+        let data = vec![0xDE, 0xAD, 0xBE, 0xEF];
+        let pattern = &[0xDE, 0xAD, 0xBE, 0xEF];
         assert_eq!(
             scanner_search(&data, pattern),
             brute_force_search(&data, pattern)
@@ -1091,5 +1276,247 @@ mod tests {
                 pattern_len
             );
         }
+    }
+
+    // ============ BMH32 Tests ============
+
+    /// Direct algorithm test helper - tests BMH32ScanAlgorithm directly without scanner wrapper
+    fn bmh32_direct_search(data: &[u8], pattern: &[u8]) -> Vec<usize> {
+        let algo = BMH32ScanAlgorithm::new(pattern).unwrap();
+        let mut results = Vec::new();
+        let mut offset = 0;
+        while let Some(match_offset) = algo.find_next_match(data, offset, data.len()) {
+            results.push(match_offset);
+            offset = match_offset + 1;
+        }
+        results
+    }
+
+    #[test]
+    fn test_bmh32_edge_case_prefix_overlaps() {
+        // Test 3-byte overlap: last 3 bytes of quadgram equal pattern[0..3]
+        let data = b"XABCDEFGH";
+        let pattern = b"ABCDEFGH";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Test 2-byte overlap
+        let data = b"XXABCDEF";
+        let pattern = b"ABCDEF";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Test 1-byte overlap
+        let data = b"XXXABCDE";
+        let pattern = b"ABCDE";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // No overlap case
+        let data = b"XXXXABCD";
+        let pattern = b"ABCD";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh32_four_byte_pattern() {
+        // Four-byte patterns have no entries in skip table, rely on default skip logic
+        let pattern = b"ABCD";
+
+        // Match at start
+        let data = b"ABCDEFGH";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Match after non-matching prefix
+        let data = b"XXXXABCD";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Match after prefix with 1-byte overlap potential
+        let data = b"XXXAABCD";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Multiple matches
+        let data = b"ABCDABCDABCD";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh32_repeated_quadgrams() {
+        // Pattern with repeated quadgram - should use rightmost occurrence (smallest skip)
+        let pattern = b"ABCDABCD";
+        let data = b"XXXXABCDABCD";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Another repeated quadgram case
+        let pattern = b"AAAAAAAA";
+        let data = b"XAAAAAAAAX";
+        assert_eq!(
+            bmh32_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh32_long_pattern() {
+        // Test with a longer pattern similar to kallsyms use case
+        let pattern: Vec<u8> = (0..20).collect();
+        let mut data = vec![0xFF; 100];
+        data[50..70].copy_from_slice(&pattern);
+
+        assert_eq!(
+            bmh32_direct_search(&data, &pattern),
+            brute_force_search(&data, &pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh32_ascii_null_pattern() {
+        // Pattern similar to kallsyms token sequences (ASCII + null interleaved)
+        let pattern = [b'A', 0x00, b'B', 0x00, b'C', 0x00, b'D', 0x00];
+        let mut data = vec![0xFF; 50];
+        data[20..28].copy_from_slice(&pattern);
+
+        assert_eq!(
+            bmh32_direct_search(&data, &pattern),
+            brute_force_search(&data, &pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh32_bloom_filter_hash_distribution() {
+        // Verify the hash function produces reasonable distribution
+        // by checking that different quadgrams produce different hashes
+        let hash1 = BMH32ScanAlgorithm::hash_u32(0x00000000);
+        let hash2 = BMH32ScanAlgorithm::hash_u32(0xFFFFFFFF);
+        let hash3 = BMH32ScanAlgorithm::hash_u32(0x41414141); // "AAAA"
+        let hash4 = BMH32ScanAlgorithm::hash_u32(0x41414142); // "BAAA"
+
+        // Hashes should be in valid range (12 bits = 0-4095)
+        assert!(hash1 < 4096);
+        assert!(hash2 < 4096);
+        assert!(hash3 < 4096);
+        assert!(hash4 < 4096);
+
+        // These specific values should produce different hashes
+        // (testing the multiply-shift distribution)
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_bmh32_comprehensive_differential() {
+        // Comprehensive differential test against brute force
+        // with various data patterns and sizes
+
+        // Random-ish patterns (4-byte minimum for BMH32)
+        for pattern_len in 4..=12 {
+            let pattern: Vec<u8> = (0..pattern_len).map(|i| (i * 17 + 3) as u8).collect();
+
+            for data_len in [pattern_len, pattern_len + 1, 20, 50, 100] {
+                let data: Vec<u8> = (0..data_len).map(|i| (i * 13 + 7) as u8).collect();
+
+                assert_eq!(
+                    bmh32_direct_search(&data, &pattern),
+                    brute_force_search(&data, &pattern),
+                    "Failed for pattern_len={}, data_len={}",
+                    pattern_len,
+                    data_len
+                );
+            }
+        }
+
+        // Patterns with matches
+        for pattern_len in 4..=10 {
+            let pattern: Vec<u8> = vec![0xAA; pattern_len];
+            let mut data = vec![0x00; 50];
+            data[10..10 + pattern_len].copy_from_slice(&pattern);
+            data[30..30 + pattern_len].copy_from_slice(&pattern);
+
+            assert_eq!(
+                bmh32_direct_search(&data, &pattern),
+                brute_force_search(&data, &pattern),
+                "Failed for pattern_len={} with matches",
+                pattern_len
+            );
+        }
+    }
+
+    #[test]
+    fn test_bmh32_overlapping_matches() {
+        // Test overlapping matches with 4-byte patterns
+        let data = vec![0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA];
+        let pattern = &[0xAA, 0xAA, 0xAA, 0xAA];
+
+        assert_eq!(
+            bmh32_direct_search(&data, pattern),
+            brute_force_search(&data, pattern)
+        );
+        // Should find 4 overlapping matches at positions 0, 1, 2, 3
+        assert_eq!(bmh32_direct_search(&data, pattern), vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_bmh32_minimum_pattern_length() {
+        // Test that BMH32 requires at least 4 bytes
+        let result = BMH32ScanAlgorithm::new(&[0x01]);
+        assert!(result.is_err());
+
+        let result = BMH32ScanAlgorithm::new(&[0x01, 0x02]);
+        assert!(result.is_err());
+
+        let result = BMH32ScanAlgorithm::new(&[0x01, 0x02, 0x03]);
+        assert!(result.is_err());
+
+        let result = BMH32ScanAlgorithm::new(&[0x01, 0x02, 0x03, 0x04]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_bmh32_default_skip_all_overlap_cases() {
+        // Create a pattern and test the default_skip method for various overlap scenarios
+        let algo = BMH32ScanAlgorithm::new(b"ABCDEFGH").unwrap();
+
+        // No overlap - quadgram has no suffix matching pattern prefix
+        // Quadgram "XXXX" (0x58585858) should skip full pattern length (8)
+        let skip = algo.default_skip(u32::from_le_bytes(*b"XXXX"));
+        assert_eq!(skip, 8);
+
+        // 1-byte overlap - quadgram's last byte equals pattern[0] ('A')
+        // Quadgram "XXXA" should skip pattern_len - 1 = 7
+        let skip = algo.default_skip(u32::from_le_bytes(*b"XXXA"));
+        assert_eq!(skip, 7);
+
+        // 2-byte overlap - quadgram's last 2 bytes equal pattern[0..2] ('AB')
+        // Quadgram "XXAB" should skip pattern_len - 2 = 6
+        let skip = algo.default_skip(u32::from_le_bytes(*b"XXAB"));
+        assert_eq!(skip, 6);
+
+        // 3-byte overlap - quadgram's last 3 bytes equal pattern[0..3] ('ABC')
+        // Quadgram "XABC" should skip pattern_len - 3 = 5
+        let skip = algo.default_skip(u32::from_le_bytes(*b"XABC"));
+        assert_eq!(skip, 5);
     }
 }
