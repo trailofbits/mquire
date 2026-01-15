@@ -55,7 +55,10 @@ use crate::{
     utils::reader::Reader,
 };
 
-use {btfparse::{Error as BtfparseError, TypeInformation}, log::debug};
+use {
+    btfparse::{Error as BtfparseError, TypeInformation},
+    log::debug,
+};
 
 use std::sync::Arc;
 
@@ -202,17 +205,10 @@ impl LinuxOperatingSystem {
                         continue;
                     };
 
-                for offset in read_buffer[..bytes_read]
-                    .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
-                    .enumerate()
-                    .filter_map(|(offset, window)| {
-                        if window == BTF_LITTLE_ENDIAN_SIGNATURE {
-                            Some(offset)
-                        } else {
-                            None
-                        }
-                    })
-                {
+                for offset in memchr::memmem::find_iter(
+                    &read_buffer[..bytes_read],
+                    &BTF_LITTLE_ENDIAN_SIGNATURE,
+                ) {
                     let btf_offset = range.start + (offset as u64);
                     let readable_adapter =
                         BtfparseReadableAdapter::new(readable, btf_offset.value());
@@ -271,10 +267,14 @@ impl LinuxOperatingSystem {
                 read_buffer.len(),
                 task_struct_size
             ) {
-                let read_size = if let Ok(read_size) = readable.read(&mut read_buffer, range.start) {
+                let read_size = if let Ok(read_size) = readable.read(&mut read_buffer, range.start)
+                {
                     read_size
                 } else {
-                    debug!("Failed to read buffer during swapper scan at {:?}", range.start);
+                    debug!(
+                        "Failed to read buffer during swapper scan at {:?}",
+                        range.start
+                    );
                     continue;
                 };
 
@@ -283,17 +283,10 @@ impl LinuxOperatingSystem {
                     continue;
                 }
 
-                for offset in read_buffer[..read_size]
-                    .windows(SWAPPER_PROCESS_COMM.len())
-                    .enumerate()
-                    .filter_map(|(offset, window)| {
-                        if window == SWAPPER_PROCESS_COMM.as_bytes() {
-                            Some(offset)
-                        } else {
-                            None
-                        }
-                    })
-                {
+                for offset in memchr::memmem::find_iter(
+                    &read_buffer[..read_size],
+                    SWAPPER_PROCESS_COMM.as_bytes(),
+                ) {
                     let swapper_comm_physical_address = range.start + (offset as u64);
                     let swapper_task_physical_address = swapper_comm_physical_address - comm_offset;
 
@@ -326,7 +319,9 @@ impl LinuxOperatingSystem {
                             continue;
                         };
 
-                    debug!("Swapper struct located: {swapper_task_physical_address} => {swapper_struct_raw_vaddr}");
+                    debug!(
+                        "Swapper struct located: {swapper_task_physical_address} => {swapper_struct_raw_vaddr}"
+                    );
                     return Ok((swapper_task_physical_address, swapper_struct_raw_vaddr));
                 }
             }

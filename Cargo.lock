@@ -325,6 +325,7 @@ dependencies = [
  "chrono",
  "clap",
  "log",
+ "memchr",
  "memmap2",
  "rusqlite",
  "rustyline",
