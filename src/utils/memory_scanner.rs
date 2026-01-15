@@ -44,7 +44,7 @@ pub trait ScanAlgorithm: Sized {
     ) -> Option<usize>;
 }
 
-/// Boyer-Moore-Horspool pattern matching algorithm.
+/// Boyer-Moore-Horspool pattern matching algorithm (u8 variant).
 ///
 /// Uses a bad character skip table for efficient searching. Average case
 /// complexity is O(n/m) where n is text length and m is pattern length.
@@ -104,6 +104,144 @@ impl ScanAlgorithm for BMHScanAlgorithm {
     }
 }
 
+/// Boyer-Moore-Horspool pattern matching algorithm (u16 variant).
+///
+/// Uses a u16 bigram skip table with a bloom filter for fast rejection.
+/// Instead of a 65536-entry array, uses a sorted list of (bigram, skip)
+/// pairs with a 64-bit bloom filter mask to quickly reject bigrams not
+/// in the pattern.
+///
+/// Optimized for longer patterns (10+ bytes) where the bigram table
+/// provides better skip distances than single-byte lookups.
+pub struct BMH16ScanAlgorithm {
+    pattern: Vec<u8>,
+    /// Bloom filter mask - bit at position hash(bigram) is set if bigram might be in table
+    mask: u64,
+    /// Sorted list of (bigram, skip_distance) pairs for bigrams in the pattern
+    skip_table: Vec<(u16, usize)>,
+    /// First byte of pattern, used for edge case when bigram not in table
+    first_byte: u8,
+}
+
+impl BMH16ScanAlgorithm {
+    /// Hash a u16 value to a 6-bit index (0-63) using multiply-shift.
+    /// Uses a golden ratio derived constant for good bit mixing.
+    #[inline]
+    fn hash_u16(value: u16) -> u32 {
+        (value as u32).wrapping_mul(0x9E3779B9) >> 26
+    }
+
+    /// Look up the skip distance for a bigram.
+    #[inline]
+    fn get_skip(&self, bigram: u16) -> usize {
+        let bit = 1u64 << Self::hash_u16(bigram);
+
+        if (self.mask & bit) == 0 {
+            // Definitely not in table - check edge case
+            return self.default_skip(bigram);
+        }
+
+        // Might be in table, binary search
+        match self
+            .skip_table
+            .binary_search_by_key(&bigram, |&(v, _)| v)
+        {
+            Ok(idx) => self.skip_table[idx].1,
+            Err(_) => self.default_skip(bigram), // False positive from bloom filter
+        }
+    }
+
+    /// Calculate default skip when bigram is not in the table.
+    /// If the bigram's second byte equals pattern[0], a match could exist
+    /// at offset + pattern_len - 1, so we can only skip pattern_len - 1.
+    /// Otherwise, we can safely skip the full pattern length.
+    #[inline]
+    fn default_skip(&self, bigram: u16) -> usize {
+        let second_byte = (bigram >> 8) as u8;
+        if second_byte == self.first_byte {
+            self.pattern.len() - 1
+        } else {
+            self.pattern.len()
+        }
+    }
+}
+
+impl ScanAlgorithm for BMH16ScanAlgorithm {
+    fn new(pattern: &[u8]) -> Result<Self> {
+        if pattern.len() < 2 {
+            return Err(Error::new(
+                ErrorKind::IOError,
+                "Pattern must be at least 2 bytes for BMH16",
+            ));
+        }
+
+        let pattern_len = pattern.len();
+        let first_byte = pattern[0];
+        let mut mask = 0u64;
+
+        // Use a HashMap to build the table, keeping only the rightmost occurrence
+        // of each bigram (which gives the smallest skip distance)
+        let mut table: std::collections::HashMap<u16, usize> =
+            std::collections::HashMap::new();
+
+        // Iterate through bigrams at positions 0 to pattern_len-3 (exclusive of last bigram)
+        // For each bigram at position i, skip = pattern_len - 2 - i
+        for i in 0..pattern_len.saturating_sub(2) {
+            let bigram = u16::from_le_bytes([pattern[i], pattern[i + 1]]);
+            let skip = pattern_len - 2 - i;
+
+            // Set bloom filter bit
+            mask |= 1u64 << Self::hash_u16(bigram);
+
+            // Store in table (later occurrences overwrite earlier, giving smaller skip)
+            table.insert(bigram, skip);
+        }
+
+        // Convert to sorted vec for binary search
+        let mut skip_table: Vec<(u16, usize)> = table.into_iter().collect();
+        skip_table.sort_by_key(|&(k, _)| k);
+
+        Ok(Self {
+            pattern: pattern.to_vec(),
+            mask,
+            skip_table,
+            first_byte,
+        })
+    }
+
+    fn pattern(&self) -> &[u8] {
+        &self.pattern
+    }
+
+    fn find_next_match(
+        &self,
+        buffer: &[u8],
+        start_offset: usize,
+        bytes_available: usize,
+    ) -> Option<usize> {
+        let pattern_len = self.pattern.len();
+        let mut offset = start_offset;
+
+        while offset + pattern_len <= bytes_available {
+            let window = &buffer[offset..offset + pattern_len];
+
+            if window == self.pattern.as_slice() {
+                return Some(offset);
+            }
+
+            // Get the last bigram of the window (little-endian)
+            let last_bigram = u16::from_le_bytes([
+                buffer[offset + pattern_len - 2],
+                buffer[offset + pattern_len - 1],
+            ]);
+
+            offset += self.get_skip(last_bigram);
+        }
+
+        None
+    }
+}
+
 /// Scans virtual memory for a byte pattern using a configurable search algorithm.
 ///
 /// The scanner handles buffer management, I/O operations, and address range
@@ -123,8 +261,11 @@ pub struct MemoryScannerBase<'a, T: ScanAlgorithm> {
     overlap: usize,
 }
 
-/// Type alias for backward compatibility - uses Boyer-Moore-Horspool algorithm.
-pub type MemoryScanner<'a> = MemoryScannerBase<'a, BMHScanAlgorithm>;
+/// Type alias for the default memory scanner - uses BMH16 (u16 bigram) algorithm.
+pub type MemoryScanner<'a> = MemoryScannerBase<'a, BMH16ScanAlgorithm>;
+
+/// Type alias for the u8-based BMH scanner (for patterns < 2 bytes or compatibility).
+pub type MemoryScannerU8<'a> = MemoryScannerBase<'a, BMHScanAlgorithm>;
 
 impl<'a, T: ScanAlgorithm> MemoryScannerBase<'a, T> {
     /// Creates a new scanner for the given pattern in the virtual address range.
@@ -499,13 +640,36 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(10));
 
+        // BMH16 requires minimum 2 bytes
         let result = MemoryScanner::new(&reader, start, end, &[]);
+        assert!(result.is_err());
 
+        let result = MemoryScanner::new(&reader, start, end, &[0x42]);
         assert!(result.is_err());
         if let Err(err) = result {
             assert_eq!(err.kind(), ErrorKind::IOError);
-            assert_eq!(err.message(), "Pattern cannot be empty");
+            assert!(err.message().contains("at least 2 bytes"));
         }
+    }
+
+    #[test]
+    fn test_single_byte_pattern_works_with_u8_scanner() {
+        // Use the U8 scanner for single-byte patterns
+        let data = vec![0xFF, 0x00, 0xFF, 0x00, 0xFF];
+        let memory = MockMemory::new(data);
+        let arch = MockArchitecture;
+        let reader = VirtualMemoryReader::new(&memory, &arch);
+
+        let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
+        let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(5));
+
+        let scanner = MemoryScannerU8::new(&reader, start, end, &[0xFF]).unwrap();
+        let matches: Vec<_> = scanner.filter_map(|r| r.ok()).collect();
+
+        assert_eq!(matches.len(), 3);
+        assert_eq!(matches[0].value().value(), 0);
+        assert_eq!(matches[1].value().value(), 2);
+        assert_eq!(matches[2].value().value(), 4);
     }
 
     #[test]
@@ -524,7 +688,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
 
         // The first read returns a short read (50 bytes instead of 100),
         // which is detected as a memory hole and returns an error immediately.
@@ -551,7 +715,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
 
         let results: Vec<_> = scanner.collect();
 
@@ -591,7 +755,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA]).unwrap();
+        let scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
 
         // Consume all results
         let results: Vec<_> = scanner.collect();
@@ -633,7 +797,7 @@ mod tests {
         let start = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(0));
         let end = VirtualAddress::new(PhysicalAddress::from(0), RawVirtualAddress::new(100));
 
-        let mut scanner = MemoryScanner::new(&reader, start, end, &[0xAA]).unwrap();
+        let mut scanner = MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA]).unwrap();
 
         assert_eq!(scanner.bytes_read(), 0);
 
@@ -691,7 +855,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bmh_matches_brute_force() {
+    fn test_bmh16_matches_brute_force() {
         // Test case 1: Pattern with distinct bytes
         let data = vec![
             0x00, 0x11, 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xDE, 0xAD, 0xBE, 0xEF,
@@ -718,15 +882,7 @@ mod tests {
             brute_force_search(&data, pattern)
         );
 
-        // Test case 4: Single byte pattern
-        let data = vec![0xFF, 0x00, 0xFF, 0x00, 0xFF];
-        let pattern = &[0xFF];
-        assert_eq!(
-            scanner_search(&data, pattern),
-            brute_force_search(&data, pattern)
-        );
-
-        // Test case 5: Pattern at very end
+        // Test case 4: Pattern at very end
         let data = vec![0x00, 0x00, 0x00, 0xAB, 0xCD];
         let pattern = &[0xAB, 0xCD];
         assert_eq!(
@@ -734,7 +890,7 @@ mod tests {
             brute_force_search(&data, pattern)
         );
 
-        // Test case 6: No matches
+        // Test case 5: No matches
         let data = vec![0x00, 0x11, 0x22, 0x33, 0x44];
         let pattern = &[0xFF, 0xFF];
         assert_eq!(
@@ -742,7 +898,7 @@ mod tests {
             brute_force_search(&data, pattern)
         );
 
-        // Test case 7: Pattern same length as data
+        // Test case 6: Pattern same length as data
         let data = vec![0xDE, 0xAD];
         let pattern = &[0xDE, 0xAD];
         assert_eq!(
@@ -750,7 +906,7 @@ mod tests {
             brute_force_search(&data, pattern)
         );
 
-        // Test case 8: Larger data with multiple scattered matches
+        // Test case 7: Larger data with multiple scattered matches
         let mut data = vec![0x00; 200];
         data[10..14].copy_from_slice(&[0xCA, 0xFE, 0xBA, 0xBE]);
         data[50..54].copy_from_slice(&[0xCA, 0xFE, 0xBA, 0xBE]);
@@ -760,5 +916,180 @@ mod tests {
             scanner_search(&data, pattern),
             brute_force_search(&data, pattern)
         );
+    }
+
+    /// Direct algorithm test helper - tests BMH16ScanAlgorithm directly without scanner wrapper
+    fn bmh16_direct_search(data: &[u8], pattern: &[u8]) -> Vec<usize> {
+        let algo = BMH16ScanAlgorithm::new(pattern).unwrap();
+        let mut results = Vec::new();
+        let mut offset = 0;
+        while let Some(match_offset) = algo.find_next_match(data, offset, data.len()) {
+            results.push(match_offset);
+            offset = match_offset + 1;
+        }
+        results
+    }
+
+    #[test]
+    fn test_bmh16_edge_case_second_byte_equals_first() {
+        // This tests the edge case where the bigram's second byte equals pattern[0]
+        // Pattern "ABC", searching in "XABC" - "XA" is not in pattern, but 'A' = pattern[0]
+        let data = b"XABC";
+        let pattern = b"ABC";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Another edge case: "XXABC"
+        let data = b"XXABC";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Multiple X's before match
+        let data = b"XXXXABC";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh16_two_byte_pattern() {
+        // Two-byte patterns have no entries in skip table, rely on default skip logic
+        let pattern = b"AB";
+
+        // Match at start
+        let data = b"ABCD";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Match after non-matching prefix
+        let data = b"XABC";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Match after prefix where second byte of window equals pattern[0]
+        let data = b"XAAB";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Multiple matches
+        let data = b"ABABAB";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh16_repeated_bigrams() {
+        // Pattern with repeated bigram - should use rightmost occurrence (smallest skip)
+        let pattern = b"ABAB";
+        let data = b"XXABAB";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+
+        // Another repeated bigram case
+        let pattern = b"AAAA";
+        let data = b"XAAAAX";
+        assert_eq!(
+            bmh16_direct_search(data, pattern),
+            brute_force_search(data, pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh16_long_pattern() {
+        // Test with a longer pattern similar to kallsyms use case
+        let pattern: Vec<u8> = (0..20).collect();
+        let mut data = vec![0xFF; 100];
+        data[50..70].copy_from_slice(&pattern);
+
+        assert_eq!(
+            bmh16_direct_search(&data, &pattern),
+            brute_force_search(&data, &pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh16_ascii_null_pattern() {
+        // Pattern similar to kallsyms token sequences (ASCII + null interleaved)
+        let pattern = [b'A', 0x00, b'B', 0x00, b'C', 0x00];
+        let mut data = vec![0xFF; 50];
+        data[20..26].copy_from_slice(&pattern);
+
+        assert_eq!(
+            bmh16_direct_search(&data, &pattern),
+            brute_force_search(&data, &pattern)
+        );
+    }
+
+    #[test]
+    fn test_bmh16_bloom_filter_hash_distribution() {
+        // Verify the hash function produces reasonable distribution
+        // by checking that different bigrams produce different hashes
+        let hash1 = BMH16ScanAlgorithm::hash_u16(0x0000);
+        let hash2 = BMH16ScanAlgorithm::hash_u16(0xFFFF);
+        let hash3 = BMH16ScanAlgorithm::hash_u16(0x4141); // "AA"
+        let hash4 = BMH16ScanAlgorithm::hash_u16(0x4142); // "BA"
+
+        // Hashes should be in valid range
+        assert!(hash1 < 64);
+        assert!(hash2 < 64);
+        assert!(hash3 < 64);
+        assert!(hash4 < 64);
+
+        // These specific values should produce different hashes
+        // (testing the multiply-shift distribution)
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_bmh16_comprehensive_differential() {
+        // Comprehensive differential test against brute force
+        // with various data patterns and sizes
+
+        // Random-ish patterns
+        for pattern_len in 2..=10 {
+            let pattern: Vec<u8> = (0..pattern_len).map(|i| (i * 17 + 3) as u8).collect();
+
+            for data_len in [pattern_len, pattern_len + 1, 20, 50, 100] {
+                let data: Vec<u8> = (0..data_len).map(|i| (i * 13 + 7) as u8).collect();
+
+                assert_eq!(
+                    bmh16_direct_search(&data, &pattern),
+                    brute_force_search(&data, &pattern),
+                    "Failed for pattern_len={}, data_len={}",
+                    pattern_len,
+                    data_len
+                );
+            }
+        }
+
+        // Patterns with matches
+        for pattern_len in 2..=8 {
+            let pattern: Vec<u8> = vec![0xAA; pattern_len];
+            let mut data = vec![0x00; 50];
+            data[10..10 + pattern_len].copy_from_slice(&pattern);
+            data[30..30 + pattern_len].copy_from_slice(&pattern);
+
+            assert_eq!(
+                bmh16_direct_search(&data, &pattern),
+                brute_force_search(&data, &pattern),
+                "Failed for pattern_len={} with matches",
+                pattern_len
+            );
+        }
     }
 }
