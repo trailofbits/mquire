@@ -639,48 +639,61 @@ impl Kallsyms {
             let start_vaddr = VirtualAddress::new(root_page_table, region.start.into());
             let end_vaddr = VirtualAddress::new(root_page_table, region.end.into());
 
-            let digits_vaddr_iter = match MemoryScanner::new(
+            // Search for UPPERCASE first (52 bytes) - longer patterns have better BMH skip efficiency
+            let uppercase_vaddr_iter = match MemoryScanner::new(
                 &vmem_reader,
                 start_vaddr,
                 end_vaddr,
-                &DIGITS_TOKEN_SEQUENCE,
+                &UPPERCASE_TOKEN_SEQUENCE,
             ) {
                 Ok(scanner) => scanner.filter_map(|r| r.ok()),
                 Err(_) => continue,
             };
 
-            for digits_vaddr in digits_vaddr_iter {
-                let start_vaddr = digits_vaddr + DIGITS_TOKEN_SEQUENCE.len() as u64;
-                let end_vaddr = digits_vaddr + TOKEN_SEQUENCE_SCAN_SIZE;
+            for uppercase_vaddr in uppercase_vaddr_iter {
+                // Search backward for DIGITS in window before UPPERCASE
+                let backward_search_start = VirtualAddress::new(
+                    root_page_table,
+                    uppercase_vaddr
+                        .value()
+                        .value()
+                        .saturating_sub(TOKEN_SEQUENCE_SCAN_SIZE as u64)
+                        .into(),
+                );
+                let backward_search_end = uppercase_vaddr;
 
-                // Check for exactly one uppercase match, otherwise skip this candidate
-                let mut uppercase_scanner = match MemoryScanner::new(
+                // Check for exactly one digits match, otherwise skip this candidate
+                let mut digits_scanner = match MemoryScanner::new(
                     &vmem_reader,
-                    start_vaddr,
-                    end_vaddr,
-                    &UPPERCASE_TOKEN_SEQUENCE,
+                    backward_search_start,
+                    backward_search_end,
+                    &DIGITS_TOKEN_SEQUENCE,
                 ) {
                     Ok(scanner) => scanner.filter_map(|r| r.ok()),
                     Err(_) => continue,
                 };
 
-                let uppercase_vaddr = match uppercase_scanner.next() {
-                    Some(addr) => {
-                        if uppercase_scanner.next().is_some() {
-                            continue;
+                // Find the DIGITS match closest to UPPERCASE (last match in backward window)
+                let digits_vaddr = match digits_scanner.next() {
+                    Some(first_addr) => {
+                        let mut last_addr = first_addr;
+                        for addr in digits_scanner {
+                            last_addr = addr;
                         }
-                        addr
+                        last_addr
                     }
                     None => continue,
                 };
 
-                let start_vaddr = uppercase_vaddr + UPPERCASE_TOKEN_SEQUENCE.len() as u64;
+                // Search forward for LOWERCASE after UPPERCASE
+                let forward_search_start = uppercase_vaddr + UPPERCASE_TOKEN_SEQUENCE.len() as u64;
+                let forward_search_end = uppercase_vaddr + TOKEN_SEQUENCE_SCAN_SIZE;
 
                 // Check for exactly one lowercase match, otherwise skip this candidate
                 let mut lowercase_scanner = match MemoryScanner::new(
                     &vmem_reader,
-                    start_vaddr,
-                    end_vaddr,
+                    forward_search_start,
+                    forward_search_end,
                     &LOWERCASE_TOKEN_SEQUENCE,
                 ) {
                     Ok(scanner) => scanner.filter_map(|r| r.ok()),
