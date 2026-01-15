@@ -17,8 +17,98 @@ use crate::{
 
 use std::ops::Range;
 
-/// Scans virtual memory for a byte pattern using Boyer-Moore-Horspool algorithm.
-pub struct MemoryScanner<'a> {
+/// Trait for pattern matching algorithms used by MemoryScannerBase.
+///
+/// Implementations provide the core pattern matching logic while the scanner
+/// handles buffer management, I/O, and address range tracking.
+pub trait ScanAlgorithm: Sized {
+    /// Creates a new algorithm instance for the given pattern.
+    ///
+    /// Returns an error if the pattern is invalid (e.g., empty).
+    fn new(pattern: &[u8]) -> Result<Self>;
+
+    /// Returns the pattern being searched for.
+    fn pattern(&self) -> &[u8];
+
+    /// Finds the next match in the buffer starting from `start_offset`.
+    ///
+    /// Returns `Some(offset)` if a match is found, where `offset` is the
+    /// position in the buffer where the pattern starts. Returns `None` if
+    /// no match exists between `start_offset` and the end of searchable area
+    /// (i.e., `bytes_available - pattern.len()`).
+    fn find_next_match(
+        &self,
+        buffer: &[u8],
+        start_offset: usize,
+        bytes_available: usize,
+    ) -> Option<usize>;
+}
+
+/// Boyer-Moore-Horspool pattern matching algorithm.
+///
+/// Uses a bad character skip table for efficient searching. Average case
+/// complexity is O(n/m) where n is text length and m is pattern length.
+pub struct BMHScanAlgorithm {
+    pattern: Vec<u8>,
+    /// Bad character skip table - skip_table[byte] gives the skip distance
+    /// when `byte` is found at the end of a non-matching window.
+    skip_table: [usize; 256],
+}
+
+impl ScanAlgorithm for BMHScanAlgorithm {
+    fn new(pattern: &[u8]) -> Result<Self> {
+        if pattern.is_empty() {
+            return Err(Error::new(ErrorKind::IOError, "Pattern cannot be empty"));
+        }
+
+        let pattern_len = pattern.len();
+
+        // Build Boyer-Moore-Horspool bad character skip table
+        let mut skip_table = [pattern_len; 256];
+        for (i, &byte) in pattern[..pattern_len - 1].iter().enumerate() {
+            skip_table[byte as usize] = pattern_len - 1 - i;
+        }
+
+        Ok(Self {
+            pattern: pattern.to_vec(),
+            skip_table,
+        })
+    }
+
+    fn pattern(&self) -> &[u8] {
+        &self.pattern
+    }
+
+    fn find_next_match(
+        &self,
+        buffer: &[u8],
+        start_offset: usize,
+        bytes_available: usize,
+    ) -> Option<usize> {
+        let pattern_len = self.pattern.len();
+        let mut offset = start_offset;
+
+        while offset + pattern_len <= bytes_available {
+            let window = &buffer[offset..offset + pattern_len];
+
+            if window == self.pattern.as_slice() {
+                return Some(offset);
+            }
+
+            // Skip based on the last byte in the window
+            let last_byte = window[pattern_len - 1];
+            offset += self.skip_table[last_byte as usize];
+        }
+
+        None
+    }
+}
+
+/// Scans virtual memory for a byte pattern using a configurable search algorithm.
+///
+/// The scanner handles buffer management, I/O operations, and address range
+/// tracking, while delegating the actual pattern matching to the algorithm.
+pub struct MemoryScannerBase<'a, T: ScanAlgorithm> {
     vmem_reader: &'a VirtualMemoryReader<'a>,
     start: VirtualAddress,
     end: VirtualAddress,
@@ -27,13 +117,16 @@ pub struct MemoryScanner<'a> {
     read_buffer: Vec<u8>,
     bytes_read: usize,
     current_read_buffer_offset: usize,
-    pattern: Vec<u8>,
     current_range_start: VirtualAddress,
-    /// Boyer-Moore-Horspool bad character skip table
-    skip_table: [usize; 256],
+    algorithm: T,
+    /// Overlap between consecutive buffer ranges (for boundary-spanning patterns)
+    overlap: usize,
 }
 
-impl<'a> MemoryScanner<'a> {
+/// Type alias for backward compatibility - uses Boyer-Moore-Horspool algorithm.
+pub type MemoryScanner<'a> = MemoryScannerBase<'a, BMHScanAlgorithm>;
+
+impl<'a, T: ScanAlgorithm> MemoryScannerBase<'a, T> {
     /// Creates a new scanner for the given pattern in the virtual address range.
     pub fn new(
         vmem_reader: &'a VirtualMemoryReader<'a>,
@@ -41,9 +134,7 @@ impl<'a> MemoryScanner<'a> {
         end: VirtualAddress,
         pattern: &[u8],
     ) -> Result<Self> {
-        if pattern.is_empty() {
-            return Err(Error::new(ErrorKind::IOError, "Pattern cannot be empty"));
-        }
+        let algorithm = T::new(pattern)?;
 
         // Use 16MB buffer or the size of the region to scan, whichever is smaller.
         // Buffer must be at least pattern length for valid searching.
@@ -52,15 +143,13 @@ impl<'a> MemoryScanner<'a> {
         let buffer_size = region_size.min(MAX_BUFFER_SIZE).max(pattern.len());
         let pattern_len = pattern.len();
 
-        let mut range_list = Vec::new();
-        for range in generate_address_ranges!(start, end, buffer_size, pattern_len) {
-            range_list.push(range);
-        }
+        // Overlap must be less than buffer_size to ensure forward progress in range generation.
+        // When buffer_size == pattern_len, we use overlap of pattern_len - 1.
+        let overlap = pattern_len.min(buffer_size.saturating_sub(1));
 
-        // Build Boyer-Moore-Horspool bad character skip table
-        let mut skip_table = [pattern_len; 256];
-        for (i, &byte) in pattern[..pattern_len - 1].iter().enumerate() {
-            skip_table[byte as usize] = pattern_len - 1 - i;
+        let mut range_list = Vec::new();
+        for range in generate_address_ranges!(start, end, buffer_size, overlap) {
+            range_list.push(range);
         }
 
         Ok(Self {
@@ -72,15 +161,15 @@ impl<'a> MemoryScanner<'a> {
             read_buffer: vec![0u8; buffer_size],
             bytes_read: 0,
             current_read_buffer_offset: 0,
-            pattern: pattern.to_vec(),
             current_range_start: start,
-            skip_table,
+            algorithm,
+            overlap,
         })
     }
 
     /// Returns the pattern being searched for.
     pub fn pattern(&self) -> &[u8] {
-        &self.pattern
+        self.algorithm.pattern()
     }
 
     /// Returns the total number of bytes read from the range.
@@ -93,33 +182,24 @@ impl<'a> MemoryScanner<'a> {
     }
 }
 
-impl<'a> Iterator for MemoryScanner<'a> {
+impl<'a, T: ScanAlgorithm> Iterator for MemoryScannerBase<'a, T> {
     type Item = Result<VirtualAddress>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pattern_len = self.pattern.len();
-
         loop {
-            if self.current_read_buffer_offset + pattern_len <= self.bytes_read {
-                //
-                // Boyer-Moore-Horspool: compare pattern and skip based on bad character
-                //
+            // Try to find a match in the current buffer
+            if let Some(match_offset) = self.algorithm.find_next_match(
+                &self.read_buffer,
+                self.current_read_buffer_offset,
+                self.bytes_read,
+            ) {
+                // Match found - advance by 1 to find overlapping matches
+                self.current_read_buffer_offset = match_offset + 1;
+                return Some(Ok(self.current_range_start + match_offset as u64));
+            }
 
-                let window = &self.read_buffer[self.current_read_buffer_offset
-                    ..self.current_read_buffer_offset + pattern_len];
-
-                let current_offset = self.current_read_buffer_offset;
-
-                if window == self.pattern.as_slice() {
-                    // Match found - advance by 1 to find overlapping matches
-                    self.current_read_buffer_offset += 1;
-                    return Some(Ok(self.current_range_start + current_offset as u64));
-                } else {
-                    // No match - skip based on the last byte in the window
-                    let last_byte = window[pattern_len - 1];
-                    self.current_read_buffer_offset += self.skip_table[last_byte as usize];
-                }
-            } else if let Some(range) = self.range_list.get(self.current_range_index) {
+            // No more matches in current buffer, try to load next range
+            if let Some(range) = self.range_list.get(self.current_range_index) {
                 //
                 // Current buffer is exhausted, load the next range.
                 //
@@ -134,6 +214,9 @@ impl<'a> Iterator for MemoryScanner<'a> {
                 let bytes_until_end = end_raw.saturating_sub(range_start_raw) as usize;
                 let expected_bytes = self.read_buffer.len().min(bytes_until_end);
 
+                // Track if this is a continuation range (not the first)
+                let is_continuation = self.current_range_index > 1;
+
                 match self.vmem_reader.read(&mut self.read_buffer, range.start) {
                     Ok(bytes_read) => {
                         // Any partial read within user boundaries is an error (memory hole).
@@ -146,7 +229,11 @@ impl<'a> Iterator for MemoryScanner<'a> {
                         }
 
                         self.bytes_read = bytes_read;
-                        self.current_read_buffer_offset = 0;
+
+                        // For continuation ranges, skip the overlap region that was already
+                        // searched in the previous buffer.
+                        self.current_read_buffer_offset =
+                            if is_continuation { self.overlap } else { 0 };
                     }
 
                     Err(_) => {
@@ -423,7 +510,10 @@ mod tests {
 
     #[test]
     fn test_memory_hole_detected_via_short_read() {
-        // Data has 100 bytes, but we'll simulate a hole by returning short reads
+        // Data has 100 bytes, but we'll simulate a hole by returning short reads.
+        // The buffer size will be 100 bytes (min of region size and MAX_BUFFER_SIZE),
+        // so we try to read all 100 bytes at once. The mock returns only 50 bytes
+        // (up to the hole), triggering an immediate error before any searching.
         let data = vec![0xAA; 100];
         let memory = MockMemoryWithHole::new(data, 50, 60); // Hole from 50 to 60
 
@@ -436,33 +526,17 @@ mod tests {
 
         let scanner = MemoryScanner::new(&reader, start, end, &[0xAA]).unwrap();
 
-        let mut found_error = false;
-        let mut successful_matches = Vec::new();
+        // The first read returns a short read (50 bytes instead of 100),
+        // which is detected as a memory hole and returns an error immediately.
+        let results: Vec<_> = scanner.collect();
 
-        for result in scanner {
-            match result {
-                Ok(addr) => {
-                    if !found_error {
-                        successful_matches.push(addr);
-                    }
-                }
-                Err(_) => {
-                    found_error = true;
-                    break; // Stop on first error
-                }
-            }
+        // Should have exactly one error (the memory hole detection)
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_err());
+
+        if let Err(err) = &results[0] {
+            assert!(err.message().contains("Memory hole"));
         }
-
-        // Should have found some successful matches before the hole
-        assert!(!successful_matches.is_empty());
-
-        // All successful matches should be before the hole starts at position 50
-        for m in &successful_matches {
-            assert!(m.value().value() < 50);
-        }
-
-        // Should have detected an error
-        assert!(found_error);
     }
 
     #[test]
