@@ -176,26 +176,27 @@ impl ScanAlgorithm for BMH16ScanAlgorithm {
         let first_byte = pattern[0];
         let mut mask = 0u64;
 
-        // Use a HashMap to build the table, keeping only the rightmost occurrence
-        // of each bigram (which gives the smallest skip distance)
-        let mut table: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
+        // Build skip table directly without HashMap allocation.
+        // Iterate in reverse order so rightmost occurrences (smallest skips) come first.
+        // After stable sort and dedup, we keep the smallest skip for each bigram.
+        let mut skip_table: Vec<(u16, usize)> =
+            Vec::with_capacity(pattern_len.saturating_sub(2));
 
-        // Iterate through bigrams at positions 0 to pattern_len-3 (exclusive of last bigram)
-        // For each bigram at position i, skip = pattern_len - 2 - i
-        for i in 0..pattern_len.saturating_sub(2) {
+        for i in (0..pattern_len.saturating_sub(2)).rev() {
             let bigram = u16::from_le_bytes([pattern[i], pattern[i + 1]]);
             let skip = pattern_len - 2 - i;
 
             // Set bloom filter bit
             mask |= 1u64 << Self::hash_u16(bigram);
 
-            // Store in table (later occurrences overwrite earlier, giving smaller skip)
-            table.insert(bigram, skip);
+            skip_table.push((bigram, skip));
         }
 
-        // Convert to sorted vec for binary search
-        let mut skip_table: Vec<(u16, usize)> = table.into_iter().collect();
+        // Sort by bigram (stable sort preserves order among equal keys)
         skip_table.sort_by_key(|&(k, _)| k);
+
+        // Deduplicate by bigram, keeping first (which has smallest skip due to reverse iteration)
+        skip_table.dedup_by(|a, b| a.0 == b.0);
 
         Ok(Self {
             pattern: pattern.to_vec(),
@@ -344,13 +345,13 @@ impl ScanAlgorithm for BMH32ScanAlgorithm {
         let prefix = [pattern[0], pattern[1], pattern[2]];
         let mut bloom = [0u64; 64];
 
-        // Use a HashMap to build the table, keeping only the rightmost occurrence
-        // of each quadgram (which gives the smallest skip distance)
-        let mut table: std::collections::HashMap<u32, usize> = std::collections::HashMap::new();
+        // Build skip table. 
+        // Iterate in reverse order so rightmost occurrences (smallest skips) come first.
+        // After stable sort and dedup, we keep the smallest skip for each quadgram.
+        let mut skip_table: Vec<(u32, usize)> =
+            Vec::with_capacity(pattern_len.saturating_sub(4));
 
-        // Iterate through quadgrams at positions 0 to pattern_len-5 (exclusive of last quadgram)
-        // For each quadgram at position i, skip = pattern_len - 4 - i
-        for i in 0..pattern_len.saturating_sub(4) {
+        for i in (0..pattern_len.saturating_sub(4)).rev() {
             let quadgram =
                 u32::from_le_bytes([pattern[i], pattern[i + 1], pattern[i + 2], pattern[i + 3]]);
             let skip = pattern_len - 4 - i;
@@ -358,13 +359,14 @@ impl ScanAlgorithm for BMH32ScanAlgorithm {
             // Set bloom filter bit
             Self::bloom_set(&mut bloom, Self::hash_u32(quadgram));
 
-            // Store in table (later occurrences overwrite earlier, giving smaller skip)
-            table.insert(quadgram, skip);
+            skip_table.push((quadgram, skip));
         }
 
-        // Convert to sorted vec for binary search
-        let mut skip_table: Vec<(u32, usize)> = table.into_iter().collect();
+        // Sort by quadgram (stable sort preserves order among equal keys)
         skip_table.sort_by_key(|&(k, _)| k);
+
+        // Deduplicate by quadgram, keeping first (which has smallest skip due to reverse iteration)
+        skip_table.dedup_by(|a, b| a.0 == b.0);
 
         Ok(Self {
             pattern: pattern.to_vec(),
@@ -484,8 +486,8 @@ impl<'a, T: ScanAlgorithm> MemoryScannerBase<'a, T> {
         self.algorithm.pattern()
     }
 
-    /// Returns the total number of bytes read from the range.
-    pub fn bytes_read(&self) -> u64 {
+    /// Returns the number of bytes scanned so far (i.e., the current scan position).
+    pub fn bytes_scanned(&self) -> u64 {
         let raw_start_vaddr = self.start.value().value();
         let current_pos =
             self.current_range_start.value().value() + self.current_read_buffer_offset as u64;
@@ -972,7 +974,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bytes_read_tracking() {
+    fn test_bytes_scanned_tracking() {
         let data = vec![0xAA; 100];
         let memory = MockMemory::new(data);
         let arch = MockArchitecture;
@@ -984,15 +986,15 @@ mod tests {
         let mut scanner =
             MemoryScanner::new(&reader, start, end, &[0xAA, 0xAA, 0xAA, 0xAA]).unwrap();
 
-        assert_eq!(scanner.bytes_read(), 0);
+        assert_eq!(scanner.bytes_scanned(), 0);
 
-        // Read a few matches
+        // Scan a few matches
         let _result = scanner.next();
-        assert!(scanner.bytes_read() > 0);
+        assert!(scanner.bytes_scanned() > 0);
 
-        let bytes_before = scanner.bytes_read();
+        let bytes_before = scanner.bytes_scanned();
         let _result = scanner.next();
-        assert!(scanner.bytes_read() > bytes_before);
+        assert!(scanner.bytes_scanned() > bytes_before);
     }
 
     #[test]
@@ -1143,7 +1145,9 @@ mod tests {
 
     #[test]
     fn test_bmh16_two_byte_pattern() {
-        // Two-byte patterns have no entries in skip table, rely on default skip logic
+        // Two-byte patterns create an empty skip table (loop 0..pattern_len-2 = 0..0).
+        // The bloom filter mask is 0, so all lookups fall through to default_skip().
+        // This is correct behavior - the algorithm still works via the default skip logic.
         let pattern = b"AB";
 
         // Match at start
@@ -1491,6 +1495,29 @@ mod tests {
         assert!(result.is_err());
 
         let result = BMH32ScanAlgorithm::new(&[0x01, 0x02, 0x03, 0x04]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_bmh16_minimum_pattern_length() {
+        // Test that BMH16 requires at least 2 bytes
+        let result = BMH16ScanAlgorithm::new(&[]);
+        assert!(result.is_err());
+
+        let result = BMH16ScanAlgorithm::new(&[0x01]);
+        assert!(result.is_err());
+
+        let result = BMH16ScanAlgorithm::new(&[0x01, 0x02]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_bmh_rejects_empty_pattern() {
+        // Test that BMH (u8) requires at least 1 byte
+        let result = BMHScanAlgorithm::new(&[]);
+        assert!(result.is_err());
+
+        let result = BMHScanAlgorithm::new(&[0x01]);
         assert!(result.is_ok());
     }
 
