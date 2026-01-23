@@ -179,8 +179,7 @@ impl ScanAlgorithm for BMH16ScanAlgorithm {
         // Build skip table directly without HashMap allocation.
         // Iterate in reverse order so rightmost occurrences (smallest skips) come first.
         // After stable sort and dedup, we keep the smallest skip for each bigram.
-        let mut skip_table: Vec<(u16, usize)> =
-            Vec::with_capacity(pattern_len.saturating_sub(2));
+        let mut skip_table: Vec<(u16, usize)> = Vec::with_capacity(pattern_len.saturating_sub(2));
 
         for i in (0..pattern_len.saturating_sub(2)).rev() {
             let bigram = u16::from_le_bytes([pattern[i], pattern[i + 1]]);
@@ -345,11 +344,10 @@ impl ScanAlgorithm for BMH32ScanAlgorithm {
         let prefix = [pattern[0], pattern[1], pattern[2]];
         let mut bloom = [0u64; 64];
 
-        // Build skip table. 
+        // Build skip table.
         // Iterate in reverse order so rightmost occurrences (smallest skips) come first.
         // After stable sort and dedup, we keep the smallest skip for each quadgram.
-        let mut skip_table: Vec<(u32, usize)> =
-            Vec::with_capacity(pattern_len.saturating_sub(4));
+        let mut skip_table: Vec<(u32, usize)> = Vec::with_capacity(pattern_len.saturating_sub(4));
 
         for i in (0..pattern_len.saturating_sub(4)).rev() {
             let quadgram =
