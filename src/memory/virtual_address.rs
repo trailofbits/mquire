@@ -13,6 +13,7 @@ use crate::memory::{
 
 use std::{
     cmp::Ordering,
+    str::FromStr,
     {fmt, ops},
 };
 
@@ -87,6 +88,36 @@ impl fmt::Display for VirtualAddress {
 impl fmt::Debug for VirtualAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(self, f)
+    }
+}
+
+impl FromStr for VirtualAddress {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let s = s.trim();
+        let s = s.strip_prefix("VirtualAddress").ok_or(())?;
+
+        let s = s.trim_start();
+        let s = s.strip_prefix('{').ok_or(())?;
+        let s = s.strip_suffix('}').ok_or(())?;
+
+        let comma_pos = s.find(',').ok_or(())?;
+        let (field1, field2) = s.split_at(comma_pos);
+        let field2 = &field2[1..];
+
+        let field1 = field1.trim();
+        let field1 = field1.strip_prefix("root_page_table:").ok_or(())?;
+        let root_page_table = field1.trim();
+
+        let field2 = field2.trim();
+        let field2 = field2.strip_prefix("raw_virtual_address:").ok_or(())?;
+        let raw_virtual_address = field2.trim();
+
+        let root_page_table: PhysicalAddress = root_page_table.parse().map_err(|_| ())?;
+        let raw_virtual_address: RawVirtualAddress = raw_virtual_address.parse().map_err(|_| ())?;
+
+        Ok(VirtualAddress::new(root_page_table, raw_virtual_address))
     }
 }
 
@@ -256,5 +287,84 @@ mod tests {
         let result = addr - 1u64;
 
         assert_eq!(result.value(), RawVirtualAddress::new(u64::MAX));
+    }
+
+    #[test]
+    fn test_from_str_valid() {
+        let input = "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982901CC8000) }";
+        let result: VirtualAddress = input.parse().unwrap();
+
+        assert_eq!(
+            result,
+            VirtualAddress::new(
+                PhysicalAddress::new(0x0000000001A60000),
+                RawVirtualAddress::new(0xFFFF982901CC8000)
+            )
+        );
+    }
+
+    #[test]
+    fn test_from_str_lowercase() {
+        let input = "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001a60000), raw_virtual_address: RawVirtualAddress(0xffff982901cc8000) }";
+        let result: VirtualAddress = input.parse().unwrap();
+
+        assert_eq!(
+            result,
+            VirtualAddress::new(
+                PhysicalAddress::new(0x0000000001a60000),
+                RawVirtualAddress::new(0xffff982901cc8000)
+            )
+        );
+    }
+
+    #[test]
+    fn test_from_str_with_outer_whitespace() {
+        let input = "  VirtualAddress { root_page_table: PhysicalAddress(0x1234), raw_virtual_address: RawVirtualAddress(0x5678) }  ";
+        let result: VirtualAddress = input.parse().unwrap();
+
+        assert_eq!(
+            result,
+            VirtualAddress::new(PhysicalAddress::new(0x1234), RawVirtualAddress::new(0x5678))
+        );
+    }
+
+    #[test]
+    fn test_from_str_rejects_leading_content() {
+        let input = "extra VirtualAddress { root_page_table: PhysicalAddress(0x1234), raw_virtual_address: RawVirtualAddress(0x5678) }";
+        let result: std::result::Result<VirtualAddress, _> = input.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_str_rejects_trailing_content() {
+        let input = "VirtualAddress { root_page_table: PhysicalAddress(0x1234), raw_virtual_address: RawVirtualAddress(0x5678) } extra";
+        let result: std::result::Result<VirtualAddress, _> = input.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_str_wrong_field_order() {
+        let input = "VirtualAddress { raw_virtual_address: RawVirtualAddress(0x5678), root_page_table: PhysicalAddress(0x1234) }";
+        let result: std::result::Result<VirtualAddress, _> = input.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_str_missing_braces() {
+        let input = "VirtualAddress root_page_table: PhysicalAddress(0x1234), raw_virtual_address: RawVirtualAddress(0x5678)";
+        let result: std::result::Result<VirtualAddress, _> = input.parse();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_str_roundtrip() {
+        let original = VirtualAddress::new(
+            PhysicalAddress::new(0x123456789ABCDEF0),
+            RawVirtualAddress::new(0xFEDCBA9876543210),
+        );
+
+        let formatted = format!("{}", original);
+        let parsed: VirtualAddress = formatted.parse().unwrap();
+        assert_eq!(parsed, original);
     }
 }

@@ -7,6 +7,5 @@
 //
 
 pub mod log_messages;
-pub mod network_interfaces;
 pub mod os_version;
 pub mod system_info;

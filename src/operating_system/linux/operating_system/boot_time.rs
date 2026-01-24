@@ -80,7 +80,7 @@ impl LinuxOperatingSystem {
     }
 
     /// Returns the system boot time
-    pub(super) fn get_boot_time_impl(&self) -> Result<Vec<BootTime>> {
+    pub(super) fn get_boot_time_impl(&self) -> Result<BootTime> {
         let kallsyms = self.kallsyms.as_ref().ok_or_else(|| {
             Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
@@ -110,9 +110,9 @@ impl LinuxOperatingSystem {
         let wall_clock_time = try_chain!(timekeeper.traverse("xtime_sec")?.read_u64())?;
         let time_since_boot = try_chain!(timekeeper.traverse("ktime_sec")?.read_u64())?;
 
-        Ok(vec![BootTime {
+        Ok(BootTime {
             virtual_address: tk_core_vaddr,
             boot_time: wall_clock_time.saturating_sub(time_since_boot),
-        }])
+        })
     }
 }

@@ -9,7 +9,7 @@
 use crate::{
     core::{
         entities::{
-            file::File, network_interface::NetworkInterface, system_information::SystemInformation,
+            network_interface::NetworkInterface, system_information::SystemInformation,
             system_version::SystemVersion,
         },
         error::Result,
@@ -27,11 +27,10 @@ pub trait OperatingSystem: Send + Sync + Any {
     /// Returns the system information.
     fn get_system_information(&self) -> Result<SystemInformation>;
 
-    /// Returns the list of open files.
-    fn get_task_open_file_list(&self) -> Result<Vec<File>>;
-
-    /// Returns the network interface list.
-    fn get_network_interface_list(&self) -> Result<Vec<NetworkInterface>>;
+    /// Returns an iterator over network interfaces.
+    fn iter_network_interfaces(
+        &self,
+    ) -> Result<Box<dyn Iterator<Item = Result<NetworkInterface>> + '_>>;
 
     /// Returns a reader for the file struct at the given virtual address.
     fn get_file_reader(&self, file: VirtualAddress) -> Result<Arc<dyn Readable>>;

@@ -8,3 +8,37 @@
 
 pub mod lime_snapshot;
 pub mod raw_snapshot;
+
+use crate::memory::readable::Readable;
+
+use {lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot};
+
+use std::{
+    io::{self, ErrorKind},
+    path::Path,
+    sync::Arc,
+};
+
+/// Opens a memory dump file and returns a Readable instance.
+pub fn open_memory(path: &Path) -> io::Result<Arc<dyn Readable>> {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some("raw") => {
+            let snapshot: Arc<dyn Readable> = RawSnapshot::new(path)
+                .map_err(|e| io::Error::other(format!("Failed to open raw snapshot: {e:?}")))?;
+
+            Ok(snapshot)
+        }
+
+        Some("lime") => {
+            let snapshot: Arc<dyn Readable> = LimeSnapshot::new(path)
+                .map_err(|e| io::Error::other(format!("Failed to open lime snapshot: {e:?}")))?;
+
+            Ok(snapshot)
+        }
+
+        _ => Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Unsupported memory dump format. Use .raw or .lime files.",
+        )),
+    }
+}

@@ -12,7 +12,10 @@ use mquire::operating_system::linux::{
     entities::task::Task, operating_system::LinuxOperatingSystem,
 };
 
-use clap::{Parser, error::ErrorKind as ClapErrorKind};
+use {
+    clap::{Parser, error::ErrorKind as ClapErrorKind},
+    log::debug,
+};
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -42,8 +45,8 @@ struct TreeState {
     /// Maps a task tid to its tasks (can have multiple entries for duplicate TIDs)
     tid_to_tasks: BTreeMap<u32, Vec<Task>>,
 
-    /// Maps a task tid to its pid
-    tid_to_pid: BTreeMap<u32, u32>,
+    /// Maps a task tid to its tgid
+    tid_to_tgid: BTreeMap<u32, u32>,
 }
 
 /// A command that displays the task tree, optionally showing threads
@@ -57,7 +60,7 @@ impl TaskTreeCommand {
     /// Prints the tree to screen
     fn print_tree(state: &TreeState, tid: u32, prefix: &str, is_last: bool, display_tid: bool) {
         let pid = state
-            .tid_to_pid
+            .tid_to_tgid
             .get(&tid)
             .copied()
             .map(|tid| format!("{tid}"))
@@ -152,6 +155,7 @@ impl Command for TaskTreeCommand {
     }
 
     fn execute(&self, args: &str, context: &CommandContext) -> io::Result<()> {
+        // TODO(alessandro): This should support iter_tasks + iter_tasks_from
         let args_vec: Vec<&str> = if args.is_empty() {
             vec!["task_tree"]
         } else {
@@ -185,13 +189,23 @@ impl Command for TaskTreeCommand {
                 io::Error::other("Failed to downcast to LinuxOperatingSystem".to_string())
             })?;
 
-        let task_list = system
-            .get_task_list()
-            .map_err(|e| io::Error::other(format!("Failed to get task list: {:?}", e)))?;
+        let mut task_list: Vec<Task> = Vec::new();
+        for task_result in system
+            .iter_tasks()
+            .map_err(|e| io::Error::other(format!("Failed to get task list: {:?}", e)))?
+        {
+            match task_result {
+                Ok(task) => task_list.push(task),
+                Err(err) => {
+                    debug!("Failed to parse task: {err:?}");
+                    continue;
+                }
+            }
+        }
 
         let mut task_map: BTreeMap<u32, Vec<Task>> = BTreeMap::new();
         for task in task_list {
-            task_map.entry(task.tid).or_default().push(task);
+            task_map.entry(task.pid).or_default().push(task);
         }
 
         let mut tree_state = TreeState::default();
@@ -209,7 +223,7 @@ impl Command for TaskTreeCommand {
             let filtered_tasks: Vec<_> = tasks
                 .iter()
                 .filter(|task| {
-                    let is_main_thread = task.pid == task.tid;
+                    let is_main_thread = task.tgid == task.pid;
                     parsed_args.show_threads || is_main_thread
                 })
                 .collect();
@@ -223,8 +237,8 @@ impl Command for TaskTreeCommand {
                 None => continue,
             };
 
-            if !tree_state.tid_to_pid.contains_key(tid) {
-                tree_state.tid_to_pid.insert(*tid, primary_task.pid);
+            if !tree_state.tid_to_tgid.contains_key(tid) {
+                tree_state.tid_to_tgid.insert(*tid, primary_task.tgid);
             }
 
             if !filtered_tasks.is_empty() {
@@ -242,7 +256,7 @@ impl Command for TaskTreeCommand {
                 };
 
                 if let Some(parent_pid) = selected_parent_pid
-                    && parent_pid != primary_task.pid
+                    && parent_pid != primary_task.tgid
                 {
                     tree_state
                         .children_map
@@ -272,7 +286,7 @@ impl Command for TaskTreeCommand {
 
             let is_root_task = selected_parent_pid
                 .map(|parent_pid| {
-                    parent_pid == primary_task.pid || !task_tid_list.contains(&parent_pid)
+                    parent_pid == primary_task.tgid || !task_tid_list.contains(&parent_pid)
                 })
                 .unwrap_or(true);
 

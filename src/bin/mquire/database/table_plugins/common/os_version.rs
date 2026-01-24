@@ -8,7 +8,7 @@
 
 use crate::sqlite::{
     error::Result,
-    table_plugin::{ColumnType, ColumnValue, OptionalColumnValue, RowList, TablePlugin},
+    table_plugin::{ColumnDef, ColumnType, ColumnValue, Constraints, RowList, TablePlugin},
 };
 
 use mquire::core::operating_system::OperatingSystem;
@@ -28,38 +28,40 @@ impl OSVersionTablePlugin {
 }
 
 impl TablePlugin for OSVersionTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("kernel_version"), ColumnType::String);
-        schema.insert(String::from("system_version"), ColumnType::String);
-        schema.insert(String::from("arch"), ColumnType::String);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("kernel_version"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("system_version"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (String::from("arch"), ColumnDef::visible(ColumnType::String)),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("os_version")
     }
 
-    fn generate(&self) -> Result<RowList> {
+    fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
         let os_version = self.system.get_os_version()?;
-
-        let mut row = BTreeMap::<String, OptionalColumnValue>::new();
-        row.insert(
-            String::from("kernel_version"),
-            os_version.kernel_version.map(ColumnValue::String),
-        );
-
-        row.insert(
-            String::from("system_version"),
-            os_version.system_version.map(ColumnValue::String),
-        );
-
-        row.insert(
-            String::from("arch"),
-            os_version.arch.map(ColumnValue::String),
-        );
+        let row = BTreeMap::from([
+            (
+                String::from("kernel_version"),
+                os_version.kernel_version.map(ColumnValue::String),
+            ),
+            (
+                String::from("system_version"),
+                os_version.system_version.map(ColumnValue::String),
+            ),
+            (
+                String::from("arch"),
+                os_version.arch.map(ColumnValue::String),
+            ),
+        ]);
 
         Ok(vec![row])
     }

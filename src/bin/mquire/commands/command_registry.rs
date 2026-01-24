@@ -164,6 +164,7 @@ generate_command_registry! {
     },
 
     Linux, Common => {
+        linux::dump::DumpCommand,
         linux::task_tree::TaskTreeCommand,
     },
 }

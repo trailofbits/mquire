@@ -16,23 +16,38 @@ static LOGGER: OnceLock<Logger> = OnceLock::new();
 /// Represents a single logged message
 #[derive(Clone)]
 pub struct LogEntry {
+    /// Timestamp when the message was logged
     pub time: chrono::DateTime<Utc>,
+
+    /// Log level (debug, info, warn, error)
     pub level: log::Level,
+
+    /// Source location (file@line)
     pub location: String,
+
+    /// The log message content
     pub message: String,
 }
 
-/// A logger that saves messages
+/// A logger that captures messages for later retrieval via the log_messages table
 #[derive(Default)]
 pub struct Logger {
+    /// List of captured log entries
     log_entry_list: Mutex<Vec<LogEntry>>,
 }
 
 impl Logger {
-    /// Initializes the global logger
-    pub fn initialize() {
+    /// Initializes the global logger with the specified level
+    pub fn initialize(debug: bool) {
         log::set_logger(LOGGER.get_or_init(Logger::default)).unwrap();
-        log::set_max_level(log::LevelFilter::Error);
+
+        let level = if debug {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        };
+
+        log::set_max_level(level);
     }
 
     /// Retrieves a vector containing all log entries collected by the logger.
@@ -48,10 +63,12 @@ impl Logger {
 }
 
 impl log::Log for Logger {
+    /// Returns whether logging is enabled for the given metadata
     fn enabled(&self, _metadata: &log::Metadata) -> bool {
         true
     }
 
+    /// Logs a record by storing it in the internal list
     fn log(&self, record: &log::Record) {
         if !self.enabled(record.metadata()) {
             return;
@@ -71,5 +88,6 @@ impl log::Log for Logger {
         }
     }
 
+    /// Flushes buffered records (no-op for this logger)
     fn flush(&self) {}
 }

@@ -7,139 +7,238 @@
 //
 
 use crate::sqlite::{
-    error::Result,
-    table_plugin::{ColumnType, ColumnValue, Row, RowList, TablePlugin},
+    error::{Error, Result},
+    table_plugin::{
+        ColumnDef, ColumnType, ColumnValue, Constraints, OptionalColumnValue, RowList, TablePlugin,
+    },
 };
 
-use mquire::core::{
-    entities::network_interface::NetworkInterface, operating_system::OperatingSystem,
+use mquire::{
+    core::entities::{
+        ip_address::IPAddress,
+        network_interface::{NetworkInterface, NetworkMask},
+    },
+    memory::virtual_address::VirtualAddress,
+    operating_system::linux::operating_system::LinuxOperatingSystem,
 };
+
+use log::error;
 
 use std::{collections::BTreeMap, sync::Arc};
 
 /// A table plugin that lists network interfaces
 pub struct NetworkInterfacesTablePlugin {
-    system: Arc<dyn OperatingSystem>,
+    system: Arc<LinuxOperatingSystem>,
 }
 
 impl NetworkInterfacesTablePlugin {
     /// Creates a new table plugin instance
-    pub fn new(system: Arc<dyn OperatingSystem>) -> Arc<Self> {
+    pub fn new(system: Arc<LinuxOperatingSystem>) -> Arc<Self> {
         Arc::new(Self { system })
     }
 
-    fn generate_rows(interface_list: Vec<NetworkInterface>) -> Result<RowList> {
-        let mut row_list = RowList::new();
+    /// Attempts to parse a constraint value as a VirtualAddress, returning an error if parsing fails
+    fn parse_constraint_address(
+        constraints: &Constraints,
+        column_name: &str,
+    ) -> Result<Option<VirtualAddress>> {
+        let constraint = constraints.iter().find(|c| c.column == column_name);
 
-        for interface in interface_list {
-            // Create an initial base row
-            let mut base_row = Row::new();
-            base_row.insert(
+        match constraint {
+            None => Ok(None),
+
+            Some(c) => match &c.value {
+                ColumnValue::String(s) => match s.parse() {
+                    Ok(addr) => Ok(Some(addr)),
+
+                    Err(_) => Err(Error::TablePlugin(format!(
+                        "Invalid VirtualAddress format for '{}': {}",
+                        column_name, s
+                    ))),
+                },
+
+                other => Err(Error::TablePlugin(format!(
+                    "Expected string for '{}', got {:?}",
+                    column_name, other
+                ))),
+            },
+        }
+    }
+
+    /// Generates a row from a network interface
+    fn generate_row_from_interface(
+        interface: &NetworkInterface,
+        list_head: Option<&str>,
+    ) -> BTreeMap<String, OptionalColumnValue> {
+        BTreeMap::from([
+            (
                 String::from("name"),
                 interface.name.clone().map(ColumnValue::String),
-            );
-
-            base_row.insert(
+            ),
+            (
                 String::from("virtual_address"),
                 Some(ColumnValue::String(format!(
-                    "{:?}",
+                    "{}",
                     interface.virtual_address
                 ))),
-            );
-
-            base_row.insert(
+            ),
+            (
+                String::from("list_head"),
+                list_head.map(|s| ColumnValue::String(s.to_string())),
+            ),
+            (
                 String::from("active_mac_address"),
                 interface
                     .active_mac_address
                     .clone()
                     .map(ColumnValue::String),
-            );
-
-            base_row.insert(
+            ),
+            (
                 String::from("physical_mac_address"),
                 interface
                     .physical_mac_address
                     .clone()
                     .map(ColumnValue::String),
-            );
-
-            base_row.insert(
+            ),
+            (
                 String::from("state"),
                 interface.state.clone().map(ColumnValue::String),
-            );
+            ),
+            (String::from("ip_type"), None),
+            (String::from("ip_address"), None),
+            (String::from("mask"), None),
+            (String::from("additional_mac_address"), None),
+        ])
+    }
 
-            base_row.insert(String::from("ip_type"), None);
-            base_row.insert(String::from("ip_address"), None);
-            base_row.insert(String::from("mask"), None);
-            base_row.insert(String::from("additional_mac_address"), None);
+    /// Generates a single row for a direct interface lookup
+    fn generate_single_interface_row(
+        system: &LinuxOperatingSystem,
+        vaddr: VirtualAddress,
+    ) -> Result<RowList> {
+        let interface = system.network_interface_at(vaddr).map_err(|e| {
+            Error::TablePlugin(format!(
+                "Failed to get network interface at {}: {:?}",
+                vaddr, e
+            ))
+        })?;
 
-            // Expand the base row to include the additional mac addresses
-            let base_row_list: RowList = if interface.additional_mac_addresses.is_empty() {
-                vec![base_row]
-            } else {
-                interface
-                    .additional_mac_addresses
-                    .iter()
-                    .map(|mac_address| {
-                        let mut row = base_row.clone();
+        Self::expand_interface_to_rows(&interface, None)
+    }
 
-                        row.insert(
-                            String::from("additional_mac_address"),
-                            Some(ColumnValue::String(mac_address.clone())),
+    /// Generates rows by enumerating interfaces from a list head
+    fn generate_enumerated_rows(
+        system: &LinuxOperatingSystem,
+        list_head: Option<VirtualAddress>,
+    ) -> Result<RowList> {
+        let iter = match list_head {
+            Some(list_head_vaddr) => system.iter_network_interfaces_from(list_head_vaddr),
+            None => system.iter_network_interfaces(),
+        }
+        .map_err(|e| {
+            Error::TablePlugin(format!("Failed to iterate network interfaces: {:?}", e))
+        })?;
+
+        let list_head_str = format!("{}", iter.list_head());
+        let mut row_list = RowList::new();
+
+        for interface_result in iter {
+            match interface_result {
+                Ok(interface) => {
+                    let mut rows =
+                        Self::expand_interface_to_rows(&interface, Some(&list_head_str))?;
+                    row_list.append(&mut rows);
+                }
+
+                Err(error) => {
+                    error!("Failed to parse network interface: {error:?}");
+                }
+            }
+        }
+
+        Ok(row_list)
+    }
+
+    /// Expands a single interface into multiple rows (for IP addresses and additional MACs)
+    fn expand_interface_to_rows(
+        interface: &NetworkInterface,
+        list_head: Option<&str>,
+    ) -> Result<RowList> {
+        let base_row = Self::generate_row_from_interface(interface, list_head);
+
+        // Expand the base row to include the additional mac addresses
+        let base_row_list: RowList = if interface.additional_mac_addresses.is_empty() {
+            vec![base_row]
+        } else {
+            interface
+                .additional_mac_addresses
+                .iter()
+                .map(|mac_address| {
+                    let mut row = base_row.clone();
+
+                    row.insert(
+                        String::from("additional_mac_address"),
+                        Some(ColumnValue::String(mac_address.clone())),
+                    );
+
+                    row
+                })
+                .collect()
+        };
+
+        // Expand the base row list to include the IP addresses
+        let row_list = if interface.ip_addresses.is_empty() {
+            base_row_list
+        } else {
+            interface
+                .ip_addresses
+                .iter()
+                .flat_map(|ip_addr_and_mask| {
+                    base_row_list.iter().map(|base_row| {
+                        let mut ip_address_row = base_row.clone();
+
+                        let (ip_type, ip_address) = match &ip_addr_and_mask.ip_address {
+                            IPAddress::IPv4(addr) => ("ipv4", addr.clone()),
+                            IPAddress::IPv6(addr) => ("ipv6", addr.clone()),
+                        };
+
+                        ip_address_row.insert(
+                            String::from("ip_type"),
+                            Some(ColumnValue::String(String::from(ip_type))),
                         );
 
-                        row
+                        ip_address_row.insert(
+                            String::from("ip_address"),
+                            Some(ColumnValue::String(ip_address)),
+                        );
+
+                        let mask_str = match &ip_addr_and_mask.mask {
+                            NetworkMask::DottedDecimal(s) => s.clone(),
+                            NetworkMask::PrefixLength(len) => len.to_string(),
+                        };
+
+                        ip_address_row
+                            .insert(String::from("mask"), Some(ColumnValue::String(mask_str)));
+
+                        ip_address_row
                     })
-                    .collect()
-            };
+                })
+                .collect()
+        };
 
-            // Expand the base row list to include the IP addresses
-            let mut current_interface_row_list = if interface.ip_addresses.is_empty() {
-                base_row_list
-            } else {
-                interface
-                    .ip_addresses
-                    .iter()
-                    .flat_map(|ip_addr_and_mask| {
-                        base_row_list.iter().map(|base_row| {
-                            let mut ip_address_row = base_row.clone();
+        Ok(row_list)
+    }
 
-                            let (ip_type, ip_address) = match &ip_addr_and_mask.ip_address {
-                                mquire::core::entities::ip_address::IPAddress::IPv4(addr) => {
-                                    ("ipv4", addr.clone())
-                                }
-                                mquire::core::entities::ip_address::IPAddress::IPv6(addr) => {
-                                    ("ipv6", addr.clone())
-                                }
-                            };
+    #[cfg(test)]
+    fn generate_rows(
+        interface_list: Vec<NetworkInterface>,
+        list_head: Option<&str>,
+    ) -> Result<RowList> {
+        let mut row_list = RowList::new();
 
-                            ip_address_row.insert(
-                                String::from("ip_type"),
-                                Some(ColumnValue::String(String::from(ip_type))),
-                            );
-
-                            ip_address_row.insert(
-                                String::from("ip_address"),
-                                Some(ColumnValue::String(ip_address)),
-                            );
-
-                            let mask_str = match &ip_addr_and_mask.mask {
-                                mquire::core::entities::network_interface::NetworkMask::DottedDecimal(s) => s.clone(),
-                                mquire::core::entities::network_interface::NetworkMask::PrefixLength(len) => len.to_string(),
-                            };
-
-                            ip_address_row.insert(
-                                String::from("mask"),
-                                Some(ColumnValue::String(mask_str)),
-                            );
-
-                            ip_address_row
-                        })
-                    })
-                    .collect()
-            };
-
-            row_list.append(&mut current_interface_row_list);
+        for interface in interface_list {
+            let mut rows = Self::expand_interface_to_rows(&interface, list_head)?;
+            row_list.append(&mut rows);
         }
 
         Ok(row_list)
@@ -147,34 +246,82 @@ impl NetworkInterfacesTablePlugin {
 }
 
 impl TablePlugin for NetworkInterfacesTablePlugin {
-    fn schema(&self) -> BTreeMap<String, ColumnType> {
-        let mut schema = BTreeMap::<String, ColumnType>::new();
-
-        schema.insert(String::from("virtual_address"), ColumnType::String);
-        schema.insert(String::from("name"), ColumnType::String);
-        schema.insert(String::from("active_mac_address"), ColumnType::String);
-        schema.insert(String::from("physical_mac_address"), ColumnType::String);
-        schema.insert(String::from("additional_mac_address"), ColumnType::String);
-        schema.insert(String::from("ip_type"), ColumnType::String);
-        schema.insert(String::from("ip_address"), ColumnType::String);
-        schema.insert(String::from("mask"), ColumnType::String);
-        schema.insert(String::from("state"), ColumnType::String);
-
-        schema
+    fn schema(&self) -> BTreeMap<String, ColumnDef> {
+        BTreeMap::from([
+            (
+                String::from("virtual_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("list_head"),
+                ColumnDef::hidden(ColumnType::String),
+            ),
+            (String::from("name"), ColumnDef::visible(ColumnType::String)),
+            (
+                String::from("active_mac_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("physical_mac_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("additional_mac_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("ip_type"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (
+                String::from("ip_address"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+            (String::from("mask"), ColumnDef::visible(ColumnType::String)),
+            (
+                String::from("state"),
+                ColumnDef::visible(ColumnType::String),
+            ),
+        ])
     }
 
     fn name(&self) -> String {
         String::from("network_interfaces")
     }
 
-    fn generate(&self) -> Result<RowList> {
-        Self::generate_rows(self.system.get_network_interface_list()?)
+    fn generator_inputs(&self) -> Vec<String> {
+        vec![String::from("virtual_address"), String::from("list_head")]
+    }
+
+    fn generate(&self, constraints: &Constraints) -> Result<RowList> {
+        let virtual_address = Self::parse_constraint_address(constraints, "virtual_address")?;
+        let list_head = Self::parse_constraint_address(constraints, "list_head")?;
+
+        match (virtual_address, list_head) {
+            (Some(vaddr), None) => {
+                Self::generate_single_interface_row(self.system.as_ref(), vaddr)
+            }
+
+            (None, Some(list_head_vaddr)) => {
+                Self::generate_enumerated_rows(self.system.as_ref(), Some(list_head_vaddr))
+            }
+
+            (None, None) => Self::generate_enumerated_rows(self.system.as_ref(), None),
+
+            (Some(_), Some(_)) => Err(Error::TablePlugin(
+                "Cannot specify both 'virtual_address' and 'list_head' constraints together. \
+                 Use 'virtual_address' to query a single interface, or 'list_head' to enumerate from a custom list head."
+                    .to_string(),
+            )),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::sqlite::table_plugin::Row;
 
     use mquire::{
         core::entities::{
@@ -240,7 +387,7 @@ mod tests {
         let interfaces = vec![create_mock_interface("eth0", vec![], vec![], vec![])];
 
         // Should produce exactly 1 row
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 1);
 
         assert_eq!(get_column_value(&result[0], "name").unwrap(), "eth0");
@@ -265,7 +412,7 @@ mod tests {
         )];
 
         // Should produce 3 rows (one per additional MAC)
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 3);
 
         for row in &result {
@@ -300,7 +447,7 @@ mod tests {
         )];
 
         // Should produce 2 rows (one per IPv4)
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 2);
 
         for row in &result {
@@ -336,7 +483,7 @@ mod tests {
         )];
 
         // Should produce 2 rows (one per IPv6)
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 2);
 
         for row in &result {
@@ -370,7 +517,7 @@ mod tests {
         )];
 
         // Should produce 4 rows (2 + 2)
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 4);
 
         // First 2 rows should be IPv4
@@ -398,7 +545,7 @@ mod tests {
         )];
 
         // Should produce 4 rows (2 * 2 cartesian product)
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 4);
 
         // All rows should have IPv4 type
@@ -462,7 +609,7 @@ mod tests {
         )];
 
         // Should produce 4 rows: 2 MAC * (1 IPv4 + 1 IPv6) = 2 * 2 = 4
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 4);
 
         // First 2 rows should be IPv4 with both MACs
@@ -513,7 +660,7 @@ mod tests {
         // Should produce 2 rows:
         //  - eth0: 1 IPv4 = 1 row
         //  - eth1: 1 MAC * 1 IPv6 = 1 row
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 2);
 
         // First row is from eth0
@@ -530,7 +677,7 @@ mod tests {
         let interfaces = vec![];
 
         // Empty interface list should produce empty result
-        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(interfaces, None).unwrap();
         assert_eq!(result.len(), 0);
     }
 
@@ -550,7 +697,7 @@ mod tests {
             state: None,
         };
 
-        let result = NetworkInterfacesTablePlugin::generate_rows(vec![interface]).unwrap();
+        let result = NetworkInterfacesTablePlugin::generate_rows(vec![interface], None).unwrap();
 
         // Should produce one row, with just the virtual address
         assert_eq!(result.len(), 1);

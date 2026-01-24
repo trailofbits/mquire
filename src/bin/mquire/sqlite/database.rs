@@ -8,7 +8,10 @@
 
 use crate::sqlite::{
     error::{Error, Result},
-    table_plugin::{ColumnType, ColumnValue, Row, RowList, TablePlugin},
+    table_plugin::{
+        ColumnDef, ColumnType, ColumnValue, ColumnVisibility, Constraint, Constraints, Row,
+        RowList, TablePlugin,
+    },
 };
 
 use {
@@ -140,11 +143,12 @@ impl Database {
     pub fn get_table_names(&self) -> Vec<String> {
         let mut table_names: Vec<String> = self.table_plugin_map.keys().cloned().collect();
         table_names.sort();
+
         table_names
     }
 
     /// Returns the schema for a specific table
-    pub fn get_table_schema(&self, table_name: &str) -> Option<BTreeMap<String, ColumnType>> {
+    pub fn get_table_schema(&self, table_name: &str) -> Option<BTreeMap<String, ColumnDef>> {
         self.table_plugin_map
             .get(table_name)
             .map(|plugin| plugin.schema())
@@ -222,6 +226,12 @@ struct PluginVTab<'vtab> {
     /// Reference to the table plugin
     plugin: Arc<dyn TablePlugin>,
 
+    /// Column names in schema order
+    column_names: Vec<String>,
+
+    /// Columns that can be used as generation hints
+    generator_inputs: Vec<String>,
+
     /// Phantom data for lifetime
     phantom: PhantomData<&'vtab ()>,
 }
@@ -240,16 +250,25 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
             .clone();
 
         let schema = plugin.schema();
-        let mut column_declarations = Vec::new();
+        let generator_inputs = plugin.generator_inputs();
 
-        for (column_name, column_type) in schema {
-            let sql_type = match column_type {
+        let mut column_declarations = Vec::new();
+        let mut column_names = Vec::new();
+
+        for (column_name, column_def) in &schema {
+            let sql_type = match column_def.column_type {
                 ColumnType::SignedInteger => "INTEGER",
                 ColumnType::String => "TEXT",
                 ColumnType::Double => "REAL",
             };
 
-            column_declarations.push(format!("{} {}", column_name, sql_type));
+            let hidden = match column_def.visibility {
+                ColumnVisibility::Visible => "",
+                ColumnVisibility::Hidden => " HIDDEN",
+            };
+
+            column_declarations.push(format!("{} {}{}", column_name, sql_type, hidden));
+            column_names.push(column_name.clone());
         }
 
         let create_table_sql = format!(
@@ -261,6 +280,8 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
         let vtab = Self {
             base: rusqlite::vtab::sqlite3_vtab::default(),
             plugin,
+            column_names,
+            generator_inputs,
             phantom: PhantomData,
         };
 
@@ -268,7 +289,51 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
     }
 
     fn best_index(&self, info: &mut IndexInfo) -> rusqlite::Result<()> {
-        info.set_estimated_cost(1.0);
+        let referenced_generator_inputs: Vec<(usize, String)> = info
+            .constraints()
+            .enumerate()
+            .filter_map(|(i, constraint)| {
+                if constraint.is_usable()
+                    && constraint.operator()
+                        == rusqlite::vtab::IndexConstraintOp::SQLITE_INDEX_CONSTRAINT_EQ
+                {
+                    let col_idx = constraint.column() as usize;
+                    if let Some(col_name) = self.column_names.get(col_idx)
+                        && self.generator_inputs.contains(col_name)
+                    {
+                        return Some((i, col_name.clone()));
+                    }
+                }
+
+                None
+            })
+            .collect();
+
+        let mut arg_index = 1;
+        let mut used_generator_inputs = Vec::new();
+
+        for (constraint_idx, col_name) in referenced_generator_inputs {
+            let mut usage = info.constraint_usage(constraint_idx);
+            usage.set_argv_index(arg_index);
+            usage.set_omit(true);
+
+            used_generator_inputs.push(col_name);
+            arg_index += 1;
+        }
+
+        if !used_generator_inputs.is_empty() {
+            info.set_idx_str(&used_generator_inputs.join(","));
+        }
+
+        // Set estimated cost based on whether generator inputs are satisfied. This will
+        // give a hint to SQLite to prefer query plans that pass constraints via JOINs
+        let cost = if used_generator_inputs.is_empty() && !self.generator_inputs.is_empty() {
+            f64::MAX
+        } else {
+            1.0
+        };
+
+        info.set_estimated_cost(cost);
         Ok(())
     }
 
@@ -276,6 +341,7 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
         Ok(PluginVTabCursor {
             base: rusqlite::vtab::sqlite3_vtab_cursor::default(),
             plugin: self.plugin.clone(),
+            column_names: self.column_names.clone(),
             rows: Vec::new(),
             current_row: 0,
             phantom: PhantomData,
@@ -292,6 +358,9 @@ struct PluginVTabCursor<'vtab> {
     /// Reference to the table plugin
     plugin: Arc<dyn TablePlugin>,
 
+    /// Column names in schema order
+    column_names: Vec<String>,
+
     /// Generated rows
     rows: RowList,
 
@@ -306,12 +375,37 @@ unsafe impl VTabCursor for PluginVTabCursor<'_> {
     fn filter(
         &mut self,
         _idx_num: c_int,
-        _idx_str: Option<&str>,
-        _args: &Filters<'_>,
+        idx_str: Option<&str>,
+        args: &Filters<'_>,
     ) -> rusqlite::Result<()> {
+        let used_generator_inputs: Vec<&str> =
+            idx_str.map(|s| s.split(',').collect()).unwrap_or_default();
+
+        let mut constraints = Constraints::new();
+        for (column_name, value) in used_generator_inputs.iter().zip(args.iter()) {
+            let column_value = match value {
+                rusqlite::types::ValueRef::Integer(i) => ColumnValue::SignedInteger(i),
+                rusqlite::types::ValueRef::Real(f) => ColumnValue::Double(f),
+                rusqlite::types::ValueRef::Text(s) => {
+                    ColumnValue::String(String::from_utf8_lossy(s).to_string())
+                }
+                rusqlite::types::ValueRef::Null => continue,
+                rusqlite::types::ValueRef::Blob(_) => continue,
+            };
+
+            constraints.push(Constraint {
+                column: column_name.to_string(),
+                value: column_value,
+            });
+        }
+
+        self.plugin
+            .validate_constraints(&constraints)
+            .map_err(|e| rusqlite::Error::ModuleError(format!("{:?}", e)))?;
+
         self.rows = self
             .plugin
-            .generate()
+            .generate(&constraints)
             .map_err(|e| rusqlite::Error::ModuleError(format!("{:?}", e)))?;
 
         self.current_row = 0;
@@ -368,19 +462,22 @@ mod tests {
     }
 
     impl TablePlugin for TestTablePlugin {
-        fn schema(&self) -> BTreeMap<String, ColumnType> {
-            let mut schema = BTreeMap::new();
-            schema.insert("column1".to_owned(), ColumnType::SignedInteger);
-            schema.insert("column2".to_owned(), ColumnType::String);
-            schema.insert("column3".to_owned(), ColumnType::Double);
-            schema
+        fn schema(&self) -> BTreeMap<String, ColumnDef> {
+            BTreeMap::from([
+                (
+                    "column1".to_owned(),
+                    ColumnDef::visible(ColumnType::SignedInteger),
+                ),
+                ("column2".to_owned(), ColumnDef::visible(ColumnType::String)),
+                ("column3".to_owned(), ColumnDef::visible(ColumnType::Double)),
+            ])
         }
 
         fn name(&self) -> String {
             "test_table".to_owned()
         }
 
-        fn generate(&self) -> Result<RowList> {
+        fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
             if self.return_error {
                 return Err(Error::TablePlugin("Custom error message".to_string()));
             }
@@ -453,5 +550,325 @@ mod tests {
         let error = database.query("SELECT * FROM test_table").unwrap_err();
         assert!(matches!(error, Error::TablePlugin(_)));
         assert!(error.to_string().contains("Custom error message"));
+    }
+
+    /// A table plugin that requires a constraint to be present
+    struct RequiredConstraintTablePlugin;
+
+    impl RequiredConstraintTablePlugin {
+        fn new() -> Arc<Self> {
+            Arc::new(Self)
+        }
+    }
+
+    impl TablePlugin for RequiredConstraintTablePlugin {
+        fn schema(&self) -> BTreeMap<String, ColumnDef> {
+            BTreeMap::from([
+                ("id".to_owned(), ColumnDef::visible(ColumnType::String)),
+                ("value".to_owned(), ColumnDef::visible(ColumnType::String)),
+            ])
+        }
+
+        fn name(&self) -> String {
+            "required_constraint_table".to_owned()
+        }
+
+        fn generator_inputs(&self) -> Vec<String> {
+            vec!["id".to_owned()]
+        }
+
+        fn validate_constraints(&self, constraints: &Constraints) -> Result<()> {
+            if !constraints.iter().any(|c| c.column == "id") {
+                return Err(Error::TablePlugin(
+                    "The 'id' constraint is required".to_string(),
+                ));
+            }
+            Ok(())
+        }
+
+        fn generate(&self, constraints: &Constraints) -> Result<RowList> {
+            let id = constraints
+                .iter()
+                .find(|c| c.column == "id")
+                .map(|c| match &c.value {
+                    ColumnValue::String(s) => s.clone(),
+                    _ => "unknown".to_string(),
+                })
+                .unwrap_or_default();
+
+            Ok(vec![BTreeMap::from([
+                ("id".to_owned(), Some(ColumnValue::String(id.clone()))),
+                (
+                    "value".to_owned(),
+                    Some(ColumnValue::String(format!("value_for_{}", id))),
+                ),
+            ])])
+        }
+    }
+
+    #[test]
+    fn test_required_constraint_missing() {
+        let table_plugin = RequiredConstraintTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let error = database
+            .query("SELECT * FROM required_constraint_table")
+            .unwrap_err();
+        assert!(matches!(error, Error::TablePlugin(_)));
+        assert!(error.to_string().contains("'id' constraint is required"));
+    }
+
+    #[test]
+    fn test_required_constraint_present() {
+        let table_plugin = RequiredConstraintTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let query_data = database
+            .query("SELECT * FROM required_constraint_table WHERE id = 'test123'")
+            .expect("Failed to execute the query");
+
+        assert_eq!(query_data.row_list.len(), 1);
+        assert_eq!(
+            query_data.row_list[0].get("id").unwrap(),
+            &Some(ColumnValue::String("test123".to_string()))
+        );
+        assert_eq!(
+            query_data.row_list[0].get("value").unwrap(),
+            &Some(ColumnValue::String("value_for_test123".to_string()))
+        );
+    }
+
+    /// A table plugin with two conflicting constraints
+    struct ConflictingConstraintsTablePlugin;
+
+    impl ConflictingConstraintsTablePlugin {
+        fn new() -> Arc<Self> {
+            Arc::new(Self)
+        }
+    }
+
+    impl TablePlugin for ConflictingConstraintsTablePlugin {
+        fn schema(&self) -> BTreeMap<String, ColumnDef> {
+            BTreeMap::from([
+                ("by_name".to_owned(), ColumnDef::visible(ColumnType::String)),
+                ("by_id".to_owned(), ColumnDef::visible(ColumnType::String)),
+                ("result".to_owned(), ColumnDef::visible(ColumnType::String)),
+            ])
+        }
+
+        fn name(&self) -> String {
+            "conflicting_constraints_table".to_owned()
+        }
+
+        fn generator_inputs(&self) -> Vec<String> {
+            vec!["by_name".to_owned(), "by_id".to_owned()]
+        }
+
+        fn validate_constraints(&self, constraints: &Constraints) -> Result<()> {
+            let has_by_name = constraints.iter().any(|c| c.column == "by_name");
+            let has_by_id = constraints.iter().any(|c| c.column == "by_id");
+
+            if has_by_name && has_by_id {
+                return Err(Error::TablePlugin(
+                    "Cannot specify both 'by_name' and 'by_id' constraints".to_string(),
+                ));
+            }
+            Ok(())
+        }
+
+        fn generate(&self, constraints: &Constraints) -> Result<RowList> {
+            let result = if let Some(c) = constraints.iter().find(|c| c.column == "by_name") {
+                match &c.value {
+                    ColumnValue::String(s) => format!("found_by_name:{}", s),
+                    _ => "invalid".to_string(),
+                }
+            } else if let Some(c) = constraints.iter().find(|c| c.column == "by_id") {
+                match &c.value {
+                    ColumnValue::String(s) => format!("found_by_id:{}", s),
+                    _ => "invalid".to_string(),
+                }
+            } else {
+                "no_constraint".to_string()
+            };
+
+            Ok(vec![BTreeMap::from([
+                ("by_name".to_owned(), None),
+                ("by_id".to_owned(), None),
+                ("result".to_owned(), Some(ColumnValue::String(result))),
+            ])])
+        }
+    }
+
+    #[test]
+    fn test_conflicting_constraints_by_name_only() {
+        let table_plugin = ConflictingConstraintsTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let query_data = database
+            .query("SELECT * FROM conflicting_constraints_table WHERE by_name = 'alice'")
+            .expect("Failed to execute the query");
+
+        assert_eq!(query_data.row_list.len(), 1);
+        assert_eq!(
+            query_data.row_list[0].get("result").unwrap(),
+            &Some(ColumnValue::String("found_by_name:alice".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_conflicting_constraints_by_id_only() {
+        let table_plugin = ConflictingConstraintsTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let query_data = database
+            .query("SELECT * FROM conflicting_constraints_table WHERE by_id = '123'")
+            .expect("Failed to execute the query");
+
+        assert_eq!(query_data.row_list.len(), 1);
+        assert_eq!(
+            query_data.row_list[0].get("result").unwrap(),
+            &Some(ColumnValue::String("found_by_id:123".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_conflicting_constraints_both_specified() {
+        let table_plugin = ConflictingConstraintsTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let error = database
+            .query(
+                "SELECT * FROM conflicting_constraints_table WHERE by_name = 'alice' AND by_id = '123'",
+            )
+            .unwrap_err();
+        assert!(matches!(error, Error::TablePlugin(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("Cannot specify both 'by_name' and 'by_id'")
+        );
+    }
+
+    /// A table plugin with an optional constraint
+    struct OptionalConstraintTablePlugin;
+
+    impl OptionalConstraintTablePlugin {
+        fn new() -> Arc<Self> {
+            Arc::new(Self)
+        }
+    }
+
+    impl TablePlugin for OptionalConstraintTablePlugin {
+        fn schema(&self) -> BTreeMap<String, ColumnDef> {
+            BTreeMap::from([
+                ("filter".to_owned(), ColumnDef::visible(ColumnType::String)),
+                ("item".to_owned(), ColumnDef::visible(ColumnType::String)),
+            ])
+        }
+
+        fn name(&self) -> String {
+            "optional_constraint_table".to_owned()
+        }
+
+        fn generator_inputs(&self) -> Vec<String> {
+            vec!["filter".to_owned()]
+        }
+
+        fn generate(&self, constraints: &Constraints) -> Result<RowList> {
+            let all_items = vec!["apple", "banana", "cherry", "apricot"];
+
+            let filter = constraints
+                .iter()
+                .find(|c| c.column == "filter")
+                .and_then(|c| match &c.value {
+                    ColumnValue::String(s) => Some(s.clone()),
+                    _ => None,
+                });
+
+            let items: Vec<&str> = match &filter {
+                Some(f) => all_items
+                    .into_iter()
+                    .filter(|item| item.starts_with(f.as_str()))
+                    .collect(),
+                None => all_items,
+            };
+
+            Ok(items
+                .into_iter()
+                .map(|item| {
+                    BTreeMap::from([
+                        ("filter".to_owned(), filter.clone().map(ColumnValue::String)),
+                        (
+                            "item".to_owned(),
+                            Some(ColumnValue::String(item.to_owned())),
+                        ),
+                    ])
+                })
+                .collect())
+        }
+    }
+
+    #[test]
+    fn test_optional_constraint_without_filter() {
+        let table_plugin = OptionalConstraintTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let query_data = database
+            .query("SELECT * FROM optional_constraint_table")
+            .expect("Failed to execute the query");
+
+        assert_eq!(query_data.row_list.len(), 4);
+    }
+
+    #[test]
+    fn test_optional_constraint_with_filter() {
+        let table_plugin = OptionalConstraintTablePlugin::new();
+
+        let mut database = Database::new().unwrap();
+        database
+            .register_table_plugin(table_plugin)
+            .expect("Failed to register the table plugin");
+
+        let query_data = database
+            .query("SELECT * FROM optional_constraint_table WHERE filter = 'ap'")
+            .expect("Failed to execute the query");
+
+        assert_eq!(query_data.row_list.len(), 2);
+
+        let items: Vec<String> = query_data
+            .row_list
+            .iter()
+            .filter_map(|row| match row.get("item").unwrap() {
+                Some(ColumnValue::String(s)) => Some(s.clone()),
+                _ => None,
+            })
+            .collect();
+
+        assert!(items.contains(&"apple".to_string()));
+        assert!(items.contains(&"apricot".to_string()));
     }
 }

@@ -15,6 +15,7 @@ use std::ops::Range;
 pub enum SyslogFileDataSource {
     /// Data read from the kernel page cache
     PageCache,
+
     /// Data read from a process memory mapping
     MemoryMapping,
 }
@@ -45,8 +46,8 @@ pub struct SyslogFile {
     /// The virtual address of the task_struct
     pub task: VirtualAddress,
 
-    /// The process iD
-    pub pid: u32,
+    /// The thread group identifier (TGID)
+    pub tgid: u32,
 
     /// The source of this syslog data
     pub data_source: SyslogFileDataSource,

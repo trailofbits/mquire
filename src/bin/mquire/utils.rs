@@ -8,7 +8,7 @@
 
 use crate::sqlite::{
     database::QueryData,
-    table_plugin::{ColumnType, ColumnValue},
+    table_plugin::{ColumnDef, ColumnType, ColumnValue},
 };
 
 use std::io;
@@ -30,12 +30,16 @@ pub enum ArchitectureType {
 /// Displays the schema for the given table
 pub fn display_table_schema(
     table_name: &str,
-    schema: &std::collections::BTreeMap<String, ColumnType>,
+    schema: &std::collections::BTreeMap<String, ColumnDef>,
 ) {
     let columns: Vec<String> = schema
         .iter()
-        .map(|(col_name, col_type)| {
-            format!("  {} {},", col_name, column_type_to_sql_type(col_type))
+        .map(|(col_name, col_def)| {
+            format!(
+                "  {} {},",
+                col_name,
+                column_type_to_sql_type(&col_def.column_type)
+            )
         })
         .collect();
 
