@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download mquire binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: mquire-binary
           path: target/release
