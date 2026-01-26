@@ -1,0 +1,70 @@
+{
+  "column_order": [
+    "name",
+    "state",
+    "src_version",
+    "parameters"
+  ],
+  "row_list": [
+    {
+      "name": {
+        "String": "snd_seq_dummy"
+      },
+      "parameters": {
+        "String": "duplex (perm: 0o444), ports (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "517B5C54BBB3ED557FD424E"
+      },
+      "state": {
+        "String": "live"
+      }
+    },
+    {
+      "name": {
+        "String": "snd_hrtimer"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "77DB12C3D68E4B25DF6A6EB"
+      },
+      "state": {
+        "String": "live"
+      }
+    },
+    {
+      "name": {
+        "String": ""
+      },
+      "parameters": null,
+      "src_version": null,
+      "state": null
+    },
+    {
+      "name": {
+        "String": "snd_seq_midi"
+      },
+      "parameters": {
+        "String": "input_buffer_size (perm: 0o644), output_buffer_size (perm: 0o644)"
+      },
+      "src_version": {
+        "String": "53CDB33198617398A79D984"
+      },
+      "state": {
+        "String": "live"
+      }
+    },
+    {
+      "name": {
+        "String": "xhci_pci_renesas"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "5D2105FF33AD3EC7584F1A7"
+      },
+      "state": {
+        "String": "live"
+      }
+    }
+  ]
+}

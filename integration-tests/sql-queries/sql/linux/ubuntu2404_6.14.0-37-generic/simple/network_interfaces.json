@@ -1,0 +1,169 @@
+{
+  "column_order": [
+    "active_mac_address",
+    "additional_mac_address",
+    "ip_address",
+    "ip_type",
+    "mask",
+    "name",
+    "physical_mac_address",
+    "state",
+    "virtual_address"
+  ],
+  "row_list": [
+    {
+      "active_mac_address": null,
+      "additional_mac_address": null,
+      "ip_address": {
+        "String": "127.0.0.1"
+      },
+      "ip_type": {
+        "String": "ipv4"
+      },
+      "mask": {
+        "String": "255.0.0.0"
+      },
+      "name": {
+        "String": "lo"
+      },
+      "physical_mac_address": null,
+      "state": {
+        "String": "down"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601D5D000) }"
+      }
+    },
+    {
+      "active_mac_address": null,
+      "additional_mac_address": null,
+      "ip_address": {
+        "String": "::1"
+      },
+      "ip_type": {
+        "String": "ipv6"
+      },
+      "mask": {
+        "String": "128"
+      },
+      "name": {
+        "String": "lo"
+      },
+      "physical_mac_address": null,
+      "state": {
+        "String": "down"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601D5D000) }"
+      }
+    },
+    {
+      "active_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "additional_mac_address": null,
+      "ip_address": {
+        "String": "192.168.68.10"
+      },
+      "ip_type": {
+        "String": "ipv4"
+      },
+      "mask": {
+        "String": "255.255.255.0"
+      },
+      "name": {
+        "String": "enp0s1"
+      },
+      "physical_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "state": {
+        "String": "down"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+      }
+    },
+    {
+      "active_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "additional_mac_address": null,
+      "ip_address": {
+        "String": "fd72:71a9:4877:c7e5:4721:e89a:f4c3:e8f5"
+      },
+      "ip_type": {
+        "String": "ipv6"
+      },
+      "mask": {
+        "String": "64"
+      },
+      "name": {
+        "String": "enp0s1"
+      },
+      "physical_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "state": {
+        "String": "down"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+      }
+    },
+    {
+      "active_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "additional_mac_address": null,
+      "ip_address": {
+        "String": "fd72:71a9:4877:c7e5:856:ffff:fe8c:edef"
+      },
+      "ip_type": {
+        "String": "ipv6"
+      },
+      "mask": {
+        "String": "64"
+      },
+      "name": {
+        "String": "enp0s1"
+      },
+      "physical_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "state": {
+        "String": "down"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+      }
+    },
+    {
+      "active_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "additional_mac_address": null,
+      "ip_address": {
+        "String": "fe80::856:ffff:fe8c:edef"
+      },
+      "ip_type": {
+        "String": "ipv6"
+      },
+      "mask": {
+        "String": "64"
+      },
+      "name": {
+        "String": "enp0s1"
+      },
+      "physical_mac_address": {
+        "String": "0a:56:ff:8c:ed:ef"
+      },
+      "state": {
+        "String": "down"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+
+# Virtual environment
+.venv/
+
+# Tools
+.mypy_cache/
+.ruff_cache/
+
+# Test results
+results-*.xml

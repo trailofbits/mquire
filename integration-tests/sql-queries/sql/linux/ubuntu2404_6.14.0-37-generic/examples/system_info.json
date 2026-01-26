@@ -1,0 +1,16 @@
+{
+  "column_order": [
+    "domain",
+    "hostname"
+  ],
+  "row_list": [
+    {
+      "domain": {
+        "String": "(none)"
+      },
+      "hostname": {
+        "String": "ubuntu2404"
+      }
+    }
+  ]
+}

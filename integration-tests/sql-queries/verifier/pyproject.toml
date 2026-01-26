@@ -1,0 +1,66 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+[project]
+name = "mquire-sql-query-verifier"
+version = "0.1.0"
+description = "mquire SQL query verifier"
+requires-python = ">=3.10"
+dependencies = [
+    "boto3>=1.35.0",
+    "click>=8.1.0",
+    "pydantic>=2.0.0",
+    "rich>=13.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.0.0",
+    "ruff>=0.4.0",
+    "boto3-stubs[s3]>=1.35.0",
+]
+
+[project.scripts]
+mquire-sql-query-verifier = "mquire_sql_query_verifier.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mquire_sql_query_verifier"]
+
+[tool.ruff]
+line-length = 100
+# Use requires-python from [project] instead of target-version
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "C4",     # flake8-comprehensions
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # ruff-specific rules
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mquire_sql_query_verifier"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-cast", "truthy-bool"]

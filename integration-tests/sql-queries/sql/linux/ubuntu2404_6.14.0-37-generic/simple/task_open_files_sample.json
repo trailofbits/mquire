@@ -1,0 +1,2010 @@
+{
+  "column_order": [
+    "fd",
+    "inode",
+    "path",
+    "task",
+    "tgid",
+    "virtual_address"
+  ],
+  "row_list": [
+    {
+      "fd": {
+        "SignedInteger": 43005
+      },
+      "inode": {
+        "SignedInteger": 0
+      },
+      "path": {
+        "String": "/input/by-path"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60031DC00) }"
+      },
+      "tgid": {
+        "SignedInteger": 0
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60120ED80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 43083
+      },
+      "inode": null,
+      "path": {
+        "String": "/input"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60031DC00) }"
+      },
+      "tgid": {
+        "SignedInteger": 0
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFFCA2080457DD8) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 0
+      },
+      "inode": {
+        "SignedInteger": 5
+      },
+      "path": {
+        "String": "/null"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60499E900) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 1
+      },
+      "inode": {
+        "SignedInteger": 5
+      },
+      "path": {
+        "String": "/null"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60499E900) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 2
+      },
+      "inode": {
+        "SignedInteger": 5
+      },
+      "path": {
+        "String": "/null"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60499E900) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 3
+      },
+      "inode": {
+        "SignedInteger": 11
+      },
+      "path": {
+        "String": "/kmsg"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E600) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 4
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "[eventpoll]"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1FB00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 5
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "[signalfd]"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1F140) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 6
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1ED80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 7
+      },
+      "inode": {
+        "SignedInteger": 1
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1F2C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 8
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E0C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 9
+      },
+      "inode": {
+        "SignedInteger": 801772
+      },
+      "path": {
+        "String": "/usr/lib/systemd/systemd-executor"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1FD40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 10
+      },
+      "inode": {
+        "SignedInteger": 6874
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A57850EFC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 11
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E3C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 12
+      },
+      "inode": {
+        "SignedInteger": 867
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60ABEE000) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 13
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "[eventpoll]"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1F680) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 14
+      },
+      "inode": {
+        "SignedInteger": 1101
+      },
+      "path": {
+        "String": "/1/mountinfo"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E780) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 15
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1F8C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 16
+      },
+      "inode": {
+        "SignedInteger": 4026532074
+      },
+      "path": {
+        "String": "/swaps"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1EE40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 17
+      },
+      "inode": {
+        "SignedInteger": 14786
+      },
+      "path": {
+        "String": "NETLINK"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1F440) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 18
+      },
+      "inode": {
+        "SignedInteger": 860
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6012155C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 19
+      },
+      "inode": {
+        "SignedInteger": 870
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60ABEF5C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 20
+      },
+      "inode": {
+        "SignedInteger": 934
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60E5E8780) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 21
+      },
+      "inode": {
+        "SignedInteger": 14790
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1EFC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 22
+      },
+      "inode": {
+        "SignedInteger": 14792
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1FE00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 23
+      },
+      "inode": {
+        "SignedInteger": 14793
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1EF00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 24
+      },
+      "inode": {
+        "SignedInteger": 10760
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60AC0AF00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 25
+      },
+      "inode": {
+        "SignedInteger": 10761
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60AC0A240) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 26
+      },
+      "inode": {
+        "SignedInteger": 21674
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A66D9A3440) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 27
+      },
+      "inode": {
+        "SignedInteger": 6875
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A57850FE00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 28
+      },
+      "inode": {
+        "SignedInteger": 14798
+      },
+      "path": {
+        "String": "NETLINK"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E840) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 29
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F69140) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 30
+      },
+      "inode": {
+        "SignedInteger": 418
+      },
+      "path": {
+        "String": "/autofs"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E000) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 31
+      },
+      "inode": {
+        "SignedInteger": 848
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6080A4840) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 32
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E240) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 33
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F69080) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 34
+      },
+      "inode": {
+        "SignedInteger": 850
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6080A4E40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 35
+      },
+      "inode": {
+        "SignedInteger": 753
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60ABEEB40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 36
+      },
+      "inode": {
+        "SignedInteger": 1186
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60E5E9800) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 37
+      },
+      "inode": {
+        "SignedInteger": 926
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60E5E83C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 38
+      },
+      "inode": {
+        "SignedInteger": 31821
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A576AF5500) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 39
+      },
+      "inode": {
+        "SignedInteger": 795
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60B657EC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 40
+      },
+      "inode": {
+        "SignedInteger": 486
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A605493740) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 41
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F680C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 42
+      },
+      "inode": {
+        "SignedInteger": 14867
+      },
+      "path": {
+        "String": "NETLINK"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604320180) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 43
+      },
+      "inode": {
+        "SignedInteger": 8474
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60ABEF200) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 44
+      },
+      "inode": {
+        "SignedInteger": 962
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F40A80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 45
+      },
+      "inode": {
+        "SignedInteger": 793
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A611366CC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 46
+      },
+      "inode": {
+        "SignedInteger": 418
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604320900) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 47
+      },
+      "inode": {
+        "SignedInteger": 36943
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A5019FC840) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 48
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F68FC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 49
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6080A4480) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 50
+      },
+      "inode": {
+        "SignedInteger": 879
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60E5E92C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 51
+      },
+      "inode": {
+        "SignedInteger": 872
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60ABEE0C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 52
+      },
+      "inode": {
+        "SignedInteger": 862
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601214480) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 53
+      },
+      "inode": {
+        "SignedInteger": 36944
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A5019FD500) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 54
+      },
+      "inode": {
+        "SignedInteger": 877
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604501C80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 55
+      },
+      "inode": {
+        "SignedInteger": 854
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6080A4A80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 56
+      },
+      "inode": {
+        "SignedInteger": 893
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60533B2C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 57
+      },
+      "inode": {
+        "SignedInteger": 851
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6080A4FC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 58
+      },
+      "inode": {
+        "SignedInteger": 873
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60ABEED80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 59
+      },
+      "inode": {
+        "SignedInteger": 29425
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A5415B6C00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 60
+      },
+      "inode": {
+        "SignedInteger": 1226
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604919D40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 61
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1EB40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 62
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1F200) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 63
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607FB6D80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 64
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607FB78C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 65
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607FB6240) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 66
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F41380) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 67
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F40600) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 68
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F41080) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 69
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607F412C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 70
+      },
+      "inode": {
+        "SignedInteger": 15145
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604321200) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 71
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61189B200) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 72
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61189BC80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 73
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61189B680) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 74
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61189B5C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 75
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61189A780) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 76
+      },
+      "inode": {
+        "SignedInteger": 2083
+      },
+      "path": {
+        "String": "bpf-prog"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61189BBC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 80
+      },
+      "inode": {
+        "SignedInteger": 1186
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60E5E9800) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 81
+      },
+      "inode": {
+        "SignedInteger": 1226
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604919D40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 82
+      },
+      "inode": {
+        "SignedInteger": 1118
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604918480) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 83
+      },
+      "inode": {
+        "SignedInteger": 1118
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604918480) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 84
+      },
+      "inode": {
+        "SignedInteger": 15273
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A602F06180) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 85
+      },
+      "inode": {
+        "SignedInteger": 1140
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604918F00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 86
+      },
+      "inode": {
+        "SignedInteger": 1135
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6017689C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 87
+      },
+      "inode": {
+        "SignedInteger": 1135
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6017689C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 88
+      },
+      "inode": {
+        "SignedInteger": 1140
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A604918F00) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 90
+      },
+      "inode": {
+        "SignedInteger": 1125
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61DBF0540) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 91
+      },
+      "inode": {
+        "SignedInteger": 1125
+      },
+      "path": {
+        "String": "/"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61DBF0540) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 92
+      },
+      "inode": {
+        "SignedInteger": 10770
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60AC0AA80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 93
+      },
+      "inode": {
+        "SignedInteger": 11639
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A6043860C0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 95
+      },
+      "inode": {
+        "SignedInteger": 15278
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A602F06540) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 96
+      },
+      "inode": {
+        "SignedInteger": 14787
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1ECC0) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 97
+      },
+      "inode": {
+        "SignedInteger": 14788
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E180) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 98
+      },
+      "inode": {
+        "SignedInteger": 14789
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607E1E900) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 99
+      },
+      "inode": {
+        "SignedInteger": 20070
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A62C67CD80) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 102
+      },
+      "inode": {
+        "SignedInteger": 18031
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A606378480) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 104
+      },
+      "inode": {
+        "SignedInteger": 8876
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A607FB6E40) }"
+      }
+    },
+    {
+      "fd": {
+        "SignedInteger": 109
+      },
+      "inode": {
+        "SignedInteger": 8967
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "task": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A600875400) }"
+      },
+      "tgid": {
+        "SignedInteger": 1
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000039306000), raw_virtual_address: RawVirtualAddress(0xFFFF88A61DBF1500) }"
+      }
+    }
+  ]
+}

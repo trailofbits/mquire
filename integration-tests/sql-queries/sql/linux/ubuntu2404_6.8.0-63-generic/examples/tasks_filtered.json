@@ -1,0 +1,97 @@
+{
+  "column_order": [
+    "comm",
+    "binary_path",
+    "command_line"
+  ],
+  "row_list": [
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd"
+      },
+      "comm": {
+        "String": "systemd"
+      },
+      "command_line": {
+        "String": "/sbin/init splash"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-journald"
+      },
+      "comm": {
+        "String": "systemd-journal"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd-journald"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/bin/udevadm"
+      },
+      "comm": {
+        "String": "systemd-udevd"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd-udevd"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd"
+      },
+      "comm": {
+        "String": "systemd"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd --user"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-oomd"
+      },
+      "comm": {
+        "String": "systemd-oomd"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd-oomd"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-resolved"
+      },
+      "comm": {
+        "String": "systemd-resolve"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd-resolved"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-logind"
+      },
+      "comm": {
+        "String": "systemd-logind"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd-logind"
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-timesyncd"
+      },
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "command_line": {
+        "String": "/usr/lib/systemd/systemd-timesyncd"
+      }
+    }
+  ]
+}

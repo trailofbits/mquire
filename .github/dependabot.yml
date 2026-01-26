@@ -1,4 +1,13 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
 version: 2
+
 updates:
   - package-ecosystem: "cargo"
     directory: "/"
@@ -16,4 +25,13 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "uv"
+    directory: "/integration-tests/sql-queries/verifier"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "python"
     open-pull-requests-limit: 5

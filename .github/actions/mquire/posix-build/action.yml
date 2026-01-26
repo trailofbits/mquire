@@ -1,0 +1,88 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+name: 'mquire posix build'
+description: 'Build and test mquire on Linux/macOS'
+
+inputs:
+  build_type:
+    description: 'Build type (Debug or Release)'
+    required: true
+  runner_os:
+    description: 'Runner OS (Linux or macOS)'
+    required: true
+
+outputs:
+  target_parameter:
+    description: 'Target parameter for cargo'
+    value: ${{ steps.target_parameter.outputs.VALUE }}
+  build_parameter:
+    description: 'Build parameter for cargo'
+    value: ${{ steps.build_parameter.outputs.VALUE }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install and update Rust
+      shell: bash
+      run: |
+        rustup update
+
+        if [[ "${{ inputs.runner_os }}" == "Linux" ]]; then
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+        fi
+
+    - name: Select the Rust target
+      id: target_parameter
+      shell: bash
+      run: |
+        if [[ "${{ inputs.runner_os }}" == "Linux" ]]; then
+          echo "VALUE=--target x86_64-unknown-linux-musl" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup the command line build arguments
+      id: build_parameter
+      shell: bash
+      run: |
+        if [[ "${{ inputs.build_type }}" == "Release" ]]; then
+          echo "VALUE=--release" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build the project
+      shell: bash
+      run: |
+        cargo build \
+          ${{ steps.target_parameter.outputs.VALUE }} \
+          ${{ steps.build_parameter.outputs.VALUE }}
+
+    - name: Run the tests
+      shell: bash
+      run: |
+        cargo test \
+          --examples \
+          ${{ steps.target_parameter.outputs.VALUE }} \
+          ${{ steps.build_parameter.outputs.VALUE }}
+
+    - name: Build the packages
+      if: ${{ inputs.runner_os == 'Linux' && inputs.build_type == 'Release' }}
+      shell: bash
+      run: |
+        find target -type f | sort -u
+
+        cmake \
+          -S package \
+          -B package-build \
+          -DMQUIRE_REPOSITORY_PATH="$(pwd)"
+
+        cmake \
+          --build package-build \
+          --target package
+
+        find package-build -type f | sort -u

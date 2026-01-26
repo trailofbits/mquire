@@ -1,0 +1,55 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+name: 'mquire check'
+description: 'Run Rust format, clippy, and check'
+
+inputs:
+  build_type:
+    description: 'Build type (Debug or Release)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Update Rust
+      shell: bash
+      run: rustup update
+
+    - name: Setup the command line build arguments
+      id: build_type
+      shell: bash
+      run: |
+        if [[ "${{ inputs.build_type }}" == "Release" ]]; then
+          echo "VALUE=--release" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Run cargo fmt
+      shell: bash
+      run: cargo fmt --all --check
+
+    - name: Run cargo clippy
+      shell: bash
+      run: |
+        cargo clippy \
+          ${{ steps.build_type.outputs.VALUE }} \
+          --all-targets \
+          --all-features \
+          --examples \
+          -- -D warnings
+
+    - name: Run cargo check
+      shell: bash
+      run: |
+        cargo check \
+          ${{ steps.build_type.outputs.VALUE }} \
+          --all-targets \
+          --all-features \
+          --examples \
+          --tests \
+          --workspace
