@@ -8,7 +8,13 @@
 
 use crate::memory::{error::Result, primitives::PhysicalAddress, readable::Readable};
 
-use std::{fs::File, os::unix::fs::FileExt};
+use std::fs::File;
+
+#[cfg(unix)]
+use std::os::unix::fs::FileExt;
+
+#[cfg(windows)]
+use std::os::windows::fs::FileExt;
 
 /// Provides a convenient interface for reading from a Readable instance
 pub struct ReadableFile<'a> {
@@ -25,9 +31,18 @@ impl<'a> ReadableFile<'a> {
 
 impl<'a> Readable for ReadableFile<'a> {
     /// Reads data from the given physical address
+    #[cfg(unix)]
     fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize> {
         self.file
             .read_at(buffer, physical_address.into())
+            .map_err(|error| error.into())
+    }
+
+    /// Reads data from the given physical address
+    #[cfg(windows)]
+    fn read(&self, buffer: &mut [u8], physical_address: PhysicalAddress) -> Result<usize> {
+        self.file
+            .seek_read(buffer, physical_address.into())
             .map_err(|error| error.into())
     }
 
