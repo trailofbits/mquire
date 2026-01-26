@@ -1,0 +1,11 @@
+{
+  "mquire_path": "../../../target/release/mquire",
+  "tests": {
+    "ubuntu2404_6.14.0-37-generic.lime": "../sql/linux/ubuntu2404_6.14.0-37-generic/simple",
+    "ubuntu2404_6.8.0-63-generic.lime": "../sql/linux/ubuntu2404_6.8.0-63-generic/simple"
+  },
+  "architecture": "intel",
+  "operating_system": "linux",
+  "local_snapshots_path": "../snapshots",
+  "timeout_seconds": 300
+}

@@ -1,0 +1,8 @@
+# Ignore downloaded memory snapshots
+*.lime
+*.raw
+*.dmp
+*.mem
+
+# Keep this directory
+!.gitignore

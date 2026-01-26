@@ -1,0 +1,1104 @@
+{
+  "column_order": [
+    "gpl_only_symbols",
+    "name",
+    "parameters",
+    "src_version",
+    "state",
+    "taints",
+    "version",
+    "virtual_address"
+  ],
+  "row_list": [
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_seq_dummy"
+      },
+      "parameters": {
+        "String": "duplex (perm: 0o444), ports (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "517B5C54BBB3ED557FD424E"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC051C140) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_hrtimer"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "77DB12C3D68E4B25DF6A6EB"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0507100) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": ""
+      },
+      "parameters": null,
+      "src_version": null,
+      "state": null,
+      "taints": {
+        "SignedInteger": 17179869188
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFF90DDD9B8) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_seq_midi"
+      },
+      "parameters": {
+        "String": "input_buffer_size (perm: 0o644), output_buffer_size (perm: 0o644)"
+      },
+      "src_version": {
+        "String": "53CDB33198617398A79D984"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04F4480) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "xhci_pci_renesas"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "5D2105FF33AD3EC7584F1A7"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0246380) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 0
+      },
+      "name": {
+        "String": "snd_seq_midi_event"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "F4A287381EA8C2C29A9D02C"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC050D3C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "virtio_dma_buf"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "948E819AB0475A85666144F"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0251040) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_rawmidi"
+      },
+      "parameters": {
+        "String": "amidi_map (perm: 0o444), midi_map (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "E1B98C01985B901EF22E51F"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04FCA40) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "libahci"
+      },
+      "parameters": {
+        "String": "devslp_idle_timeout (perm: 0o644), ahci_em_messages (perm: 0o444), ignore_sss (perm: 0o444), skip_host_reset (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "17CA291830250AD1CD69442"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC025DE80) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_seq"
+      },
+      "parameters": {
+        "String": "seq_default_timer_resolution (perm: 0o644), seq_default_timer_subdevice (perm: 0o644), seq_default_timer_device (perm: 0o644), seq_default_timer_card (perm: 0o644), seq_default_timer_sclass (perm: 0o644), seq_default_timer_class (perm: 0o644), seq_client_load (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "A0EB7C8E3F8703ED5DD990A"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04E27C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "e1000"
+      },
+      "parameters": {
+        "String": "debug (perm: 0o0), copybreak (perm: 0o644), SmartPowerDownEnable (perm: 0o0), InterruptThrottleRate (perm: 0o0), RxAbsIntDelay (perm: 0o0), RxIntDelay (perm: 0o0), TxAbsIntDelay (perm: 0o0), TxIntDelay (perm: 0o0), XsumRX (perm: 0o0), FlowControl (perm: 0o0), AutoNeg (perm: 0o0), Duplex (perm: 0o0), Speed (perm: 0o0), RxDescriptors (perm: 0o0), TxDescriptors (perm: 0o0)"
+      },
+      "src_version": {
+        "String": "558CF184701BC77ADA7F5E5"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0289840) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_seq_device"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "3F6B140A67AC583E7537AB2"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04B11C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "virtio_rng"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "2FD1AE4AF8F0B5A5254E233"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02AD240) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd_timer"
+      },
+      "parameters": {
+        "String": "timer_tstamp_monotonic (perm: 0o444), timer_limit (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "F55E983F7655C370EA041D1"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04C4440) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "xhci_pci"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "2C6D9C160BA2E73D9D39F92"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02B8500) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "snd"
+      },
+      "parameters": {
+        "String": "cards_limit (perm: 0o444), major (perm: 0o444), slots (perm: 0o444), max_user_ctl_alloc_size (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "D6D02B3B9F3861865C2A949"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC049CC40) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "ahci"
+      },
+      "parameters": {
+        "String": "mask_port_map (perm: 0o444), mobile_lpm_policy (perm: 0o644), marvell_enable (perm: 0o644)"
+      },
+      "src_version": {
+        "String": "01E2772AAB7C24342FCF7D8"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": {
+        "String": "3.0"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02C9A00) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "soundcore"
+      },
+      "parameters": {
+        "String": "preclaim_oss (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "923325DA030A53A73C3F214"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC046F1C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "virtio_gpu"
+      },
+      "parameters": {
+        "String": "modeset (perm: 0o400), virglhack (perm: 0o400)"
+      },
+      "src_version": {
+        "String": "78C36C1AB1305F5A8C65D5B"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02ED100) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "crct10dif_pclmul"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "5339B432C48A611B9D3C5E1"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0488280) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "hid"
+      },
+      "parameters": {
+        "String": "ignore_special_drivers (perm: 0o600)"
+      },
+      "src_version": {
+        "String": "E9F1982CB420E9E89FF8485"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02A2140) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "crc32_pclmul"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "E5A4F6638ED1B7B191B2DFE"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC047E280) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "usbhid"
+      },
+      "parameters": {
+        "String": "quirks (perm: 0o444), ignoreled (perm: 0o644), kbpoll (perm: 0o644), jspoll (perm: 0o644), mousepoll (perm: 0o644)"
+      },
+      "src_version": {
+        "String": "0E906201F7BD2818C98F47A"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02C0D40) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "binfmt_misc"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "5ADFEC0B113B18A8E5198BE"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0465580) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "hid_generic"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "881D06B386D4FEE6290B87C"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02B3180) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "polyval_clmulni"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "72119333BB6554EB38929A6"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0446340) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "autofs4"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "36B5972CD200CC521B7645E"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0325D40) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "polyval_generic"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "E5A77A5F9E4A3D82F059FBB"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC046B280) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "x_tables"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "014C6459D0D5EB9934F9C33"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC033CEC0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "ghash_clmulni_intel"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "CC15CA7EE471EA85A026CE1"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04604C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "ip_tables"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "364B4DA3E6E0326A73915C4"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0357840) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "sha256_ssse3"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "88C39A1B152DE3CBE22361B"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04541C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "dmi_sysfs"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "82A040CCE4C96A7F9D8860C"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0330680) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 0
+      },
+      "name": {
+        "String": "nls_iso8859_1"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "123BEA283E1EF3FC8960CF2"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC044B140) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "nfnetlink"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "F288615435849546E2E38A4"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC034C680) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "sha1_ssse3"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "BF225AA59C20DAD6E4C4ADE"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03DE9C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "efi_pstore"
+      },
+      "parameters": {
+        "String": "pstore_disable (perm: 0o644), record_size (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "55086F4C6D8C3AEFFEB1679"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03601C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "aesni_intel"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "3B8487331441A32D4A41CB2"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03DA300) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "parport"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "783DE782F59B7FC10D7B69C"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0375800) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "crypto_simd"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "09B88A9BE4A2CAE1D37BA64"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03CB140) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "lp"
+      },
+      "parameters": {
+        "String": "reset (perm: 0o0), parport (perm: 0o0)"
+      },
+      "src_version": {
+        "String": "9AE92E124C8D2FE8F9C8A1F"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0390640) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "cryptd"
+      },
+      "parameters": {
+        "String": "cryptd_max_cpu_qlen (perm: 0o0)"
+      },
+      "src_version": {
+        "String": "2A6EA1567628D165C2BEE8F"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03D3400) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "ppdev"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "C015BA5079E6197F9ADD35B"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC039B500) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "joydev"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "35C88506518892F951C3966"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03C38C0) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "parport_pc"
+      },
+      "parameters": {
+        "String": "init_mode (perm: 0o0), verbose_probing (perm: 0o644), dma (perm: 0o0), irq (perm: 0o0), io_hi (perm: 0o0), io (perm: 0o0)"
+      },
+      "src_version": {
+        "String": "7C6BF636F086679C04EF1B0"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03A5E40) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "input_leds"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "18EAB2439869291CEA88F03"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03B7180) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "msr"
+      },
+      "parameters": {
+        "String": "allow_writes (perm: 0o600)"
+      },
+      "src_version": {
+        "String": "542D3D1F9231017C1F6AA40"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03A0100) }"
+      }
+    },
+    {
+      "gpl_only_symbols": {
+        "SignedInteger": 1
+      },
+      "name": {
+        "String": "sch_fq_codel"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "72E93448989512D163ABAA9"
+      },
+      "state": {
+        "String": "live"
+      },
+      "taints": {
+        "SignedInteger": 0
+      },
+      "version": null,
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03B2340) }"
+      }
+    }
+  ]
+}

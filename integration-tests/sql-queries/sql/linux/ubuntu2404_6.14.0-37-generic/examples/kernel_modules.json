@@ -1,0 +1,68 @@
+{
+  "column_order": [
+    "name",
+    "state",
+    "src_version",
+    "parameters"
+  ],
+  "row_list": [
+    {
+      "name": {
+        "String": "snd_seq_dummy"
+      },
+      "parameters": {
+        "String": "ump (perm: 0o444), duplex (perm: 0o444), ports (perm: 0o444)"
+      },
+      "src_version": {
+        "String": "7A40E0FD47A0746D1C9CD85"
+      },
+      "state": {
+        "String": "live"
+      }
+    },
+    {
+      "name": {
+        "String": "snd_hrtimer"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "81EE6D58896E2C2E63E252D"
+      },
+      "state": {
+        "String": "live"
+      }
+    },
+    {
+      "name": {
+        "String": ""
+      },
+      "parameters": null,
+      "src_version": null,
+      "state": null
+    },
+    {
+      "name": {
+        "String": "qrtr"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "473C5AB47E04ECEA0106681"
+      },
+      "state": {
+        "String": "live"
+      }
+    },
+    {
+      "name": {
+        "String": "virtio_rng"
+      },
+      "parameters": null,
+      "src_version": {
+        "String": "0852940240D554836D22CB2"
+      },
+      "state": {
+        "String": "live"
+      }
+    }
+  ]
+}

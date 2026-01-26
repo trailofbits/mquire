@@ -1,0 +1,1901 @@
+{
+  "column_order": [
+    "inode",
+    "local_address",
+    "local_port",
+    "protocol",
+    "remote_address",
+    "remote_port",
+    "state",
+    "type",
+    "virtual_address"
+  ],
+  "row_list": [
+    {
+      "inode": {
+        "SignedInteger": 8800
+      },
+      "local_address": {
+        "String": "127.0.0.1"
+      },
+      "local_port": {
+        "SignedInteger": 631
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "listen"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0C093780) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 8650
+      },
+      "local_address": {
+        "String": "127.0.0.53"
+      },
+      "local_port": {
+        "SignedInteger": 53
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "listen"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0C095C80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 8652
+      },
+      "local_address": {
+        "String": "127.0.0.54"
+      },
+      "local_port": {
+        "SignedInteger": 53
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "listen"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0C095340) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 8799
+      },
+      "local_address": {
+        "String": "::1"
+      },
+      "local_port": {
+        "SignedInteger": 631
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "listen"
+      },
+      "type": {
+        "String": "ipv6"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A18879400) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 20128
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 44510
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "172.64.149.23"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A15C0C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21753
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 58888
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.107.221.82"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982966325C80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 4048
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 39786
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.36.137.203"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A3F65C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 20126
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 44502
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "172.64.149.23"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A159BC0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 24719
+      },
+      "local_address": {
+        "String": "fd72:71a9:4877:c7e5:a6e9:6740:e888:e651"
+      },
+      "local_port": {
+        "SignedInteger": 58662
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "2603:1061:10::16"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv6"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A1887EE00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 24713
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 51188
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "20.50.201.205"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0C090000) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 20080
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 47458
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "185.199.110.153"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A158940) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 15241
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 54492
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.251.141.227"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296CD59BC0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 7131
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 39790
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.36.137.203"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296F192E40) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 28849
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 46092
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "35.157.26.135"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296635D340) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21910
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 39008
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.120.250.63"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF9829663265C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 10211
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 34432
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "104.18.21.226"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296635CA00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 33974
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 34002
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "63.176.8.218"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A04912E40) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 15235
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 46656
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "104.16.5.65"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296CD5DC80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32307
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 47972
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "172.64.148.197"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A44B9EF00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21782
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 33954
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "23.40.158.218"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982966323780) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 34947
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 58382
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "104.244.43.131"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A026BDC80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 26809
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 58544
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.107.243.93"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982910AD9280) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 29858
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 54434
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.250.180.131"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296FFFDC80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 11128
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 36486
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "13.107.13.93"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98292CD81280) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32769
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 54432
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.250.180.131"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296F195340) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 17249
+      },
+      "local_address": {
+        "String": "fd72:71a9:4877:c7e5:a6e9:6740:e888:e651"
+      },
+      "local_port": {
+        "SignedInteger": 43858
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "2620:1ec:46::60"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv6"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982977A13C00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 20127
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 44508
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "172.64.149.23"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A15CA00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 34938
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 35594
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "140.82.121.4"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A026B9280) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 30505
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 60898
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.36.73.246"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296FFFD340) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 25164
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 56352
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "3.166.8.184"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0C0965C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 23836
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 33090
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "172.217.218.84"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982902E4C0C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 23746
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 54412
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.250.180.131"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982902E48940) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 26416
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 35012
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "151.101.2.133"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98292CD82500) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21752
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 58882
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.107.221.82"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982966322E40) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 34019
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 53320
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "13.107.246.60"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A04915C80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32691
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 39018
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.120.250.63"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A44B9DC80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 30507
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 51954
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "172.66.0.227"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296FFFB780) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 28851
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 39380
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "162.159.140.229"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296635B780) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 26807
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 58532
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.107.243.93"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982910ADCA00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21754
+      },
+      "local_address": {
+        "String": "fd72:71a9:4877:c7e5:a6e9:6740:e888:e651"
+      },
+      "local_port": {
+        "SignedInteger": 44924
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "2600:1901:0:38d7::"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv6"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A189D9400) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 7168
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 54422
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.250.180.131"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296F195C80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 33958
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 56784
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "185.199.111.133"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A04916F00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32298
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 35322
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "104.18.41.41"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A44B9A500) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 28846
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 51924
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "185.199.111.154"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296635EF00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 26813
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 37578
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "66.33.60.130"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982910ADEF00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 23745
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 54408
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.250.180.131"
+      },
+      "remote_port": {
+        "SignedInteger": 80
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982902E4E5C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32783
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 56802
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "185.199.111.133"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98296F1965C0) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 4090
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 52758
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "34.120.208.123"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A3F0940) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21244
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 49608
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "142.250.180.132"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A04912500) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 31260
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 50092
+      },
+      "protocol": {
+        "String": "tcp"
+      },
+      "remote_address": {
+        "String": "104.16.138.209"
+      },
+      "remote_port": {
+        "SignedInteger": 443
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A3F4A00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 29068
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 59475
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A08110900) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 17697
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 35022
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0FB4E300) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 33982
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 53801
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0B123F00) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 8649
+      },
+      "local_address": {
+        "String": "127.0.0.53"
+      },
+      "local_port": {
+        "SignedInteger": 53
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A021E6780) }"
+      }
+    },
+    {
+      "inode": null,
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 0
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A09920D80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 37028
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 33783
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A021E4800) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 8651
+      },
+      "local_address": {
+        "String": "127.0.0.54"
+      },
+      "local_port": {
+        "SignedInteger": 53
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A021E3180) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 18534
+      },
+      "local_address": {
+        "String": "192.168.68.10"
+      },
+      "local_port": {
+        "SignedInteger": 68
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": {
+        "String": "192.168.68.1"
+      },
+      "remote_port": {
+        "SignedInteger": 67
+      },
+      "state": {
+        "String": "established"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0C32D100) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 17696
+      },
+      "local_address": {
+        "String": "::"
+      },
+      "local_port": {
+        "SignedInteger": 5353
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv6"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A101E3480) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 17695
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 5353
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A0FB49680) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 21867
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 40160
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A07FC4380) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 23829
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 56901
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A3D2E7080) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32698
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 44573
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A247080) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 17698
+      },
+      "local_address": {
+        "String": "::"
+      },
+      "local_port": {
+        "SignedInteger": 36728
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv6"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A101E0A80) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32709
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 55107
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98291A247980) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 32831
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 42757
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A00DCA400) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 23814
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 52993
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF982A3D2E2880) }"
+      }
+    },
+    {
+      "inode": {
+        "SignedInteger": 27440
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 34732
+      },
+      "protocol": {
+        "String": "udp"
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "close"
+      },
+      "type": {
+        "String": "ipv4"
+      },
+      "virtual_address": {
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000001A60000), raw_virtual_address: RawVirtualAddress(0xFFFF98292EFB1B00) }"
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "column_order": [
+    "data_source",
+    "file_virtual_address",
+    "hostname",
+    "message",
+    "process",
+    "region_end",
+    "region_start",
+    "task_virtual_address",
+    "tgid",
+    "timestamp"
+  ],
+  "row_list": []
+}

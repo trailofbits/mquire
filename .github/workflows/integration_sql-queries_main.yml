@@ -1,0 +1,122 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+name: sql-queries
+
+on:
+  workflow_call:
+
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - simple
+          - examples
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build mquire
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install and update Rust
+        run: |
+          rustup update
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Upload mquire binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mquire-binary
+          path: target/x86_64-unknown-linux-musl/release/mquire
+          retention-days: 1
+
+  test-simple:
+    needs: build
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'simple' }}
+    uses: ./.github/workflows/integration_sql-queries_runner.yml
+    secrets: inherit
+    with:
+      test_suite: simple
+      config_file: ../cfg/linux_simple.json
+
+  test-examples:
+    needs: build
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'examples' }}
+    uses: ./.github/workflows/integration_sql-queries_runner.yml
+    secrets: inherit
+    with:
+      test_suite: examples
+      config_file: ../cfg/linux_examples.json
+
+  summary:
+    name: Integration Test Summary
+    needs: [test-simple, test-examples]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+
+      - name: Check test results
+        run: |
+          echo "Integration Test Summary"
+
+          FAILED=0
+
+          for xml in *.xml; do
+            if [ -f "$xml" ]; then
+              echo "Checking $xml..."
+              FAILURES=$(grep -o 'failures="[0-9]*"' "$xml" | head -1 | grep -o '[0-9]*')
+              if [ "$FAILURES" != "0" ] && [ -n "$FAILURES" ]; then
+                echo "  FAILED: $FAILURES failures"
+                FAILED=1
+              else
+                echo "  PASSED"
+              fi
+            fi
+          done
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Some tests failed!"
+            exit 1
+          fi
+
+          echo ""
+          echo "All tests passed!"

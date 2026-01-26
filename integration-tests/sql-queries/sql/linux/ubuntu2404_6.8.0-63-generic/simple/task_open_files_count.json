@@ -1,0 +1,12 @@
+{
+  "column_order": [
+    "COUNT(*)"
+  ],
+  "row_list": [
+    {
+      "COUNT(*)": {
+        "SignedInteger": 11329
+      }
+    }
+  ]
+}

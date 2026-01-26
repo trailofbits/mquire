@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="30" failures="0">
+  <testsuite name="ubuntu2404_6.14.0-37-generic.lime" tests="15" failures="0" time="60.466">
+    <testcase name="boot_time" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.891" />
+    <testcase name="dmesg" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.667" />
+    <testcase name="kallsyms" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.934" />
+    <testcase name="kernel_modules" classname="ubuntu2404_6.14.0-37-generic.lime" time="4.116" />
+    <testcase name="memory_mappings_count" classname="ubuntu2404_6.14.0-37-generic.lime" time="4.565" />
+    <testcase name="memory_mappings_sample" classname="ubuntu2404_6.14.0-37-generic.lime" time="4.226" />
+    <testcase name="network_connections" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.620" />
+    <testcase name="network_interfaces" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.975" />
+    <testcase name="os_version" classname="ubuntu2404_6.14.0-37-generic.lime" time="4.277" />
+    <testcase name="syslog_file" classname="ubuntu2404_6.14.0-37-generic.lime" time="4.595" />
+    <testcase name="system_info" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.856" />
+    <testcase name="task_open_files_count" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.989" />
+    <testcase name="task_open_files_sample" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.973" />
+    <testcase name="tasks" classname="ubuntu2404_6.14.0-37-generic.lime" time="3.719" />
+    <testcase name="tasks_sample" classname="ubuntu2404_6.14.0-37-generic.lime" time="4.061" />
+  </testsuite>
+  <testsuite name="ubuntu2404_6.8.0-63-generic.lime" tests="15" failures="0" time="49.912">
+    <testcase name="boot_time" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.248" />
+    <testcase name="dmesg" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.181" />
+    <testcase name="kallsyms" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.282" />
+    <testcase name="kernel_modules" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.021" />
+    <testcase name="memory_mappings_count" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.847" />
+    <testcase name="memory_mappings_sample" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.947" />
+    <testcase name="network_connections" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.148" />
+    <testcase name="network_interfaces" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.219" />
+    <testcase name="os_version" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.086" />
+    <testcase name="syslog_file" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.527" />
+    <testcase name="system_info" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.267" />
+    <testcase name="task_open_files_count" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.239" />
+    <testcase name="task_open_files_sample" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.479" />
+    <testcase name="tasks" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.261" />
+    <testcase name="tasks_sample" classname="ubuntu2404_6.8.0-63-generic.lime" time="3.160" />
+  </testsuite>
+</testsuites>

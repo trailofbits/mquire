@@ -1,0 +1,12 @@
+{
+  "column_order": [
+    "comm",
+    "pid",
+    "local_address",
+    "local_port",
+    "remote_address",
+    "remote_port",
+    "state"
+  ],
+  "row_list": []
+}

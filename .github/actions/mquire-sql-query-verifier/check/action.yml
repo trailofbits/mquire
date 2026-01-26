@@ -1,0 +1,41 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+name: 'verifier check'
+description: 'Run Python linting and type checking for verifier'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Set up Python
+      shell: bash
+      working-directory: integration-tests/sql-queries/verifier
+      run: uv python install
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: integration-tests/sql-queries/verifier
+      run: uv sync --group dev
+
+    - name: Run ruff format check
+      shell: bash
+      working-directory: integration-tests/sql-queries/verifier
+      run: uv run ruff format --check .
+
+    - name: Run ruff lint
+      shell: bash
+      working-directory: integration-tests/sql-queries/verifier
+      run: uv run ruff check .
+
+    - name: Run mypy
+      shell: bash
+      working-directory: integration-tests/sql-queries/verifier
+      run: uv run mypy .

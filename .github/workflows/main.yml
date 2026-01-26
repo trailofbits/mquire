@@ -6,7 +6,7 @@
 # the LICENSE file found in the root directory of this source tree.
 #
 
-name: Linux
+name: CI
 
 on:
   pull_request:
@@ -25,45 +25,100 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  posix_check:
-    strategy:
-      matrix:
-        runner_image: [ubuntu-24.04]
-        build_type: [Debug]
+  rust_check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Clone the source code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-    uses: ./.github/workflows/posix_check.yml
-    secrets: inherit
+      - name: Run Rust checks
+        uses: ./.github/actions/mquire/check
+        with:
+          build_type: Debug
 
-    with:
-      runner_image: ${{ matrix.runner_image }}
-      build_type: ${{ matrix.build_type }}
+  verifier_check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Clone the source code
+        uses: actions/checkout@v6
+
+      - name: Run verifier checks
+        uses: ./.github/actions/mquire-sql-query-verifier/check
 
   linux:
-    needs: [posix_check]
+    needs: [rust_check]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     strategy:
       matrix:
-        runner_image: [ubuntu-24.04]
         build_type: [Release, Debug]
 
-    uses: ./.github/workflows/posix_build.yml
-    secrets: inherit
+    steps:
+      - name: Clone the source code
+        uses: actions/checkout@v6
 
-    with:
-      runner_image: ${{ matrix.runner_image }}
-      build_type: ${{ matrix.build_type }}
+      - name: Build and test
+        uses: ./.github/actions/mquire/posix-build
+        with:
+          build_type: ${{ matrix.build_type }}
+          runner_os: Linux
+
+      - name: Find and upload the .deb Linux package
+        if: ${{ matrix.build_type == 'Release' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-deb-package
+          path: package-build/*.deb
+
+      - name: Find and upload the .rpm Linux package
+        if: ${{ matrix.build_type == 'Release' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-rpm-package
+          path: package-build/*.rpm
+
+      - name: Find and upload the .tar.gz Linux package
+        if: ${{ matrix.build_type == 'Release' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-tgz-package
+          path: package-build/*.tar.gz
 
   macos:
-    needs: [posix_check]
+    needs: [rust_check]
+    runs-on: macos-15
+    timeout-minutes: 30
 
-    strategy:
-      matrix:
-        runner_image: [macos-15]
-        build_type: [Release, Debug]
+    steps:
+      - name: Clone the source code
+        uses: actions/checkout@v6
 
-    uses: ./.github/workflows/posix_build.yml
+      - name: Build and test
+        uses: ./.github/actions/mquire/posix-build
+        with:
+          build_type: Release
+          runner_os: macOS
+
+  windows:
+    needs: [rust_check]
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Clone the source code
+        uses: actions/checkout@v6
+
+      - name: Build and test
+        uses: ./.github/actions/mquire/windows-build
+        with:
+          build_type: Release
+
+  sql-queries:
+    needs: [rust_check, verifier_check, linux, macos, windows]
+    uses: ./.github/workflows/integration_sql-queries_main.yml
     secrets: inherit
-
-    with:
-      runner_image: ${{ matrix.runner_image }}
-      build_type: ${{ matrix.build_type }}

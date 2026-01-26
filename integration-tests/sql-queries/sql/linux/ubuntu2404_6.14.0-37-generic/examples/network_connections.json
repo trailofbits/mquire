@@ -1,0 +1,51 @@
+{
+  "column_order": [
+    "comm",
+    "pid",
+    "local_address",
+    "local_port",
+    "remote_address",
+    "remote_port",
+    "state"
+  ],
+  "row_list": [
+    {
+      "comm": {
+        "String": "sshd"
+      },
+      "local_address": {
+        "String": "0.0.0.0"
+      },
+      "local_port": {
+        "SignedInteger": 22
+      },
+      "pid": {
+        "SignedInteger": 1134
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "listen"
+      }
+    },
+    {
+      "comm": {
+        "String": "sshd"
+      },
+      "local_address": {
+        "String": "::"
+      },
+      "local_port": {
+        "SignedInteger": 22
+      },
+      "pid": {
+        "SignedInteger": 1134
+      },
+      "remote_address": null,
+      "remote_port": null,
+      "state": {
+        "String": "listen"
+      }
+    }
+  ]
+}
