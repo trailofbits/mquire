@@ -10,11 +10,27 @@ use crate::memory::{primitives::PhysicalAddress, virtual_address::VirtualAddress
 
 use std::collections::BTreeMap;
 
+/// The kind of task.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskKind {
+    /// A kernel thread (mm == NULL).
+    Kthread,
+
+    /// The leader of a thread group (mm != NULL && tgid == pid).
+    ThreadGroupLeader,
+
+    /// A non-leader thread in a thread group (mm != NULL && tgid != pid).
+    Thread,
+}
+
 /// Represents a task in the kernel.
 #[derive(Debug, Clone)]
 pub struct Task {
     /// The (kernel) virtual address of this task entity.
     pub virtual_address: VirtualAddress,
+
+    /// The kind of task (kthread, thread group leader, or thread).
+    pub kind: TaskKind,
 
     /// The physical of the page table associated with this task.
     pub page_table: PhysicalAddress,

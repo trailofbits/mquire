@@ -10,8 +10,10 @@ use crate::{
     core::{architecture::Architecture, error::Result, virtual_memory_reader::VirtualMemoryReader},
     memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
-        entities::task::Task, operating_system::LinuxOperatingSystem,
-        task_struct_iterator::TaskStructIterator, virtual_struct::VirtualStruct,
+        entities::task::{Task, TaskKind},
+        operating_system::LinuxOperatingSystem,
+        task_struct_iterator::TaskStructIterator,
+        virtual_struct::VirtualStruct,
     },
     try_chain,
 };
@@ -185,7 +187,17 @@ impl LinuxOperatingSystem {
         let mut binary_path: Option<String> = None;
 
         let mm_struct = task_struct.traverse("mm")?.dereference()?;
-        if !mm_struct.virtual_address().is_null() {
+        let is_kthread = mm_struct.virtual_address().is_null();
+
+        let kind = if is_kthread {
+            TaskKind::Kthread
+        } else if tgid == pid {
+            TaskKind::ThreadGroupLeader
+        } else {
+            TaskKind::Thread
+        };
+
+        if !is_kthread {
             let pgd = mm_struct.traverse("pgd")?.read_vaddr()?;
             if let Ok(physical_addr_range) = architecture.translate_virtual_address(readable, pgd) {
                 page_table = physical_addr_range.address();
@@ -307,6 +319,7 @@ impl LinuxOperatingSystem {
 
         Ok(Task {
             virtual_address: task_struct.virtual_address(),
+            kind,
             page_table,
             binary_path,
             name: Some(comm),

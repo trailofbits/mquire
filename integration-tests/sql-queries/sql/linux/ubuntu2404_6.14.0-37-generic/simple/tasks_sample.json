@@ -5,12 +5,12 @@
     "command_line",
     "environment",
     "gid",
-    "main_thread",
     "page_table",
     "pid",
     "ppid",
     "real_ppid",
     "tgid",
+    "type",
     "uid",
     "virtual_address"
   ],
@@ -31,9 +31,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000005C7DA000)"
       },
@@ -48,6 +45,9 @@
       },
       "tgid": {
         "SignedInteger": 3777
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -72,9 +72,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000045F18000)"
       },
@@ -89,6 +86,9 @@
       },
       "tgid": {
         "SignedInteger": 3719
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -107,9 +107,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000039306000)"
       },
@@ -124,6 +121,9 @@
       },
       "tgid": {
         "SignedInteger": 3772
+      },
+      "type": {
+        "String": "kthread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -148,9 +148,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -165,6 +162,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -183,9 +183,6 @@
       "gid": {
         "SignedInteger": 0
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000039306000)"
       },
@@ -200,6 +197,9 @@
       },
       "tgid": {
         "SignedInteger": 3549
+      },
+      "type": {
+        "String": "kthread"
       },
       "uid": {
         "SignedInteger": 0
@@ -224,9 +224,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -241,6 +238,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -265,9 +265,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000017DC8000)"
       },
@@ -282,6 +279,9 @@
       },
       "tgid": {
         "SignedInteger": 2857
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -306,9 +306,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -323,6 +320,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -347,9 +347,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -364,6 +361,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -382,9 +382,6 @@
       "gid": {
         "SignedInteger": 0
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000039306000)"
       },
@@ -399,6 +396,9 @@
       },
       "tgid": {
         "SignedInteger": 4057
+      },
+      "type": {
+        "String": "kthread"
       },
       "uid": {
         "SignedInteger": 0
@@ -423,9 +423,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000043C66000)"
       },
@@ -440,6 +437,9 @@
       },
       "tgid": {
         "SignedInteger": 3210
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -464,9 +464,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000057EB8000)"
       },
@@ -481,6 +478,9 @@
       },
       "tgid": {
         "SignedInteger": 4050
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -505,9 +505,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000017DC8000)"
       },
@@ -522,6 +519,9 @@
       },
       "tgid": {
         "SignedInteger": 2857
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -546,9 +546,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000017DC8000)"
       },
@@ -563,6 +560,9 @@
       },
       "tgid": {
         "SignedInteger": 2857
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -587,9 +587,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000017DC8000)"
       },
@@ -604,6 +601,9 @@
       },
       "tgid": {
         "SignedInteger": 2857
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -628,9 +628,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000164854000)"
       },
@@ -645,6 +642,9 @@
       },
       "tgid": {
         "SignedInteger": 3863
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -669,9 +669,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000003911A000)"
       },
@@ -686,6 +683,9 @@
       },
       "tgid": {
         "SignedInteger": 2810
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -710,9 +710,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000077D72000)"
       },
@@ -727,6 +724,9 @@
       },
       "tgid": {
         "SignedInteger": 2804
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -751,9 +751,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000077FDE000)"
       },
@@ -768,6 +765,9 @@
       },
       "tgid": {
         "SignedInteger": 2763
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -792,9 +792,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000010CC88000)"
       },
@@ -809,6 +806,9 @@
       },
       "tgid": {
         "SignedInteger": 3915
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -833,9 +833,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000010CF24000)"
       },
@@ -850,6 +847,9 @@
       },
       "tgid": {
         "SignedInteger": 3822
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -874,9 +874,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000004A9FE000)"
       },
@@ -891,6 +888,9 @@
       },
       "tgid": {
         "SignedInteger": 3649
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -915,9 +915,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000017DC8000)"
       },
@@ -932,6 +929,9 @@
       },
       "tgid": {
         "SignedInteger": 2857
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -956,9 +956,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000031DA2000)"
       },
@@ -973,6 +970,9 @@
       },
       "tgid": {
         "SignedInteger": 3450
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -997,9 +997,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -1014,6 +1011,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1038,9 +1038,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -1055,6 +1052,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1079,9 +1079,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000012AEB8000)"
       },
@@ -1096,6 +1093,9 @@
       },
       "tgid": {
         "SignedInteger": 3856
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1120,9 +1120,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000005CAA0000)"
       },
@@ -1137,6 +1134,9 @@
       },
       "tgid": {
         "SignedInteger": 3471
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1161,9 +1161,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -1178,6 +1175,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1202,9 +1202,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000043C66000)"
       },
@@ -1219,6 +1216,9 @@
       },
       "tgid": {
         "SignedInteger": 3210
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1243,9 +1243,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000045F18000)"
       },
@@ -1260,6 +1257,9 @@
       },
       "tgid": {
         "SignedInteger": 3719
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1284,9 +1284,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000105E9C000)"
       },
@@ -1301,6 +1298,9 @@
       },
       "tgid": {
         "SignedInteger": 4171
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1325,9 +1325,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000004A916000)"
       },
@@ -1342,6 +1339,9 @@
       },
       "tgid": {
         "SignedInteger": 3666
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1366,9 +1366,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x00000001080D8000)"
       },
@@ -1383,6 +1380,9 @@
       },
       "tgid": {
         "SignedInteger": 4289
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1407,9 +1407,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000004AA56000)"
       },
@@ -1424,6 +1421,9 @@
       },
       "tgid": {
         "SignedInteger": 3865
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1448,9 +1448,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000031C74000)"
       },
@@ -1465,6 +1462,9 @@
       },
       "tgid": {
         "SignedInteger": 4092
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1483,9 +1483,6 @@
       "gid": {
         "SignedInteger": 0
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000039306000)"
       },
@@ -1500,6 +1497,9 @@
       },
       "tgid": {
         "SignedInteger": 4058
+      },
+      "type": {
+        "String": "kthread"
       },
       "uid": {
         "SignedInteger": 0
@@ -1524,9 +1524,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000004A9FE000)"
       },
@@ -1541,6 +1538,9 @@
       },
       "tgid": {
         "SignedInteger": 3649
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1565,9 +1565,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x00000000785B8000)"
       },
@@ -1582,6 +1579,9 @@
       },
       "tgid": {
         "SignedInteger": 3743
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1606,9 +1606,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000007685C000)"
       },
@@ -1623,6 +1620,9 @@
       },
       "tgid": {
         "SignedInteger": 2481
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1647,9 +1647,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000005C7DA000)"
       },
@@ -1664,6 +1661,9 @@
       },
       "tgid": {
         "SignedInteger": 3777
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1688,9 +1688,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000004A916000)"
       },
@@ -1705,6 +1702,9 @@
       },
       "tgid": {
         "SignedInteger": 3666
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1729,9 +1729,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000164854000)"
       },
@@ -1746,6 +1743,9 @@
       },
       "tgid": {
         "SignedInteger": 3863
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1770,9 +1770,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000012AEB8000)"
       },
@@ -1787,6 +1784,9 @@
       },
       "tgid": {
         "SignedInteger": 3856
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1811,9 +1811,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x000000004A916000)"
       },
@@ -1828,6 +1825,9 @@
       },
       "tgid": {
         "SignedInteger": 3666
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1852,9 +1852,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000045F18000)"
       },
@@ -1869,6 +1866,9 @@
       },
       "tgid": {
         "SignedInteger": 3719
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1893,9 +1893,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 1
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000122CE6000)"
       },
@@ -1910,6 +1907,9 @@
       },
       "tgid": {
         "SignedInteger": 3825
+      },
+      "type": {
+        "String": "thread_group_leader"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1934,9 +1934,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000043C08000)"
       },
@@ -1951,6 +1948,9 @@
       },
       "tgid": {
         "SignedInteger": 3510
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -1975,9 +1975,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000043C08000)"
       },
@@ -1992,6 +1989,9 @@
       },
       "tgid": {
         "SignedInteger": 3510
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000
@@ -2016,9 +2016,6 @@
       "gid": {
         "SignedInteger": 1000
       },
-      "main_thread": {
-        "SignedInteger": 0
-      },
       "page_table": {
         "String": "PhysicalAddress(0x0000000043C08000)"
       },
@@ -2033,6 +2030,9 @@
       },
       "tgid": {
         "SignedInteger": 3510
+      },
+      "type": {
+        "String": "thread"
       },
       "uid": {
         "SignedInteger": 1000

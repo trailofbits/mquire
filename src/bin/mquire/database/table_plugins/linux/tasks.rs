@@ -15,7 +15,10 @@ use crate::sqlite::{
 
 use mquire::{
     memory::virtual_address::VirtualAddress,
-    operating_system::linux::{entities::task::Task, operating_system::LinuxOperatingSystem},
+    operating_system::linux::{
+        entities::task::{Task, TaskKind},
+        operating_system::LinuxOperatingSystem,
+    },
 };
 
 use log::error;
@@ -126,12 +129,15 @@ impl TasksTablePlugin {
                 Some(ColumnValue::SignedInteger(task.pid as i64)),
             ),
             (
-                String::from("main_thread"),
-                Some(ColumnValue::SignedInteger(if task.tgid == task.pid {
-                    1
-                } else {
-                    0
-                })),
+                String::from("type"),
+                Some(ColumnValue::String(
+                    match task.kind {
+                        TaskKind::Kthread => "kthread",
+                        TaskKind::ThreadGroupLeader => "thread_group_leader",
+                        TaskKind::Thread => "thread",
+                    }
+                    .to_string(),
+                )),
             ),
             (
                 String::from("uid"),
@@ -229,10 +235,7 @@ impl TablePlugin for TasksTablePlugin {
                 String::from("pid"),
                 ColumnDef::visible(ColumnType::SignedInteger),
             ),
-            (
-                String::from("main_thread"),
-                ColumnDef::visible(ColumnType::SignedInteger),
-            ),
+            (String::from("type"), ColumnDef::visible(ColumnType::String)),
             (
                 String::from("uid"),
                 ColumnDef::visible(ColumnType::SignedInteger),
