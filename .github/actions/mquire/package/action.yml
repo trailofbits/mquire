@@ -7,23 +7,20 @@
 #
 
 name: 'mquire package'
-description: 'Build and upload a package artifact'
-
-inputs:
-  operating_system:
-    description: 'Operating system (e.g., linux, macos, windows)'
-    required: true
-  architecture:
-    description: 'CPU architecture (e.g., x86_64, arm64)'
-    required: true
-  format:
-    description: 'Package format extension (e.g., deb, rpm, tar.gz)'
-    required: true
+description: 'Build and upload package artifacts'
 
 runs:
   using: 'composite'
   steps:
-    - name: Build package
+    - name: Set package name prefix
+      id: prefix
+      shell: bash
+      run: |
+        os=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+        arch=$(echo "${{ runner.arch }}" | tr '[:upper:]' '[:lower:]')
+        echo "value=${os}-${arch}" >> $GITHUB_OUTPUT
+
+    - name: Build packages
       shell: bash
       run: |
         cmake \
@@ -35,8 +32,30 @@ runs:
           --build package-build \
           --target package
 
-    - name: Upload package
+    - name: Upload .deb package
+      if: ${{ runner.os == 'Linux' }}
       uses: actions/upload-artifact@v6
       with:
-        name: ${{ inputs.operating_system }}-${{ inputs.architecture }}-${{ inputs.format == 'tar.gz' && 'tgz' || inputs.format }}
-        path: package-build/*.${{ inputs.format }}
+        name: ${{ steps.prefix.outputs.value }}-deb
+        path: package-build/*.deb
+
+    - name: Upload .rpm package
+      if: ${{ runner.os == 'Linux' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ steps.prefix.outputs.value }}-rpm
+        path: package-build/*.rpm
+
+    - name: Upload .tar.gz package
+      if: ${{ runner.os != 'Windows' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ steps.prefix.outputs.value }}-tgz
+        path: package-build/*.tar.gz
+
+    - name: Upload .zip package
+      if: ${{ runner.os == 'Windows' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ steps.prefix.outputs.value }}-zip
+        path: package-build/*.zip

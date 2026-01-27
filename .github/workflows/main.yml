@@ -54,34 +54,14 @@ jobs:
       - name: Clone the source code
         uses: actions/checkout@v6
 
-      - name: Build and test
+      - name: Build
         uses: ./.github/actions/mquire/build
         with:
           build_type: ${{ matrix.build_type }}
 
-      - name: Upload .deb package
-        if: ${{ runner.os == 'Linux' && matrix.build_type == 'Release' }}
+      - name: Build and upload packages
+        if: ${{ matrix.build_type == 'Release' }}
         uses: ./.github/actions/mquire/package
-        with:
-          operating_system: linux
-          architecture: x86_64
-          format: deb
-
-      - name: Upload .rpm package
-        if: ${{ runner.os == 'Linux' && matrix.build_type == 'Release' }}
-        uses: ./.github/actions/mquire/package
-        with:
-          operating_system: linux
-          architecture: x86_64
-          format: rpm
-
-      - name: Upload .tar.gz package
-        if: ${{ runner.os == 'Linux' && matrix.build_type == 'Release' }}
-        uses: ./.github/actions/mquire/package
-        with:
-          operating_system: linux
-          architecture: x86_64
-          format: tar.gz
 
   sql-queries:
     needs: [check, build]

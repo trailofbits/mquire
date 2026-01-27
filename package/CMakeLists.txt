@@ -15,10 +15,13 @@ if(NOT EXISTS "${MQUIRE_REPOSITORY_PATH}/Cargo.toml")
 endif()
 
 execute_process(
-  COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/extract_version.sh" "${MQUIRE_REPOSITORY_PATH}/Cargo.toml"
-  OUTPUT_VARIABLE MQUIRE_VERSION
+  COMMAND cargo pkgid
+  WORKING_DIRECTORY "${MQUIRE_REPOSITORY_PATH}"
+  OUTPUT_VARIABLE CARGO_PKGID_OUTPUT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
   COMMAND_ERROR_IS_FATAL ANY
 )
+string(REGEX REPLACE ".*#" "" MQUIRE_VERSION "${CARGO_PKGID_OUTPUT}")
 
 set(PACKAGE_VERSION 1)
 
@@ -49,38 +52,39 @@ set(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION_SUMMARY}")
 set(CPACK_RPM_PACKAGE_GROUP "default")
 set(CPACK_RPM_PACKAGE_REQUIRES "glibc >= 2.35")
 
-set(CPACK_GENERATOR "TGZ")
-message(STATUS "MQUIRE - The TGZ generator has been enabled")
-
-unset(rpm_executable_path CACHE)
-find_program(rpm_executable_path "rpm")
-if("${rpm_executable_path}" STREQUAL "rpm_executable_path-NOTFOUND")
-  message(WARNING "MQUIRE - The RPM package generator requires the 'rpm' tool")
+if(WIN32)
+  set(CPACK_GENERATOR "ZIP")
+  message(STATUS "MQUIRE - The ZIP generator has been enabled")
+  set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mquire.exe")
+elseif(APPLE)
+  set(CPACK_GENERATOR "TGZ")
+  message(STATUS "MQUIRE - The TGZ generator has been enabled")
+  set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mquire")
 else()
-  list(APPEND CPACK_GENERATOR "RPM")
-  message(STATUS "MQUIRE - The RPM generator has been enabled")
-endif()
+  set(CPACK_GENERATOR "TGZ")
+  message(STATUS "MQUIRE - The TGZ generator has been enabled")
+  set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mquire")
 
-unset(dpkg_executable_path CACHE)
-find_program(dpkg_executable_path "dpkg")
-if("${dpkg_executable_path}" STREQUAL "dpkg_executable_path-NOTFOUND")
-  message(WARNING "MQUIRE - The DEB package generator requires the 'dpkg' tool")
-else()
-  list(APPEND CPACK_GENERATOR "DEB")
-  message(STATUS "MQUIRE - The DEB generator has been enabled")
+  unset(rpm_executable_path CACHE)
+  find_program(rpm_executable_path "rpm")
+  if("${rpm_executable_path}" STREQUAL "rpm_executable_path-NOTFOUND")
+    message(WARNING "MQUIRE - The RPM package generator requires the 'rpm' tool")
+  else()
+    list(APPEND CPACK_GENERATOR "RPM")
+    message(STATUS "MQUIRE - The RPM generator has been enabled")
+  endif()
+
+  unset(dpkg_executable_path CACHE)
+  find_program(dpkg_executable_path "dpkg")
+  if("${dpkg_executable_path}" STREQUAL "dpkg_executable_path-NOTFOUND")
+    message(WARNING "MQUIRE - The DEB package generator requires the 'dpkg' tool")
+  else()
+    list(APPEND CPACK_GENERATOR "DEB")
+    message(STATUS "MQUIRE - The DEB generator has been enabled")
+  endif()
 endif()
 
 include(CPack)
-
-if(UNIX)
-  if(APPLE)
-    set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/release/mquire")
-  else()
-    set(mquire_executable_path "${MQUIRE_REPOSITORY_PATH}/target/x86_64-unknown-linux-musl/release/mquire")
-  endif()
-else()
-  message(FATAL_ERROR "MQUIRE - Currently, only Linux and macOS operating systems are supported")
-endif()
 
 if(NOT EXISTS "${mquire_executable_path}")
     message(FATAL_ERROR "The mquire binary was not found. Expected path: ${mquire_executable_path}")
