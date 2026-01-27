@@ -298,7 +298,7 @@ Use the `AS MATERIALIZED` hint to cache table results when tables are used in JO
 -- Find network connections for a specific process using materialization
 WITH
   target_tasks AS MATERIALIZED (
-    SELECT * FROM tasks WHERE comm = 'sshd' AND main_thread = 1
+    SELECT * FROM tasks WHERE comm = 'sshd' AND type = 'thread_group_leader'
   ),
 
   network_connections_mat AS MATERIALIZED (
