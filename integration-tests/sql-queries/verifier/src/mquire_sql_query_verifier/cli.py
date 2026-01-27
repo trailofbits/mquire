@@ -28,6 +28,12 @@ from mquire_sql_query_verifier.s3 import SnapshotManager
     is_flag=True,
     help="Keep downloaded snapshots after tests complete",
 )
+@click.option(
+    "--update",
+    "-u",
+    is_flag=True,
+    help="Update expected JSON files with actual output instead of comparing",
+)
 def main(
     manifest: Path,
     junit_xml: Path,
@@ -36,6 +42,7 @@ def main(
     test: str | None,
     skip_download: bool,
     keep_snapshots: bool,
+    update: bool,
 ) -> None:
     """Run mquire integration tests.
 
@@ -67,7 +74,8 @@ def main(
             console.print(f"[red]Error: No snapshots match filter '{snapshot}'[/red]")
             sys.exit(1)
 
-    console.print("[bold]mquire Integration Tests[/bold]")
+    mode = "[yellow]UPDATE MODE[/yellow]" if update else "Integration Tests"
+    console.print(f"[bold]mquire {mode}[/bold]")
     console.print(f"  Architecture: {config.architecture}")
     console.print(f"  Operating System: {config.operating_system}")
     console.print(f"  Snapshots path: {config.get_snapshots_path()}")
@@ -105,22 +113,34 @@ def main(
                     console.print(f"[red]Error: Snapshot not found: {snapshot_path}[/red]")
                     continue
 
-            results = runner.run_snapshot_tests(
-                snapshot_name,
-                snapshot_path,
-                test_filter=test,
-                fail_fast=fail_fast,
-            )
-            summary.snapshot_results.append(results)
-            reporter.report_snapshot_results(results)
+            if update:
+                updated = runner.update_snapshot_tests(
+                    snapshot_name,
+                    snapshot_path,
+                    test_filter=test,
+                )
+                console.print(f"  [green]Updated {updated} test(s)[/green]")
+            else:
+                results = runner.run_snapshot_tests(
+                    snapshot_name,
+                    snapshot_path,
+                    test_filter=test,
+                    fail_fast=fail_fast,
+                )
+                summary.snapshot_results.append(results)
+                reporter.report_snapshot_results(results)
 
-            if fail_fast and results.failed > 0:
-                console.print("[yellow]Stopping due to --fail-fast[/yellow]")
-                break
+                if fail_fast and results.failed > 0:
+                    console.print("[yellow]Stopping due to --fail-fast[/yellow]")
+                    break
 
     finally:
         if s3_manager and not keep_snapshots:
             s3_manager.cleanup()
+
+    if update:
+        console.print("[green]Update complete.[/green]")
+        sys.exit(0)
 
     reporter.report_summary(summary)
 
