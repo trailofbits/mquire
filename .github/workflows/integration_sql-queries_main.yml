@@ -11,60 +11,8 @@ name: sql-queries
 on:
   workflow_call:
 
-  workflow_dispatch:
-    inputs:
-      test_suite:
-        description: 'Test suite to run'
-        required: false
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - simple
-          - examples
-
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  build:
-    name: Build mquire
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install and update Rust
-        run: |
-          rustup update
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          rustup target add x86_64-unknown-linux-musl
-
-      - name: Cache cargo registry
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Build release binary
-        run: cargo build --release --target x86_64-unknown-linux-musl
-
-      - name: Upload mquire binary
-        uses: actions/upload-artifact@v6
-        with:
-          name: mquire-binary
-          path: target/x86_64-unknown-linux-musl/release/mquire
-          retention-days: 1
-
   test-simple:
-    needs: build
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'simple' }}
     uses: ./.github/workflows/integration_sql-queries_runner.yml
     secrets: inherit
     with:
@@ -72,8 +20,6 @@ jobs:
       config_file: ../cfg/linux_simple.json
 
   test-examples:
-    needs: build
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'examples' }}
     uses: ./.github/workflows/integration_sql-queries_runner.yml
     secrets: inherit
     with:
@@ -90,7 +36,7 @@ jobs:
       - name: Download all test results
         uses: actions/download-artifact@v7
         with:
-          pattern: test-results-*
+          pattern: integration-tests_sql-queries_*
           merge-multiple: true
 
       - name: Check test results
