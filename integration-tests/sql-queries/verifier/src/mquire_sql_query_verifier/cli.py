@@ -14,12 +14,7 @@ from mquire_sql_query_verifier.s3 import SnapshotManager
 
 @click.command()
 @click.argument("manifest", type=click.Path(exists=True, path_type=Path))
-@click.option(
-    "--junit-xml",
-    required=True,
-    type=click.Path(path_type=Path),
-    help="Path to write JUnit XML report",
-)
+@click.argument("junit_xml", type=click.Path(path_type=Path))
 @click.option("--fail-fast", "-x", is_flag=True, help="Stop on first failure")
 @click.option("--snapshot", "-s", help="Run tests for specific snapshot only")
 @click.option("--test", "-t", help="Run specific test by name (substring match)")
@@ -45,6 +40,7 @@ def main(
     """Run mquire integration tests.
 
     MANIFEST is the path to a test manifest JSON file.
+    JUNIT_XML is the path to write the JUnit XML report.
     """
     console = Console()
 
