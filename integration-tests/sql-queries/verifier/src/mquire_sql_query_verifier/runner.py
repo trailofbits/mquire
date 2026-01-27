@@ -1,5 +1,6 @@
 """Test runner for executing mquire queries."""
 
+import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -239,3 +240,85 @@ class TestRunner:
                 break
 
         return results
+
+    def update_snapshot_tests(
+        self,
+        snapshot_name: str,
+        snapshot_path: Path,
+        test_filter: str | None = None,
+    ) -> int:
+        """Update expected JSON files with actual mquire output.
+
+        Args:
+            snapshot_name: Name of the snapshot
+            snapshot_path: Path to the snapshot file
+            test_filter: Optional test name filter
+
+        Returns:
+            Number of tests updated
+        """
+        tests = self.discover_tests(snapshot_name)
+
+        if test_filter:
+            tests = [t for t in tests if test_filter in t.name]
+
+        if not tests:
+            self.console.print(f"[yellow]No tests found for {snapshot_name}[/yellow]")
+            return 0
+
+        updated = 0
+        mquire_path = self.config.get_mquire_path()
+
+        for test_case in tests:
+            status_msg = f"Updating {snapshot_name} / {test_case.name}..."
+
+            try:
+                sql_query = test_case.sql_path.read_text().strip()
+            except Exception as e:
+                self.console.print(f"[red]Failed to read {test_case.sql_path}: {e}[/red]")
+                continue
+
+            cmd = [
+                str(mquire_path),
+                "query",
+                str(snapshot_path),
+                sql_query,
+                "--format",
+                "json",
+            ]
+
+            if self.console.is_terminal:
+                with self.console.status(f"[bold blue]{status_msg}[/bold blue]"):
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=self.config.timeout_seconds,
+                    )
+            else:
+                self.console.print(status_msg)
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.config.timeout_seconds,
+                )
+
+            if result.returncode != 0:
+                self.console.print(
+                    f"[red]mquire failed for {test_case.name}: {result.stderr}[/red]"
+                )
+                continue
+
+            try:
+                data = json.loads(result.stdout)
+                formatted = json.dumps(data, indent=2) + "\n"
+            except json.JSONDecodeError:
+                self.console.print(f"[red]Invalid JSON output for {test_case.name}[/red]")
+                continue
+
+            test_case.expected_path.write_text(formatted)
+            self.console.print(f"  [green]Updated {test_case.expected_path.name}[/green]")
+            updated += 1
+
+        return updated
