@@ -1,10 +1,13 @@
 """Test result reporting utilities."""
 
+import difflib
+import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.console import Console
+from rich.syntax import Syntax
 from rich.table import Table
 
 from mquire_sql_query_verifier.runner import SnapshotResults, TestResult
@@ -69,8 +72,57 @@ class ConsoleReporter:
                 if result.comparison.diff_details:
                     for line in result.comparison.diff_details.split("\n"):
                         self.console.print(f"        {line}")
+                self._print_json_diff(result)
             if result.stderr:
                 self.console.print(f"      [dim]stderr: {result.stderr[:500]}[/dim]")
+
+    def _print_json_diff(self, result: TestResult) -> None:
+        """Print a unified diff of expected vs actual JSON output.
+
+        Args:
+            result: Test result containing stdout and expected path
+        """
+        if not result.stdout:
+            return
+
+        try:
+            expected_content = result.test_case.expected_path.read_text()
+        except Exception:
+            return
+
+        # Pretty-print both JSON outputs for readable diff
+        try:
+            actual_data = json.loads(result.stdout)
+            actual_formatted = json.dumps(actual_data, indent=2, sort_keys=True)
+        except json.JSONDecodeError:
+            actual_formatted = result.stdout
+
+        try:
+            expected_data = json.loads(expected_content)
+            expected_formatted = json.dumps(expected_data, indent=2, sort_keys=True)
+        except json.JSONDecodeError:
+            expected_formatted = expected_content
+
+        # Generate unified diff
+        expected_lines = expected_formatted.splitlines(keepends=True)
+        actual_lines = actual_formatted.splitlines(keepends=True)
+
+        diff = list(
+            difflib.unified_diff(
+                expected_lines,
+                actual_lines,
+                fromfile="expected",
+                tofile="actual",
+                lineterm="",
+            )
+        )
+
+        if diff:
+            self.console.print()
+            self.console.print("      [bold]Diff (expected vs actual):[/bold]")
+            diff_text = "".join(diff)
+            syntax = Syntax(diff_text, "diff", theme="monokai", line_numbers=False)
+            self.console.print(syntax)
 
     def report_snapshot_results(self, results: SnapshotResults) -> None:
         """Report results for a snapshot.
