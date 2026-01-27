@@ -258,25 +258,47 @@ mquire automatically loads and executes SQL files from `~/.config/trailofbits/mq
 - Errors are displayed but don't block execution
 - Works with both `mquire shell` and `mquire query` commands
 
-**Example: Creating a parameterized query for process network connections**
+**Example: Creating a reusable view for process network connections**
 
-To find network connections for a specific process, use a query like this:
+Create a file `~/.config/trailofbits/mquire/autostart/001_process_network_connections.sql`:
 
 ```sql
--- Find network connections for sshd process
+CREATE VIEW IF NOT EXISTS process_network_connections AS
+WITH
+  network_connections_mat AS MATERIALIZED (
+    SELECT * FROM network_connections
+  ),
+
+  task_open_files_mat AS MATERIALIZED (
+    SELECT * FROM task_open_files
+  ),
+
+  tasks_mat AS MATERIALIZED (
+    SELECT * FROM tasks WHERE type = 'thread_group_leader'
+  )
+
 SELECT
-  t.tgid,
+  t.pid,
   t.comm,
+  t.binary_path,
   nc.protocol,
   nc.local_address,
   nc.local_port,
   nc.remote_address,
   nc.remote_port,
-  nc.state
-FROM tasks t
-JOIN task_open_files tof ON tof.task = t.virtual_address
-JOIN network_connections nc ON nc.inode = tof.inode
-WHERE t.comm = 'sshd';
+  nc.state,
+  nc.type as ip_type,
+  nc.inode
+FROM network_connections_mat nc
+JOIN task_open_files_mat tof ON nc.inode = tof.inode
+JOIN tasks_mat t ON tof.task = t.virtual_address
+ORDER BY t.pid, nc.local_port;
+```
+
+Then query the view:
+
+```sql
+SELECT * FROM process_network_connections WHERE comm = 'sshd';
 ```
 
 ## Query Optimization
