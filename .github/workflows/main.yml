@@ -21,104 +21,69 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  RUST_BACKTRACE: 1
-
 jobs:
-  rust_check:
+  check:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Clone the source code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
-      - name: Run Rust checks
+      - name: Run checks
         uses: ./.github/actions/mquire/check
-        with:
-          build_type: Debug
 
-  verifier_check:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Clone the source code
-        uses: actions/checkout@v6
-
-      - name: Run verifier checks
-        uses: ./.github/actions/mquire-sql-query-verifier/check
-
-  linux:
-    needs: [rust_check]
-    runs-on: ubuntu-24.04
+  build:
+    needs: [check]
     timeout-minutes: 30
 
     strategy:
       matrix:
-        build_type: [Release, Debug]
+        include:
+          - os: ubuntu-24.04
+            build_type: Release
+          - os: ubuntu-24.04
+            build_type: Debug
+          - os: macos-15
+            build_type: Release
+          - os: windows-2022
+            build_type: Release
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Clone the source code
         uses: actions/checkout@v6
 
       - name: Build and test
-        uses: ./.github/actions/mquire/posix-build
+        uses: ./.github/actions/mquire/build
         with:
           build_type: ${{ matrix.build_type }}
-          runner_os: Linux
 
-      - name: Find and upload the .deb Linux package
-        if: ${{ matrix.build_type == 'Release' }}
-        uses: actions/upload-artifact@v6
+      - name: Upload .deb package
+        if: ${{ runner.os == 'Linux' && matrix.build_type == 'Release' }}
+        uses: ./.github/actions/mquire/package
         with:
-          name: linux-deb-package
-          path: package-build/*.deb
+          operating_system: linux
+          architecture: x86_64
+          format: deb
 
-      - name: Find and upload the .rpm Linux package
-        if: ${{ matrix.build_type == 'Release' }}
-        uses: actions/upload-artifact@v6
+      - name: Upload .rpm package
+        if: ${{ runner.os == 'Linux' && matrix.build_type == 'Release' }}
+        uses: ./.github/actions/mquire/package
         with:
-          name: linux-rpm-package
-          path: package-build/*.rpm
+          operating_system: linux
+          architecture: x86_64
+          format: rpm
 
-      - name: Find and upload the .tar.gz Linux package
-        if: ${{ matrix.build_type == 'Release' }}
-        uses: actions/upload-artifact@v6
+      - name: Upload .tar.gz package
+        if: ${{ runner.os == 'Linux' && matrix.build_type == 'Release' }}
+        uses: ./.github/actions/mquire/package
         with:
-          name: linux-tgz-package
-          path: package-build/*.tar.gz
-
-  macos:
-    needs: [rust_check]
-    runs-on: macos-15
-    timeout-minutes: 30
-
-    steps:
-      - name: Clone the source code
-        uses: actions/checkout@v6
-
-      - name: Build and test
-        uses: ./.github/actions/mquire/posix-build
-        with:
-          build_type: Release
-          runner_os: macOS
-
-  windows:
-    needs: [rust_check]
-    runs-on: windows-2022
-    timeout-minutes: 30
-
-    steps:
-      - name: Clone the source code
-        uses: actions/checkout@v6
-
-      - name: Build and test
-        uses: ./.github/actions/mquire/windows-build
-        with:
-          build_type: Release
+          operating_system: linux
+          architecture: x86_64
+          format: tar.gz
 
   sql-queries:
-    needs: [rust_check, verifier_check, linux, macos, windows]
+    needs: [check, build]
     uses: ./.github/workflows/integration_sql-queries_main.yml
     secrets: inherit
