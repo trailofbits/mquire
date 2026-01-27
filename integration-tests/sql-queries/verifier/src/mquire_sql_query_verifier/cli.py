@@ -74,8 +74,9 @@ def main(
             console.print(f"[red]Error: No snapshots match filter '{snapshot}'[/red]")
             sys.exit(1)
 
-    mode = "[yellow]UPDATE MODE[/yellow]" if update else "Integration Tests"
-    console.print(f"[bold]mquire {mode}[/bold]")
+    mode_name = "Update mode" if update else "Check mode"
+    mode = f"[bold yellow]{mode_name}[/bold yellow]"
+    console.print(f"[bold]mquire Integration Tests - {mode}[/bold]")
     console.print(f"  Architecture: {config.architecture}")
     console.print(f"  Operating System: {config.operating_system}")
     console.print(f"  Snapshots path: {config.get_snapshots_path()}")
@@ -114,12 +115,11 @@ def main(
                     continue
 
             if update:
-                updated = runner.update_snapshot_tests(
+                runner.update_snapshot_tests(
                     snapshot_name,
                     snapshot_path,
                     test_filter=test,
                 )
-                console.print(f"  [green]Updated {updated} test(s)[/green]")
             else:
                 results = runner.run_snapshot_tests(
                     snapshot_name,

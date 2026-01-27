@@ -246,7 +246,7 @@ class TestRunner:
         snapshot_name: str,
         snapshot_path: Path,
         test_filter: str | None = None,
-    ) -> int:
+    ) -> tuple[int, int]:
         """Update expected JSON files with actual mquire output.
 
         Args:
@@ -255,8 +255,10 @@ class TestRunner:
             test_filter: Optional test name filter
 
         Returns:
-            Number of tests updated
+            Tuple of (updated count, failed count)
         """
+        import time
+
         tests = self.discover_tests(snapshot_name)
 
         if test_filter:
@@ -264,10 +266,14 @@ class TestRunner:
 
         if not tests:
             self.console.print(f"[yellow]No tests found for {snapshot_name}[/yellow]")
-            return 0
+            return 0, 0
 
         updated = 0
+        failed = 0
         mquire_path = self.config.get_mquire_path()
+
+        self.console.print()
+        self.console.print(f"[bold]{snapshot_name}[/bold]")
 
         for test_case in tests:
             status_msg = f"Updating {snapshot_name} / {test_case.name}..."
@@ -275,7 +281,9 @@ class TestRunner:
             try:
                 sql_query = test_case.sql_path.read_text().strip()
             except Exception as e:
-                self.console.print(f"[red]Failed to read {test_case.sql_path}: {e}[/red]")
+                self.console.print(f"  [red]✗[/red] {test_case.name}")
+                self.console.print(f"    [red]Error:[/red] Failed to read SQL: {e}")
+                failed += 1
                 continue
 
             cmd = [
@@ -287,6 +295,7 @@ class TestRunner:
                 "json",
             ]
 
+            start_time = time.perf_counter()
             if self.console.is_terminal:
                 with self.console.status(f"[bold blue]{status_msg}[/bold blue]"):
                     result = subprocess.run(
@@ -303,22 +312,51 @@ class TestRunner:
                     text=True,
                     timeout=self.config.timeout_seconds,
                 )
+            duration_ms = (time.perf_counter() - start_time) * 1000
 
             if result.returncode != 0:
                 self.console.print(
-                    f"[red]mquire failed for {test_case.name}: {result.stderr}[/red]"
+                    f"  [red]✗[/red] {test_case.name} [dim]({duration_ms:.0f}ms)[/dim]"
                 )
+                self.console.print(f"    [dim]{sql_query}[/dim]")
+                self.console.print(f"    [red]Error:[/red] mquire failed: {result.stderr}")
+                failed += 1
                 continue
 
             try:
                 data = json.loads(result.stdout)
                 formatted = json.dumps(data, indent=2) + "\n"
             except json.JSONDecodeError:
-                self.console.print(f"[red]Invalid JSON output for {test_case.name}[/red]")
+                self.console.print(
+                    f"  [red]✗[/red] {test_case.name} [dim]({duration_ms:.0f}ms)[/dim]"
+                )
+                self.console.print(f"    [dim]{sql_query}[/dim]")
+                self.console.print("    [red]Error:[/red] Invalid JSON output")
+                failed += 1
                 continue
 
-            test_case.expected_path.write_text(formatted)
-            self.console.print(f"  [green]Updated {test_case.expected_path.name}[/green]")
-            updated += 1
+            # Check if content actually changed
+            try:
+                existing = test_case.expected_path.read_text()
+            except Exception:
+                existing = None
 
-        return updated
+            if existing == formatted:
+                self.console.print(
+                    f"  [green]✓[/green] {test_case.name} [dim]({duration_ms:.0f}ms)[/dim]"
+                )
+                self.console.print(f"    [dim]{sql_query}[/dim]")
+            else:
+                test_case.expected_path.write_text(formatted)
+                self.console.print(
+                    f"  [red]✗[/red] {test_case.name} [dim]({duration_ms:.0f}ms)[/dim]"
+                )
+                self.console.print(f"    [dim]{sql_query}[/dim]")
+                self.console.print(f"    [yellow]Updated {test_case.expected_path}[/yellow]")
+                updated += 1
+
+        if updated > 0:
+            self.console.print(f"  [yellow]{updated} file(s) updated[/yellow]")
+        self.console.print()
+
+        return updated, failed
