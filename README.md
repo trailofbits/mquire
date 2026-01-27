@@ -558,6 +558,30 @@ File Status:
   ...
 ```
 
+## Development
+
+This project uses [just](https://github.com/casey/just) as a command runner. Run `just` to see available commands:
+
+| Command | Description |
+|---------|-------------|
+| `just check` | Run all checks (cargo check, cargo clippy, cargo fmt, ruff, mypy) |
+| `just test` | Run unit tests |
+| `just fmt` | Format code (cargo fmt, ruff) |
+| `just integration-test` | Run SQL query integration tests |
+| `just integration-update` | Update expected test output |
+| `just package` | Build release packages |
+
+### SQL query integration tests
+
+These tests verify mquire produces correct output for queries against memory snapshots.
+
+- **`just integration-test`** - Run tests and compare output to expected JSON files
+- **`just integration-update`** - Update expected JSON files with actual output (use when changing table schemas)
+
+After running `integration-update`, review the git diff to ensure changes match your expectations before committing.
+
+**Adding new tests:** Create a `.sql` file and matching `.json` file in the appropriate snapshot directory, then run `just integration-update` to populate the expected output.
+
 ## Contributing
 
 Contributions are welcome! When contributing, please follow these guidelines:
