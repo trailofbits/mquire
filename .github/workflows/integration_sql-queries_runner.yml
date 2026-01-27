@@ -57,7 +57,7 @@ jobs:
           MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
         run: |
           uv run mquire-sql-query-verifier ${{ inputs.config_file }} \
-            --junit-xml results-${{ inputs.test_suite }}.xml
+            results-${{ inputs.test_suite }}.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
