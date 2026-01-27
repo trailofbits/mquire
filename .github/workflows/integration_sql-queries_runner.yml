@@ -30,14 +30,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download mquire binary
+      - name: Download mquire package
         uses: actions/download-artifact@v7
         with:
-          name: mquire-binary
-          path: target/release
+          name: linux-x64-tgz
+          path: .
 
-      - name: Make binary executable
-        run: chmod +x target/release/mquire
+      - name: Extract mquire binary
+        run: |
+          tar -xzf mquire-*.tar.gz
+          mkdir -p target/release
+          mv mquire-*/bin/mquire target/release/
+          chmod +x target/release/mquire
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -57,12 +61,12 @@ jobs:
           MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
         run: |
           uv run mquire-sql-query-verifier ${{ inputs.config_file }} \
-            results-${{ inputs.test_suite }}.xml
+            integration-tests_sql-queries_${{ inputs.test_suite }}.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: test-results-${{ inputs.test_suite }}
-          path: integration-tests/sql-queries/verifier/results-${{ inputs.test_suite }}.xml
+          name: integration-tests_sql-queries_${{ inputs.test_suite }}
+          path: integration-tests/sql-queries/verifier/integration-tests_sql-queries_${{ inputs.test_suite }}.xml
           retention-days: 30
