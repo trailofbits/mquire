@@ -7,49 +7,23 @@
 #
 
 name: 'mquire check'
-description: 'Run Rust format, clippy, and check'
-
-inputs:
-  build_type:
-    description: 'Build type (Debug or Release)'
-    required: true
+description: 'Run linting and formatting checks'
 
 runs:
   using: 'composite'
   steps:
-    - name: Update Rust
+    - name: Install just
       shell: bash
-      run: rustup update
+      run: cargo install just
 
-    - name: Setup the command line build arguments
-      id: build_type
-      shell: bash
-      run: |
-        if [[ "${{ inputs.build_type }}" == "Release" ]]; then
-          echo "VALUE=--release" >> $GITHUB_OUTPUT
-        fi
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
 
-    - name: Run cargo fmt
+    - name: Install Python dependencies
       shell: bash
-      run: cargo fmt --all --check
+      working-directory: integration-tests/sql-queries/verifier
+      run: uv sync --group dev
 
-    - name: Run cargo clippy
+    - name: Run checks
       shell: bash
-      run: |
-        cargo clippy \
-          ${{ steps.build_type.outputs.VALUE }} \
-          --all-targets \
-          --all-features \
-          --examples \
-          -- -D warnings
-
-    - name: Run cargo check
-      shell: bash
-      run: |
-        cargo check \
-          ${{ steps.build_type.outputs.VALUE }} \
-          --all-targets \
-          --all-features \
-          --examples \
-          --tests \
-          --workspace
+      run: just check

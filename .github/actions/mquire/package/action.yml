@@ -1,0 +1,42 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+name: 'mquire package'
+description: 'Build and upload a package artifact'
+
+inputs:
+  operating_system:
+    description: 'Operating system (e.g., linux, macos, windows)'
+    required: true
+  architecture:
+    description: 'CPU architecture (e.g., x86_64, arm64)'
+    required: true
+  format:
+    description: 'Package format extension (e.g., deb, rpm, tar.gz)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build package
+      shell: bash
+      run: |
+        cmake \
+          -S package \
+          -B package-build \
+          -DMQUIRE_REPOSITORY_PATH="$(pwd)"
+
+        cmake \
+          --build package-build \
+          --target package
+
+    - name: Upload package
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ inputs.operating_system }}-${{ inputs.architecture }}-${{ inputs.format == 'tar.gz' && 'tgz' || inputs.format }}
+        path: package-build/*.${{ inputs.format }}
