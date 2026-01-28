@@ -205,8 +205,14 @@ impl Architecture for IntelArchitecture {
                 .aligned_to(PAGE_DIRECTORY_SIZE)
                 .range_step(region.end, PAGE_DIRECTORY_SIZE)
             {
-                let pml4_page_table =
-                    Self::get_table_entries(readable, page_table_offset, PageTableLevel::Pml4)?;
+                let pml4_page_table = match Self::get_table_entries(
+                    readable,
+                    page_table_offset,
+                    PageTableLevel::Pml4,
+                ) {
+                    Ok(table) => table,
+                    Err(_) => continue,
+                };
 
                 let page_directory = if let Some(PageTableEntry::PageDirectory(page_directory)) =
                     pml4_page_table.get(decomposed_vaddr.pml4.page_table_index)
