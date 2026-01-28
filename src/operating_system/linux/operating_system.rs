@@ -430,14 +430,37 @@ impl LinuxOperatingSystem {
             swapper_struct_raw_vaddr,
         )?;
 
+        // The page table we have now might not be accurate. Before we start scanning for the
+        // init task, let's move to the page table in active_mm object of the swapper task_struct.
+        let vmem_reader = VirtualMemoryReader::new(memory_dump.as_ref(), architecture.as_ref());
+
+        let swapper_vaddr = VirtualAddress::new(discovered_page_table, swapper_struct_raw_vaddr);
+        let swapper_struct = VirtualStruct::from_name(
+            &vmem_reader,
+            kernel_type_info,
+            "task_struct",
+            &swapper_vaddr,
+        )?;
+
+        let swapper_pgd_vaddr = swapper_struct
+            .traverse("active_mm")?
+            .dereference()?
+            .traverse("pgd")?
+            .read_vaddr()?;
+
+        let swapper_pgd_phys =
+            architecture.translate_virtual_address(memory_dump.as_ref(), swapper_pgd_vaddr)?;
+
+        let swapper_page_table = swapper_pgd_phys.address();
+
+        // Attempt to look for the init task now, using the new root page table
         let mut task_iter = TaskStructIterator::new(
             memory_dump.clone(),
             architecture.clone(),
             kernel_type_info,
-            VirtualAddress::new(discovered_page_table, swapper_struct_raw_vaddr),
+            VirtualAddress::new(swapper_page_table, swapper_struct_raw_vaddr),
         )?;
 
-        let vmem_reader = VirtualMemoryReader::new(memory_dump.as_ref(), architecture.as_ref());
         let init_task = task_iter.find_map(|task_vaddr| {
             let task_struct = VirtualStruct::from_name(
                 &vmem_reader,
