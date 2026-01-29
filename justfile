@@ -21,13 +21,23 @@ check:
 test:
     cargo test
 
-integration-test config="linux_simple":
-    cd integration-tests/sql-queries/verifier && \
-        uv run mquire-sql-query-verifier --skip-download ../cfg/{{config}}.json test.xml
+integration-test:
+    for config in integration-tests/sql-queries/cfg/*.json; do \
+        name=$(basename "$config" .json); \
+        output="test-${name}-$(date +%Y%m%d-%H%M%S).xml"; \
+        echo "Running $name -> $output"; \
+        (cd integration-tests/sql-queries/verifier && \
+        uv run mquire-sql-query-verifier ../cfg/${name}.json "$output"); \
+    done
 
-integration-update config="linux_simple":
-    cd integration-tests/sql-queries/verifier && \
-        uv run mquire-sql-query-verifier --skip-download ../cfg/{{config}}.json test.xml --update
+integration-update:
+    for config in integration-tests/sql-queries/cfg/*.json; do \
+        name=$(basename "$config" .json); \
+        output="test-${name}-$(date +%Y%m%d-%H%M%S).xml"; \
+        echo "Updating $name -> $output"; \
+        (cd integration-tests/sql-queries/verifier && \
+        uv run mquire-sql-query-verifier ../cfg/${name}.json "$output" --update); \
+    done
 
 fmt:
     cargo fmt

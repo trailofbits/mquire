@@ -1,5 +1,6 @@
 """S3/Spaces snapshot management."""
 
+import shutil
 from pathlib import Path
 
 import boto3
@@ -43,7 +44,6 @@ class SnapshotManager:
         self.operating_system = operating_system.lower()
         self.architecture = architecture.lower()
         self.console = console or Console()
-        self._current_snapshot: Path | None = None
 
         # Create S3 client with S3v4 signature for Digital Ocean compatibility
         self._client = boto3.client(
@@ -61,18 +61,108 @@ class SnapshotManager:
         response = self._client.head_object(Bucket=self.s3_config.bucket, Key=key)
         return response["ContentLength"]
 
-    def download(self, snapshot_name: str) -> Path:
-        """Download a snapshot, deleting any previous snapshot first.
+    def get_snapshot_size(self, snapshot_name: str) -> int:
+        """Get the size of a snapshot on S3 in bytes.
+
+        Args:
+            snapshot_name: Name of the snapshot file
+
+        Returns:
+            Size in bytes
+        """
+        s3_key = f"snapshots/{self.operating_system}/{self.architecture}/{snapshot_name}"
+        return self._get_object_size(s3_key)
+
+    def get_available_disk_space(self) -> int:
+        """Get available disk space at the local snapshots path in bytes.
+
+        Returns:
+            Available space in bytes
+        """
+        return shutil.disk_usage(self.local_path).free
+
+    @staticmethod
+    def _format_bytes(size_bytes: int) -> str:
+        """Format bytes as human-readable string."""
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if abs(size_bytes) < 1024:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024  # type: ignore[assignment]
+        return f"{size_bytes:.1f} PB"
+
+    def maybe_cleanup_for_download(self, snapshot_name: str, no_cleanup: bool) -> None:
+        """Cleanup snapshots in the folder if needed to make space for download.
+
+        Args:
+            snapshot_name: Name of the snapshot about to be downloaded
+            no_cleanup: Whether --no-cleanup was specified
+        """
+        local_file = self.local_path / snapshot_name
+        if local_file.exists():
+            return
+
+        try:
+            snapshot_size = self.get_snapshot_size(snapshot_name)
+        except Exception:
+            return
+
+        available_space = self.get_available_disk_space()
+
+        self.console.print(
+            f"  [dim]Available disk space:[/dim] {self._format_bytes(available_space)}"
+        )
+        self.console.print(f"  [dim]Snapshot size:[/dim] {self._format_bytes(snapshot_size)}")
+
+        if no_cleanup:
+            self.console.print("  [dim]Cleanup:[/dim] disabled (--no-cleanup is set)")
+            return
+
+        if available_space >= snapshot_size:
+            self.console.print("  [dim]Cleanup:[/dim] not needed (enough space available)")
+            return
+
+        # Get all snapshot files, sorted by size (largest first)
+        snapshot_files = sorted(
+            self.local_path.glob("*.lime"),
+            key=lambda p: p.stat().st_size,
+            reverse=True,
+        )
+
+        if not snapshot_files:
+            self.console.print("  [dim]Cleanup:[/dim] no snapshots to delete")
+            return
+
+        self.console.print(
+            "  [dim]Cleanup:[/dim] [yellow]deleting snapshots to free space[/yellow]"
+        )
+
+        for snapshot_path in snapshot_files:
+            if available_space >= snapshot_size:
+                break
+            file_size = snapshot_path.stat().st_size
+            size_str = self._format_bytes(file_size)
+            self.console.print(f"    [yellow]Deleting[/yellow] {snapshot_path.name} ({size_str})")
+            snapshot_path.unlink()
+            available_space += file_size
+
+    def download(self, snapshot_name: str, no_cleanup: bool = False) -> Path:
+        """Download a snapshot if not already cached locally.
 
         Args:
             snapshot_name: Name of the snapshot file (e.g., "ubuntu2404_6.14.0-37-generic.lime")
+            no_cleanup: Whether to disable automatic cleanup when disk space is low
 
         Returns:
-            Path to the downloaded snapshot file
+            Path to the snapshot file (cached or newly downloaded)
         """
-        self.cleanup()
-
         local_file = self.local_path / snapshot_name
+
+        if local_file.exists():
+            self.console.print(f"[green]Using cached[/green] {snapshot_name}")
+            return local_file
+
+        self.maybe_cleanup_for_download(snapshot_name, no_cleanup)
+
         s3_key = f"snapshots/{self.operating_system}/{self.architecture}/{snapshot_name}"
 
         try:
@@ -104,16 +194,8 @@ class SnapshotManager:
                     Callback=progress_callback,
                 )
 
-        self._current_snapshot = local_file
         self.console.print(f"[green]Downloaded[/green] {snapshot_name}")
         return local_file
-
-    def cleanup(self) -> None:
-        """Delete the current snapshot file if it exists."""
-        if self._current_snapshot and self._current_snapshot.exists():
-            self.console.print(f"[yellow]Cleaning up[/yellow] {self._current_snapshot.name}")
-            self._current_snapshot.unlink()
-            self._current_snapshot = None
 
     def get_local_snapshot_path(self, snapshot_name: str) -> Path:
         """Get the local path for a snapshot (whether downloaded or not).
@@ -136,16 +218,3 @@ class SnapshotManager:
             True if the snapshot exists locally
         """
         return (self.local_path / snapshot_name).exists()
-
-    def __enter__(self) -> "SnapshotManager":
-        """Context manager entry."""
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: object,
-    ) -> None:
-        """Context manager exit - cleanup on exit."""
-        self.cleanup()
