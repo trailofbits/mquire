@@ -62,6 +62,11 @@ impl VirtualAddress {
         )
     }
 
+    /// Returns true if this address is in the high canonical address space.
+    pub const fn is_in_high_canonical_space(&self) -> bool {
+        self.raw_virtual_address.is_in_high_canonical_space()
+    }
+
     /// Compares two virtual addresses.
     fn try_cmp(&self, rhs: &Self) -> Result<Ordering> {
         if self.root_page_table != rhs.root_page_table {
@@ -254,6 +259,30 @@ mod tests {
             VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(1));
 
         assert!(!non_null_addr.is_null());
+    }
+
+    #[test]
+    fn test_is_in_high_canonical_space_zero() {
+        let addr = VirtualAddress::new(PhysicalAddress::default(), RawVirtualAddress::new(0x0));
+        assert!(!addr.is_in_high_canonical_space());
+    }
+
+    #[test]
+    fn test_is_in_high_canonical_space_just_below_threshold() {
+        let addr = VirtualAddress::new(
+            PhysicalAddress::default(),
+            RawVirtualAddress::new(0xFFFF_0000_0000_0000 - 1),
+        );
+        assert!(!addr.is_in_high_canonical_space());
+    }
+
+    #[test]
+    fn test_is_in_high_canonical_space_at_threshold() {
+        let addr = VirtualAddress::new(
+            PhysicalAddress::default(),
+            RawVirtualAddress::new(0xFFFF_0000_0000_0000),
+        );
+        assert!(addr.is_in_high_canonical_space());
     }
 
     #[test]

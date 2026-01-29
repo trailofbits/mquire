@@ -371,14 +371,23 @@ macro_rules! define_address_type {
     }
 }
 
+/// The base address for kernel virtual addresses in x86-64 canonical form.
+/// Addresses at or above this value are in the high canonical address space.
+const KERNEL_VIRTUAL_ADDRESS_BASE: u64 = 0xFFFF_0000_0000_0000;
+
 impl RawVirtualAddress {
     /// Returns the canonicalized version of this RawVirtualAddress
     pub fn canonicalized(&self) -> Self {
         if self.0 > 0x0000_7FFF_FFFF_FFFF {
-            RawVirtualAddress::new(self.0 | 0xFFFF_0000_0000_0000)
+            RawVirtualAddress::new(self.0 | KERNEL_VIRTUAL_ADDRESS_BASE)
         } else {
             *self
         }
+    }
+
+    /// Returns true if this address is in the high canonical address space.
+    pub const fn is_in_high_canonical_space(&self) -> bool {
+        self.0 >= KERNEL_VIRTUAL_ADDRESS_BASE
     }
 }
 
@@ -386,3 +395,26 @@ define_address_type!(
     PhysicalAddress, u64, physical_address_tests;
     RawVirtualAddress, u64, raw_virtual_address_tests;
 );
+
+#[cfg(test)]
+mod raw_virtual_address_high_canonical_tests {
+    use super::*;
+
+    #[test]
+    fn test_is_in_high_canonical_space_zero() {
+        let addr = RawVirtualAddress::new(0x0);
+        assert!(!addr.is_in_high_canonical_space());
+    }
+
+    #[test]
+    fn test_is_in_high_canonical_space_just_below_threshold() {
+        let addr = RawVirtualAddress::new(0xFFFF_0000_0000_0000 - 1);
+        assert!(!addr.is_in_high_canonical_space());
+    }
+
+    #[test]
+    fn test_is_in_high_canonical_space_at_threshold() {
+        let addr = RawVirtualAddress::new(0xFFFF_0000_0000_0000);
+        assert!(addr.is_in_high_canonical_space());
+    }
+}

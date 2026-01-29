@@ -258,7 +258,7 @@ mquire automatically loads and executes SQL files from `~/.config/trailofbits/mq
 - Errors are displayed but don't block execution
 - Works with both `mquire shell` and `mquire query` commands
 
-**Example: Creating a reusable view for process network connections**
+### Creating a reusable view for process network connections
 
 Create a file `~/.config/trailofbits/mquire/autostart/001_process_network_connections.sql`:
 
@@ -273,8 +273,12 @@ WITH
     SELECT * FROM task_open_files
   ),
 
+  -- Deduplicate tasks by virtual_address since the default query returns
+  -- results from multiple enumeration sources
   tasks_mat AS MATERIALIZED (
-    SELECT * FROM tasks WHERE type = 'thread_group_leader'
+    SELECT DISTINCT virtual_address, pid, tgid, comm, binary_path
+    FROM tasks
+    WHERE type = 'thread_group_leader'
   )
 
 SELECT
@@ -299,6 +303,50 @@ Then query the view:
 
 ```sql
 SELECT * FROM process_network_connections WHERE comm = 'sshd';
+```
+
+### Comparing task enumeration methods for rootkit detection
+
+Rootkits often hide processes by unlinking them from the kernel's task list while keeping them running. mquire supports multiple task enumeration strategies that can be compared to detect such hidden processes.
+
+> **Note:** The `task_list` source aggressively follows pointers within `task_struct` (e.g., `parent`, `children`, `sibling`, `group_leader`) to maximize process discovery. This may occasionally yield invalid entries from corrupted or stale pointers in memory.
+
+Create a file `~/.config/trailofbits/mquire/autostart/002_hidden_process_detection.sql`:
+
+```sql
+CREATE VIEW IF NOT EXISTS hidden_processes AS
+WITH
+  tasks_from_task_list AS MATERIALIZED (
+    SELECT virtual_address, pid, comm
+    FROM tasks
+    WHERE source = 'task_list'
+  ),
+
+  tasks_from_pid_ns AS MATERIALIZED (
+    SELECT virtual_address, pid, comm
+    FROM tasks
+    WHERE source = 'pid_ns'
+  )
+
+SELECT
+  COALESCE(tl.pid, pn.pid) AS pid,
+  COALESCE(tl.comm, pn.comm) AS comm,
+  COALESCE(tl.virtual_address, pn.virtual_address) AS virtual_address,
+  CASE
+    WHEN tl.virtual_address IS NULL THEN 'hidden_from_task_list'
+    WHEN pn.virtual_address IS NULL THEN 'hidden_from_pid_ns'
+    ELSE 'visible'
+  END AS visibility
+FROM tasks_from_task_list tl
+FULL OUTER JOIN tasks_from_pid_ns pn
+  ON tl.virtual_address = pn.virtual_address
+WHERE tl.virtual_address IS NULL OR pn.virtual_address IS NULL;
+```
+
+Then query for potentially hidden processes:
+
+```sql
+SELECT * FROM hidden_processes;
 ```
 
 ## Query Optimization

@@ -11,6 +11,7 @@ mod kallsyms;
 mod kernel_version;
 mod list;
 mod maple_tree;
+mod pid_ns_iterator;
 mod utils;
 mod virtual_struct;
 mod xarray;

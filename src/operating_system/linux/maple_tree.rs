@@ -350,7 +350,7 @@ where
             // If it is a leaf node, all non-null slots are value pointers (no recursion)
             if !Self::is_ma_value(slot_entry) && !Self::is_ma_internal_entry(slot_entry) {
                 // Ensure it is a kernel address
-                if slot_entry.value().value() >= 0xFFFF000000000000 {
+                if slot_entry.is_in_high_canonical_space() {
                     entry_list.push(MapleTreeEntryValuePointer {
                         key: slot_min..slot_max.wrapping_add(1),
                         value: slot_entry,
@@ -490,7 +490,7 @@ where
             }
 
             // Check that this is a kernel address first
-            if slot_entry.value().value() >= 0xffff000000000000 {
+            if slot_entry.is_in_high_canonical_space() {
                 // For dense nodes, each entry covers a single index
                 entry_list.push(MapleTreeEntryValuePointer {
                     key: index..index + 1,
