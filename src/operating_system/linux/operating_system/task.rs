@@ -7,11 +7,17 @@
 //
 
 use crate::{
-    core::{architecture::Architecture, error::Result, virtual_memory_reader::VirtualMemoryReader},
+    core::{
+        architecture::Architecture,
+        error::{Error, ErrorKind, Result},
+        virtual_memory_reader::VirtualMemoryReader,
+    },
     memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
         entities::task::{Task, TaskKind},
+        kallsyms::Kallsyms,
         operating_system::LinuxOperatingSystem,
+        pid_ns_iterator::PidNsIterator,
         task_struct_iterator::TaskStructIterator,
         virtual_struct::VirtualStruct,
     },
@@ -30,10 +36,19 @@ const MAX_ENV_SIZE: usize = 1024 * 1024;
 
 /// Public iterator over Linux tasks
 pub struct TaskIterator<'a> {
+    /// Inner iterator over task_struct virtual addresses
     task_struct_it: TaskStructIterator<'a>,
+
+    /// The memory dump being analyzed
     memory_dump: Arc<dyn Readable>,
+
+    /// The target architecture
     architecture: Arc<dyn Architecture>,
+
+    /// Kernel type information from BTF
     kernel_type_info: &'a TypeInformation,
+
+    /// The virtual address of the root task used for iteration
     root_task: VirtualAddress,
 }
 
@@ -97,6 +112,93 @@ impl<'a> Iterator for TaskIterator<'a> {
     }
 }
 
+/// Public iterator over Linux tasks discovered via the PID namespace IDR
+pub struct PidNsTaskIterator<'a> {
+    /// Inner iterator over task_struct virtual addresses from the PID namespace
+    pid_ns_it: PidNsIterator<'a>,
+
+    /// The memory dump being analyzed
+    memory_dump: Arc<dyn Readable>,
+
+    /// The target architecture
+    architecture: Arc<dyn Architecture>,
+
+    /// Kernel type information from BTF
+    kernel_type_info: &'a TypeInformation,
+}
+
+impl<'a> PidNsTaskIterator<'a> {
+    /// Creates a new PidNsTaskIterator from a pid_namespace address
+    pub fn new(
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
+        kernel_type_info: &'a TypeInformation,
+        pid_ns_vaddr: VirtualAddress,
+    ) -> Result<Self> {
+        let pid_ns_it = PidNsIterator::new(
+            memory_dump.clone(),
+            architecture.clone(),
+            kernel_type_info,
+            pid_ns_vaddr,
+        )?;
+
+        Ok(Self {
+            pid_ns_it,
+            memory_dump,
+            architecture,
+            kernel_type_info,
+        })
+    }
+
+    /// Creates a new PidNsTaskIterator by looking up init_pid_ns from kallsyms
+    pub fn from_kallsyms(
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
+        kernel_type_info: &'a TypeInformation,
+        kallsyms: &Kallsyms,
+    ) -> Result<Self> {
+        let init_pid_ns = kallsyms.get("init_pid_ns").ok_or_else(|| {
+            Error::new(
+                ErrorKind::EntityNotFound,
+                "init_pid_ns symbol not found in kallsyms",
+            )
+        })?;
+
+        debug!("PidNsTaskIterator: found init_pid_ns at {:?}", init_pid_ns);
+
+        Self::new(memory_dump, architecture, kernel_type_info, init_pid_ns)
+    }
+}
+
+impl<'a> Iterator for PidNsTaskIterator<'a> {
+    type Item = Result<Task>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let addr = self.pid_ns_it.next()?;
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        let task_struct = match VirtualStruct::from_name(
+            &vmem_reader,
+            self.kernel_type_info,
+            "task_struct",
+            &addr,
+        ) {
+            Ok(task_struct) => task_struct,
+            Err(error) => return Some(Err(error)),
+        };
+
+        let result = LinuxOperatingSystem::parse_virtual_task_struct(
+            self.memory_dump.as_ref(),
+            self.architecture.as_ref(),
+            self.kernel_type_info,
+            &task_struct,
+        );
+
+        Some(result)
+    }
+}
+
 impl LinuxOperatingSystem {
     /// Returns a task at the given virtual address
     pub(super) fn task_at_impl(&self, vaddr: VirtualAddress) -> Result<Task> {
@@ -131,6 +233,36 @@ impl LinuxOperatingSystem {
             self.architecture.clone(),
             &self.kernel_type_info,
             root,
+        )
+    }
+
+    /// Returns an iterator over tasks discovered via the PID namespace IDR
+    pub(super) fn iter_pid_ns_tasks_impl(&self) -> Result<PidNsTaskIterator<'_>> {
+        let kallsyms = self.kallsyms.as_ref().ok_or_else(|| {
+            Error::new(
+                ErrorKind::EntityNotFound,
+                "Kallsyms not available - cannot locate init_pid_ns",
+            )
+        })?;
+
+        PidNsTaskIterator::from_kallsyms(
+            self.memory_dump.clone(),
+            self.architecture.clone(),
+            &self.kernel_type_info,
+            kallsyms,
+        )
+    }
+
+    /// Returns an iterator over tasks discovered via the specified PID namespace
+    pub(super) fn iter_pid_ns_tasks_at_impl(
+        &self,
+        pid_ns_vaddr: VirtualAddress,
+    ) -> Result<PidNsTaskIterator<'_>> {
+        PidNsTaskIterator::new(
+            self.memory_dump.clone(),
+            self.architecture.clone(),
+            &self.kernel_type_info,
+            pid_ns_vaddr,
         )
     }
 

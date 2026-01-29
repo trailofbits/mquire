@@ -45,12 +45,16 @@ use crate::{
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
         operating_system::{
-            dmesg::DmesgEntryIterator, file::TaskOpenFilesIterator,
-            kallsyms_symbol::KallsymsSymbolIterator, kernel_module::KernelModuleIterator,
-            memory_mapping::MemoryMappingIterator, network_connection::NetworkConnectionIterator,
+            dmesg::DmesgEntryIterator,
+            file::TaskOpenFilesIterator,
+            kallsyms_symbol::KallsymsSymbolIterator,
+            kernel_module::KernelModuleIterator,
+            memory_mapping::MemoryMappingIterator,
+            network_connection::NetworkConnectionIterator,
             network_interface::NetworkInterfaceIterator,
-            readable_file_linux_object::ReadableLinuxFileObject, syslog_file::SyslogFileIterator,
-            task::TaskIterator,
+            readable_file_linux_object::ReadableLinuxFileObject,
+            syslog_file::SyslogFileIterator,
+            task::{PidNsTaskIterator, TaskIterator},
         },
         task_struct_iterator::TaskStructIterator,
         utils::get_struct_member_byte_offset,
@@ -159,6 +163,16 @@ impl LinuxOperatingSystem {
     /// Returns an iterator over tasks starting from a custom root
     pub fn iter_tasks_from(&self, root: VirtualAddress) -> Result<TaskIterator<'_>> {
         self.iter_tasks_from_impl(root)
+    }
+
+    /// Returns an iterator over the init_pid_ns namespace
+    pub fn iter_pid_ns_tasks(&self) -> Result<PidNsTaskIterator<'_>> {
+        self.iter_pid_ns_tasks_impl()
+    }
+
+    /// Returns an iterator over the specified pid_namespace
+    pub fn iter_pid_ns_tasks_at(&self, pid_ns: VirtualAddress) -> Result<PidNsTaskIterator<'_>> {
+        self.iter_pid_ns_tasks_at_impl(pid_ns)
     }
 
     /// Returns an iterator over open files for a single task

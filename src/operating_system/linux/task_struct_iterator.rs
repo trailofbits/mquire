@@ -26,9 +26,6 @@ use std::{
     sync::Arc,
 };
 
-/// The base of the kernel virtual address space
-const KERNEL_VIRTUAL_ADDRESS_BASE: u64 = 0xFFFF000000000000;
-
 /// Default time to live for task discovery queue items
 const TASK_DISCOVERY_QUEUE_ITEM_TTL: usize = 2;
 
@@ -113,7 +110,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
             let queue_item = self.current_vaddr_queue.pop_front()?;
 
             let raw_vaddr = queue_item.vaddr.value();
-            if raw_vaddr.value() < KERNEL_VIRTUAL_ADDRESS_BASE {
+            if !raw_vaddr.is_in_high_canonical_space() {
                 continue;
             }
 
@@ -165,7 +162,7 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                         let adjusted_raw_vaddr = adjusted_vaddr.value();
                         if adjusted_vaddr.is_null() || adjusted_vaddr == queue_item.vaddr {
                             skipped_vaddr_count += 1;
-                        } else if adjusted_raw_vaddr.value() >= KERNEL_VIRTUAL_ADDRESS_BASE {
+                        } else if adjusted_raw_vaddr.is_in_high_canonical_space() {
                             valid_vaddr_list.push(adjusted_vaddr);
                         }
                     }
