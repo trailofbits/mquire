@@ -51,6 +51,7 @@ pub struct TaskStructIterator<'a> {
     next_vaddr_queue: VecDeque<TaskDiscoveryQueueItem>,
     current_vaddr_queue: VecDeque<TaskDiscoveryQueueItem>,
     sibling_offset: u64,
+    thread_node_offset: u64,
 }
 
 impl<'a> TaskStructIterator<'a> {
@@ -71,6 +72,9 @@ impl<'a> TaskStructIterator<'a> {
         let sibling_offset =
             get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "sibling")?;
 
+        let thread_node_offset =
+            get_struct_member_byte_offset(kernel_type_info, task_struct_tid, "thread_node")?;
+
         let mut current_vaddr_queue = VecDeque::new();
         current_vaddr_queue.push_back(TaskDiscoveryQueueItem {
             vaddr: task_struct,
@@ -85,6 +89,7 @@ impl<'a> TaskStructIterator<'a> {
             next_vaddr_queue: VecDeque::new(),
             current_vaddr_queue,
             sibling_offset,
+            thread_node_offset,
         })
     }
 }
@@ -144,6 +149,8 @@ impl<'a> Iterator for TaskStructIterator<'a> {
                 ("children.next", self.sibling_offset),
                 ("sibling.prev", self.sibling_offset),
                 ("sibling.next", self.sibling_offset),
+                ("thread_node.prev", self.thread_node_offset),
+                ("thread_node.next", self.thread_node_offset),
             ];
 
             let mut read_error = false;

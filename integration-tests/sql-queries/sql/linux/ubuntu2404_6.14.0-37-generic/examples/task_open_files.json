@@ -6098,6 +6098,244 @@
     },
     {
       "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 0
+      },
+      "path": {
+        "String": "/null"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 1
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 2
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 3
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 4
+      },
+      "path": {
+        "String": "[eventpoll]"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 5
+      },
+      "path": {
+        "String": "[signalfd]"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 6
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 7
+      },
+      "path": {
+        "String": "/system.slice/systemd-timesyncd.service/memory.pressure"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 8
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 9
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 10
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 11
+      },
+      "path": {
+        "String": "UNIX"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 12
+      },
+      "path": {
+        "String": "inotify"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 13
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 14
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 15
+      },
+      "path": {
+        "String": "[timerfd]"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "fd": {
+        "SignedInteger": 16
+      },
+      "path": {
+        "String": "UNIX-STREAM"
+      },
+      "pid": {
+        "SignedInteger": 794
+      }
+    },
+    {
+      "comm": {
         "String": "systemd"
       },
       "fd": {
