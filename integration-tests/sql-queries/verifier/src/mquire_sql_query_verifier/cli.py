@@ -82,6 +82,7 @@ def main(
     console.print(f"  Snapshots path: {config.get_snapshots_path()}")
     console.print(f"  Timeout per query: {config.timeout_seconds}s")
     console.print(f"  mquire: {mquire_path}")
+    console.print(f"  JUnit XML: {junit_xml}")
     console.print()
 
     runner = TestRunner(config, console=console)
@@ -141,7 +142,6 @@ def main(
 
     junit_reporter = JUnitReporter(junit_xml)
     junit_reporter.write(summary)
-    console.print(f"[dim]JUnit XML written to {junit_xml}[/dim]")
 
     sys.exit(0 if summary.all_passed else 1)
 
