@@ -17,6 +17,10 @@ updates:
       - "dependencies"
       - "rust"
     open-pull-requests-limit: 10
+    groups:
+      cargo-all:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -26,6 +30,10 @@ updates:
       - "dependencies"
       - "github-actions"
     open-pull-requests-limit: 5
+    groups:
+      actions-all:
+        patterns:
+          - "*"
 
   - package-ecosystem: "uv"
     directory: "/integration-tests/sql-queries/verifier"
@@ -35,3 +43,7 @@ updates:
       - "dependencies"
       - "python"
     open-pull-requests-limit: 5
+    groups:
+      python-all:
+        patterns:
+          - "*"
