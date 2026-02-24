@@ -66,7 +66,7 @@ mquire provides SQL tables to query different aspects of the system or the state
 
 #### File system
 
-- **syslog** - System logs read from the kernel's file cache (works even if log files are deleted or unavailable, as long as they're cached in memory)
+- **syslog_file** - System logs read from the kernel's file cache (works even if log files are deleted or unavailable, as long as they're cached in memory)
 
 #### Debugging
 
@@ -578,6 +578,7 @@ arch:"x86_64" kernel_version:"6.14.0-37-generic" system_version:"#37~24.04.1-Ubu
 $ mquire command ubuntu2404_6.14.0-37-generic.lime
 Available commands:
   .carve               Carve a region of virtual memory to disk
+  .dump                Dump all open files from tasks to disk
   .system_version      Display the operating system version
   .task_tree           Display a hierarchical task tree
 ```
