@@ -45,11 +45,11 @@ struct Cli {
     #[arg(short, long, global = true)]
     debug: bool,
 
-    /// Operating system type (linux, all)
+    /// Operating system type (linux)
     #[arg(long, global = true, default_value = "linux")]
     operating_system: String,
 
-    /// Architecture type (intel, all)
+    /// Architecture type (intel)
     #[arg(long, global = true, default_value = "intel")]
     architecture: String,
 }
