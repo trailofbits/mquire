@@ -182,8 +182,17 @@ cargo build --release
 
 ## Acquiring a memory snapshot
 
-1. Compile the [LiME](https://github.com/504ensicsLabs/LiME) project
-2. Acquire a raw memory snapshot by loading the built kernel module: `insmod ./lime-x.x.x-xx-generic.ko 'path=/path/to/memory/dump.bin format=padded'`
+We recommend [AVML](https://github.com/microsoft/avml) for acquiring memory snapshots. [LiME](https://github.com/504ensicsLabs/LiME) was previously suggested but is no longer actively maintained.
+
+### Using AVML
+
+```bash
+sudo avml output.lime
+```
+
+> **Important:** Do not use `--compress` when acquiring snapshots for mquire. mquire does not support compressed AVML snapshots. If you have a compressed snapshot, use `avml-convert` to decompress it first: `avml-convert compressed.lime uncompressed.lime`
+
+See the [AVML documentation](https://github.com/microsoft/avml) for additional options.
 
 ## Getting started
 
