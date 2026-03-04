@@ -6,7 +6,20 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use crate::memory::{error::Result, primitives::PhysicalAddress, readable::Readable};
+//! Raw memory dump snapshot.
+//!
+//! A raw snapshot is a contiguous memory dump starting at physical address 0.
+//! The physical RAM size is assumed to equal the file size, and
+//! [`Readable::regions`] returns a single range covering `[0, file_size]`.
+//!
+//! Reads beyond the file size return an error because the address falls
+//! outside the physical memory represented by the dump.
+
+use crate::memory::{
+    error::{Error, ErrorKind, Result},
+    primitives::PhysicalAddress,
+    readable::Readable,
+};
 
 use memmap2::Mmap;
 
@@ -35,7 +48,10 @@ impl Readable for RawSnapshot {
 
         let start = offset as usize;
         if start >= self.mmap.len() {
-            return Ok(0);
+            return Err(Error::new(
+                ErrorKind::IOError,
+                &format!("Physical address {physical_address} is outside the snapshot"),
+            ));
         }
 
         let end = (start + buffer.len()).min(self.mmap.len());
