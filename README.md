@@ -637,7 +637,7 @@ This project uses [just](https://github.com/casey/just) as a command runner. Run
 |---------|-------------|
 | `just check` | Run all checks (cargo check, cargo clippy, cargo fmt, ruff, mypy) |
 | `just test` | Run unit tests |
-| `just fmt` | Format code (cargo fmt, ruff) |
+| `just format` | Format code (cargo fmt, ruff) |
 | `just integration-test` | Run SQL query integration tests |
 | `just integration-update` | Update expected test output |
 | `just package` | Build release packages |

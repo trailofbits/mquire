@@ -39,7 +39,7 @@ integration-update:
         uv run mquire-sql-query-verifier ../cfg/${name}.json "$output" --update); \
     done
 
-fmt:
+format:
     cargo fmt
     cd integration-tests/sql-queries/verifier && uv run ruff format src/
 
