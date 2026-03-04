@@ -236,6 +236,10 @@ impl Readable for LimeSnapshot {
             let file_offset = memory_range.file_offset + range_offset;
 
             let start = file_offset as usize;
+            if start >= self.mmap.len() {
+                return Ok(0);
+            }
+
             let end = (start + readable_bytes).min(self.mmap.len());
 
             let bytes_to_read = end - start;

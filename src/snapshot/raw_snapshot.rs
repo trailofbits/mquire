@@ -34,6 +34,10 @@ impl Readable for RawSnapshot {
         let offset: u64 = physical_address.into();
 
         let start = offset as usize;
+        if start >= self.mmap.len() {
+            return Ok(0);
+        }
+
         let end = (start + buffer.len()).min(self.mmap.len());
 
         let bytes_to_read = end - start;
