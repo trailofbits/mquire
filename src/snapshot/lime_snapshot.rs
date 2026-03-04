@@ -6,6 +6,18 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
+//! LiME (Linux Memory Extractor) snapshot format.
+//!
+//! LiME snapshots use headers to define non-contiguous physical memory ranges.
+//! Regions where the original memory was empty may be optimized away by LiME
+//! (detected via consecutive headers with no data in between); reads to these
+//! zero-filled regions return zeroes.
+//!
+//! [`Readable::regions`] returns all declared ranges, both data-present and
+//! zero-filled. Reads to addresses outside the declared ranges fail at the
+//! binary search. Reads to data-present ranges whose file offsets fall beyond
+//! the memory map are treated as snapshot file corruption.
+
 use crate::{
     memory::{
         error::{Error, ErrorKind, Result},
@@ -237,7 +249,12 @@ impl Readable for LimeSnapshot {
 
             let start = file_offset as usize;
             if start >= self.mmap.len() {
-                return Ok(0);
+                return Err(Error::new(
+                    ErrorKind::IOError,
+                    &format!(
+                        "File offset 0x{start:X} exceeds snapshot file size for address {physical_address}",
+                    ),
+                ));
             }
 
             let end = (start + readable_bytes).min(self.mmap.len());
