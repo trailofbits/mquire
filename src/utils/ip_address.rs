@@ -22,6 +22,7 @@ pub fn ipv6_to_string(bytes: &[u8]) -> Option<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

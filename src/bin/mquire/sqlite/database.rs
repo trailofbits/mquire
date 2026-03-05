@@ -236,6 +236,7 @@ struct PluginVTab<'vtab> {
     phantom: PhantomData<&'vtab ()>,
 }
 
+#[allow(unsafe_code)]
 unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
     type Aux = Arc<dyn TablePlugin>;
     type Cursor = PluginVTabCursor<'vtab>;
@@ -371,6 +372,7 @@ struct PluginVTabCursor<'vtab> {
     phantom: PhantomData<&'vtab PluginVTab<'vtab>>,
 }
 
+#[allow(unsafe_code)]
 unsafe impl VTabCursor for PluginVTabCursor<'_> {
     fn filter(
         &mut self,
@@ -448,6 +450,7 @@ unsafe impl VTabCursor for PluginVTabCursor<'_> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

@@ -39,6 +39,12 @@ rusqlite = { version = "0.38.0", features = ["vtab", "bundled"], optional = true
 default = ["cli"]
 cli = ["clap", "rustyline", "rusqlite"]
 
+[lints.clippy]
+unwrap_used = "deny"
+
+[lints.rust]
+unsafe_code = "deny"
+
 [[bin]]
 name = "mquire"
 required-features = ["cli"]

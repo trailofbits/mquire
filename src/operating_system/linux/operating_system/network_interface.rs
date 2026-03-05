@@ -702,6 +702,7 @@ fn collect_additional_mac_addresses(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

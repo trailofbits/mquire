@@ -102,6 +102,7 @@ impl<'a> Reader<'a> {
     }
 }
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::memory::{
         error::{Error, ErrorKind, Result},
