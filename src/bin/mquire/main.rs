@@ -138,7 +138,8 @@ fn create_operating_system(
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
-    logger::Logger::initialize(cli.debug);
+    let stderr_output = cli.debug && matches!(cli.command, Commands::Command { .. });
+    logger::Logger::initialize(cli.debug, stderr_output);
 
     let os_type = parse_operating_system(&cli.operating_system)?;
     let arch_type = parse_architecture(&cli.architecture)?;
