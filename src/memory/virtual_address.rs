@@ -186,6 +186,7 @@ macro_rules! generate_arithmetic_ops {
 generate_arithmetic_ops!();
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

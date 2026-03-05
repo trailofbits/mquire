@@ -460,6 +460,7 @@ impl Architecture for IntelArchitecture {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::memory::error::Result as MemoryResult;
 

@@ -35,6 +35,8 @@ impl RawSnapshot {
     /// Creates a new raw snapshot from the given path
     pub fn new(file_path: &Path) -> Result<Arc<Self>> {
         let file = File::open(file_path)?;
+
+        #[allow(unsafe_code)]
         let mmap = unsafe { Mmap::map(&file)? };
 
         Ok(Arc::new(RawSnapshot { mmap }))

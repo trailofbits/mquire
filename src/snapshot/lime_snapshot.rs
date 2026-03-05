@@ -187,6 +187,7 @@ impl LimeSnapshot {
         }
 
         Ok(Arc::new(LimeSnapshot {
+            #[allow(unsafe_code)]
             mmap: unsafe { Mmap::map(&file)? },
             memory_range_list,
             size,

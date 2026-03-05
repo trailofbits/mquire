@@ -497,6 +497,7 @@ pub(super) fn extract_valid_lines(buffer: &[u8], min_line_length: usize) -> Vec<
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

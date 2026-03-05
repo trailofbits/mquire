@@ -137,6 +137,7 @@ macro_rules! define_address_type {
         );
 
         #[cfg(test)]
+        #[allow(clippy::unwrap_used)]
         mod $test_module {
             use super::*;
 
@@ -397,6 +398,7 @@ define_address_type!(
 );
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod raw_virtual_address_high_canonical_tests {
     use super::*;
 
