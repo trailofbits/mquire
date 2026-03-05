@@ -638,6 +638,19 @@ File Status:
   ...
 ```
 
+## Troubleshooting
+
+Use the `--debug` flag to enable verbose debug messages during initialization and analysis:
+
+```bash
+mquire --debug command /path/to/memory.raw ".system_version"
+```
+
+- **`shell` and `query` modes**: Debug messages are stored in the `log_messages` SQL table. Query them with `SELECT * FROM log_messages;`
+- **`command` mode**: Debug messages are printed directly to stderr.
+
+For initialization issues that prevent mquire from successfully loading the snapshot, using `command` mode with a simple command like `.system_version` is recommended, as it prints debug output to stderr immediately without needing to query the `log_messages` table.
+
 ## Development
 
 This project uses [just](https://github.com/casey/just) as a command runner. Run `just` to see available commands:

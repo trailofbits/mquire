@@ -30,16 +30,22 @@ pub struct LogEntry {
 }
 
 /// A logger that captures messages for later retrieval via the log_messages table
-#[derive(Default)]
 pub struct Logger {
     /// List of captured log entries
     log_entry_list: Mutex<Vec<LogEntry>>,
+
+    /// Whether to also print log messages to stderr
+    stderr_output: bool,
 }
 
 impl Logger {
     /// Initializes the global logger with the specified level
-    pub fn initialize(debug: bool) {
-        log::set_logger(LOGGER.get_or_init(Logger::default)).unwrap();
+    pub fn initialize(debug: bool, stderr_output: bool) {
+        log::set_logger(LOGGER.get_or_init(|| Logger {
+            log_entry_list: Mutex::new(Vec::new()),
+            stderr_output,
+        }))
+        .expect("Failed to initialize the logger");
 
         let level = if debug {
             log::LevelFilter::Debug
@@ -78,12 +84,18 @@ impl log::Log for Logger {
         let line = record.line().unwrap_or_default();
         let location = format!("{path}@{line}");
 
+        let message = format!("{}", record.args());
+
+        if self.stderr_output {
+            eprintln!("[{}] {}: {}", record.level(), location, message);
+        }
+
         if let Ok(mut log_entry_list) = self.log_entry_list.lock() {
             log_entry_list.push(LogEntry {
                 time: chrono::Utc::now(),
                 level: record.level(),
                 location,
-                message: format!("{}", record.args()),
+                message,
             });
         }
     }
