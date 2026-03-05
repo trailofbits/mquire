@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download mquire package
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: linux-x64-tgz
           path: .
@@ -64,7 +64,7 @@ jobs:
             integration-tests_sql-queries_${{ inputs.test_suite }}.xml
 
       - name: Upload test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: integration-tests_sql-queries_${{ inputs.test_suite }}
