@@ -84,6 +84,15 @@ const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 3] = [
     0x01, // Version
 ];
 
+/// The physical and virtual address of a swapper task_struct candidate
+struct SwapperLocation {
+    /// The physical address of the swapper task_struct in the memory dump
+    physical_address: PhysicalAddress,
+
+    /// The raw virtual address of the swapper task_struct
+    raw_virtual_address: RawVirtualAddress,
+}
+
 /// Implements the OperatingSystem trait for Linux
 pub struct LinuxOperatingSystem {
     /// The memory dump
@@ -321,11 +330,11 @@ impl LinuxOperatingSystem {
     }
 
     /// Returns the location of the swapper task_struct
-    fn get_swapper_struct_location(
+    fn iter_swapper_struct_locations(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         kernel_type_info: &TypeInformation,
-    ) -> Result<(PhysicalAddress, RawVirtualAddress)> {
+    ) -> Result<Box<dyn Iterator<Item = SwapperLocation>>> {
         // Propagate type errors to the caller, since there's nothing we can do about them
         let task_struct_tid = kernel_type_info.id_of("task_struct").ok_or(Error::new(
             ErrorKind::OperatingSystemInitializationFailed,
@@ -343,11 +352,12 @@ impl LinuxOperatingSystem {
         let task_struct_size = kernel_type_info.size_of(task_struct_tid)?;
         let regions = readable.regions()?;
 
-        regions
+        let candidates: Vec<SwapperLocation> = regions
             .par_iter()
-            .find_map_any(|region| {
+            .flat_map_iter(|region| {
                 let reader = Reader::new(readable, architecture.endianness() == Endianness::Little);
                 let mut read_buffer = vec![0u8; SCAN_BUFFER_SIZE];
+                let mut matches = Vec::new();
 
                 for range in generate_address_ranges!(
                     region.start,
@@ -411,18 +421,81 @@ impl LinuxOperatingSystem {
                             };
 
                         debug!("Swapper struct located: {swapper_task_physical_address} => {swapper_struct_raw_vaddr}");
-                        return Some((swapper_task_physical_address, swapper_struct_raw_vaddr));
+                        matches.push(SwapperLocation {
+                            physical_address: swapper_task_physical_address,
+                            raw_virtual_address: swapper_struct_raw_vaddr,
+                        });
                     }
                 }
 
-                None
+                matches
             })
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorKind::OperatingSystemInitializationFailed,
-                    "Failed to locate the swapper task_struct",
+            .collect();
+
+        debug!("Found {} swapper candidate(s)", candidates.len());
+        Ok(Box::new(candidates.into_iter()))
+    }
+
+    /// Attempts to resolve the init task virtual address using a specific page table candidate
+    fn try_resolve_init_task(
+        memory_dump: &Arc<dyn Readable>,
+        architecture: &Arc<dyn Architecture>,
+        kernel_type_info: &TypeInformation,
+        discovered_page_table: PhysicalAddress,
+        swapper_raw_vaddr: RawVirtualAddress,
+    ) -> Result<VirtualAddress> {
+        let vmem_reader = VirtualMemoryReader::new(memory_dump.as_ref(), architecture.as_ref());
+
+        let swapper_vaddr = VirtualAddress::new(discovered_page_table, swapper_raw_vaddr);
+
+        let swapper_struct = VirtualStruct::from_name(
+            &vmem_reader,
+            kernel_type_info,
+            "task_struct",
+            &swapper_vaddr,
+        )?;
+
+        // The page table we have now might not be accurate. Before we start scanning for the
+        // init task, let's move to the page table in active_mm object of the swapper task_struct.
+        let swapper_pgd_vaddr = swapper_struct
+            .traverse("active_mm")?
+            .dereference()?
+            .traverse("pgd")?
+            .read_vaddr()?;
+
+        let swapper_pgd_phys =
+            architecture.translate_virtual_address(memory_dump.as_ref(), swapper_pgd_vaddr)?;
+
+        let swapper_page_table = swapper_pgd_phys.address();
+
+        // Attempt to look for the init task now, using the new root page table
+        let mut task_iter = TaskStructIterator::new(
+            memory_dump.clone(),
+            architecture.clone(),
+            kernel_type_info,
+            VirtualAddress::new(swapper_page_table, swapper_raw_vaddr),
+        )?;
+
+        task_iter
+            .find_map(|task_vaddr| {
+                let task_struct = VirtualStruct::from_name(
+                    &vmem_reader,
+                    kernel_type_info,
+                    "task_struct",
+                    &task_vaddr,
                 )
+                .ok()?;
+
+                if let Ok(pid) = try_chain!(task_struct.traverse("tgid")?.read_u32()) {
+                    if pid == 1 { Some(task_vaddr) } else { None }
+                } else {
+                    None
+                }
             })
+            .ok_or(Error::new(
+                ErrorKind::OperatingSystemInitializationFailed,
+                "Failed to locate the init task struct",
+            ))
     }
 
     /// Returns the virtual address of the swapper task_struct
@@ -431,91 +504,53 @@ impl LinuxOperatingSystem {
         architecture: Arc<dyn Architecture>,
         kernel_type_info: &TypeInformation,
     ) -> Result<VirtualAddress> {
-        let (swapper_struct_physical_addr, swapper_struct_raw_vaddr) =
-            Self::get_swapper_struct_location(
-                memory_dump.as_ref(),
-                architecture.as_ref(),
-                kernel_type_info,
-            )?;
-
-        let page_table_candidates = architecture.iter_page_table_candidates(
+        let swapper_candidates = Self::iter_swapper_struct_locations(
             memory_dump.as_ref(),
-            swapper_struct_physical_addr,
-            swapper_struct_raw_vaddr,
+            architecture.as_ref(),
+            kernel_type_info,
         )?;
 
-        let vmem_reader = VirtualMemoryReader::new(memory_dump.as_ref(), architecture.as_ref());
+        for swapper in swapper_candidates {
+            let page_table_candidates = match architecture.iter_page_table_candidates(
+                memory_dump.as_ref(),
+                swapper.physical_address,
+                swapper.raw_virtual_address,
+            ) {
+                Ok(candidates) => candidates,
 
-        for discovered_page_table in page_table_candidates {
-            debug!("Trying page table candidate: {discovered_page_table}");
-
-            // The page table we have now might not be accurate. Before we start scanning for the
-            // init task, let's move to the page table in active_mm object of the swapper task_struct.
-            let result = (|| -> Result<VirtualAddress> {
-                let swapper_vaddr =
-                    VirtualAddress::new(discovered_page_table, swapper_struct_raw_vaddr);
-                let swapper_struct = VirtualStruct::from_name(
-                    &vmem_reader,
-                    kernel_type_info,
-                    "task_struct",
-                    &swapper_vaddr,
-                )?;
-
-                let swapper_pgd_vaddr = swapper_struct
-                    .traverse("active_mm")?
-                    .dereference()?
-                    .traverse("pgd")?
-                    .read_vaddr()?;
-
-                let swapper_pgd_phys = architecture
-                    .translate_virtual_address(memory_dump.as_ref(), swapper_pgd_vaddr)?;
-
-                let swapper_page_table = swapper_pgd_phys.address();
-
-                // Attempt to look for the init task now, using the new root page table
-                let mut task_iter = TaskStructIterator::new(
-                    memory_dump.clone(),
-                    architecture.clone(),
-                    kernel_type_info,
-                    VirtualAddress::new(swapper_page_table, swapper_struct_raw_vaddr),
-                )?;
-
-                task_iter
-                    .find_map(|task_vaddr| {
-                        let task_struct = VirtualStruct::from_name(
-                            &vmem_reader,
-                            kernel_type_info,
-                            "task_struct",
-                            &task_vaddr,
-                        )
-                        .ok()?;
-
-                        if let Ok(pid) = try_chain!(task_struct.traverse("tgid")?.read_u32()) {
-                            if pid == 1 { Some(task_vaddr) } else { None }
-                        } else {
-                            None
-                        }
-                    })
-                    .ok_or(Error::new(
-                        ErrorKind::OperatingSystemInitializationFailed,
-                        "Failed to locate the init task struct",
-                    ))
-            })();
-
-            match result {
-                Ok(init_task_vaddr) => return Ok(init_task_vaddr),
                 Err(e) => {
-                    debug!("Page table candidate {discovered_page_table} failed: {e:?}");
+                    debug!(
+                        "Failed to scan page tables for swapper at {} => {}: {e:?}",
+                        swapper.physical_address, swapper.raw_virtual_address,
+                    );
+
                     continue;
+                }
+            };
+
+            for discovered_page_table in page_table_candidates {
+                debug!("Trying page table candidate: {discovered_page_table}");
+
+                match Self::try_resolve_init_task(
+                    &memory_dump,
+                    &architecture,
+                    kernel_type_info,
+                    discovered_page_table,
+                    swapper.raw_virtual_address,
+                ) {
+                    Ok(init_task_vaddr) => return Ok(init_task_vaddr),
+
+                    Err(e) => {
+                        debug!("Page table candidate {discovered_page_table} failed: {e:?}");
+                        continue;
+                    }
                 }
             }
         }
 
         Err(Error::new(
             ErrorKind::OperatingSystemInitializationFailed,
-            &format!(
-                "No valid page table found for swapper at {swapper_struct_physical_addr} => {swapper_struct_raw_vaddr}",
-            ),
+            "Failed to locate the init task struct",
         ))
     }
 }
