@@ -81,13 +81,14 @@ pub trait Architecture: Send + Sync {
     /// Returns the bitness of the target architecture
     fn bitness(&self) -> Bitness;
 
-    /// Locates the page table required to translate the given virtual address into the specified physical address
-    fn locate_page_table_for_virtual_address(
-        &self,
-        readable: &dyn Readable,
+    /// Returns an iterator over candidate page tables that can translate the given
+    /// virtual address into the specified physical address
+    fn iter_page_table_candidates<'a>(
+        &'a self,
+        readable: &'a dyn Readable,
         physical_address: PhysicalAddress,
         raw_virtual_address: RawVirtualAddress,
-    ) -> Result<PhysicalAddress>;
+    ) -> Result<Box<dyn Iterator<Item = PhysicalAddress> + 'a>>;
 
     /// Translates the given virtual address into a physical address range
     fn translate_virtual_address(

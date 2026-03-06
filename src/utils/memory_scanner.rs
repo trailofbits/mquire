@@ -286,12 +286,12 @@ mod tests {
             Bitness::Bit64
         }
 
-        fn locate_page_table_for_virtual_address(
-            &self,
-            _readable: &dyn Readable,
+        fn iter_page_table_candidates<'a>(
+            &'a self,
+            _readable: &'a dyn Readable,
             _physical_address: PhysicalAddress,
             _raw_virtual_address: RawVirtualAddress,
-        ) -> CoreResult<PhysicalAddress> {
+        ) -> CoreResult<Box<dyn Iterator<Item = PhysicalAddress> + 'a>> {
             unimplemented!("Not needed for tests")
         }
 
