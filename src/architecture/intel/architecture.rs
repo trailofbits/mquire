@@ -190,81 +190,72 @@ impl Architecture for IntelArchitecture {
         Bitness::Bit64
     }
 
-    fn locate_page_table_for_virtual_address(
-        &self,
-        readable: &dyn Readable,
+    fn iter_page_table_candidates<'a>(
+        &'a self,
+        readable: &'a dyn Readable,
         physical_address: PhysicalAddress,
         raw_virtual_address: RawVirtualAddress,
-    ) -> Result<PhysicalAddress> {
+    ) -> Result<Box<dyn Iterator<Item = PhysicalAddress> + 'a>> {
         let decomposed_vaddr =
             PageTableEntry::decompose_virtual_address(raw_virtual_address.value());
 
-        for region in readable.regions()? {
-            for page_table_offset in region
-                .start
-                .aligned_to(PAGE_DIRECTORY_SIZE)
-                .range_step(region.end, PAGE_DIRECTORY_SIZE)
-            {
-                let pml4_page_table = match Self::get_table_entries(
-                    readable,
-                    page_table_offset,
-                    PageTableLevel::Pml4,
-                ) {
-                    Ok(table) => table,
-                    Err(_) => continue,
-                };
+        let regions = readable.regions()?;
+
+        let iter = regions
+            .into_iter()
+            .flat_map(|region| {
+                let start = region.start.aligned_to(PAGE_DIRECTORY_SIZE);
+                start
+                    .range_step(region.end, PAGE_DIRECTORY_SIZE)
+                    .collect::<Vec<_>>()
+            })
+            .filter_map(move |page_table_offset| {
+                let pml4_page_table =
+                    Self::get_table_entries(readable, page_table_offset, PageTableLevel::Pml4)
+                        .ok()?;
 
                 let page_directory = if let Some(PageTableEntry::PageDirectory(page_directory)) =
                     pml4_page_table.get(decomposed_vaddr.pml4.page_table_index)
                 {
                     page_directory
                 } else {
-                    continue;
+                    return None;
                 };
 
                 if !page_directory.present {
-                    continue;
+                    return None;
                 }
 
-                let mut user_mode_count = 0;
-                for (pml4_index, pml4_entry) in pml4_page_table.iter().enumerate() {
-                    let present = match pml4_entry {
-                        PageTableEntry::Page(page) => page.present,
-                        PageTableEntry::PageDirectory(directory) => directory.present,
-                    };
+                let has_user_mode_entries =
+                    pml4_page_table
+                        .iter()
+                        .enumerate()
+                        .any(|(pml4_index, pml4_entry)| {
+                            let present = match pml4_entry {
+                                PageTableEntry::Page(page) => page.present,
+                                PageTableEntry::PageDirectory(directory) => directory.present,
+                            };
 
-                    if !present {
-                        continue;
-                    }
+                            present && pml4_index <= 0xFF
+                        });
 
-                    if pml4_index <= 0xFF {
-                        user_mode_count += 1;
-                    }
-                }
-
-                if user_mode_count != 0 {
-                    continue;
+                if has_user_mode_entries {
+                    return None;
                 }
 
                 let virtual_address = VirtualAddress::new(page_table_offset, raw_virtual_address);
+
                 let physical_address_range =
-                    match Self::virtual_address_to_physical_address(readable, virtual_address) {
-                        Ok(physical_address) => physical_address,
-                        Err(_) => continue,
-                    };
+                    Self::virtual_address_to_physical_address(readable, virtual_address).ok()?;
 
                 if physical_address_range.address().value() == physical_address.value() {
-                    return Ok(page_table_offset);
+                    Some(page_table_offset)
+                } else {
+                    None
                 }
-            }
-        }
+            });
 
-        Err(Error::new(
-            ErrorKind::NoRootPageDirectoryFound,
-            &format!(
-                "No PML4 table found to translate {raw_virtual_address} => {physical_address} ",
-            ),
-        ))
+        Ok(Box::new(iter))
     }
 
     fn translate_virtual_address(
