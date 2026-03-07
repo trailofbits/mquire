@@ -96,7 +96,16 @@ impl MemoryRange {
         let s_addr = reader.read_u64(current_address)?;
         current_address = current_address + std::mem::size_of_val(&s_addr);
 
-        let e_addr = reader.read_u64(current_address)?;
+        // e_addr is inclusive in the file; convert to exclusive to match Rust Range semantics
+        let e_addr = reader
+            .read_u64(current_address)?
+            .checked_add(1)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidSnapshotFormat,
+                    &format!("e_addr overflow in memory range header at offset {address}"),
+                )
+            })?;
         if s_addr >= e_addr {
             Err(Error::new(
                 ErrorKind::InvalidSnapshotFormat,
@@ -115,7 +124,7 @@ impl MemoryRange {
     }
 
     fn len(&self) -> u64 {
-        1 + self.e_addr - self.s_addr
+        self.e_addr - self.s_addr
     }
 }
 
