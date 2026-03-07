@@ -34,6 +34,9 @@ use std::{cmp::Ordering, fs::File, ops::Range, path::Path, sync::Arc};
 /// The magic value for LiME snapshot files
 const LIME_HEADER_MAGIC: u32 = 0x4C694D45;
 
+/// The magic value for AVML (compressed LiME) snapshot files
+const AVML_HEADER_MAGIC: u32 = 0x4C4D5641;
+
 /// The expected version field for LiME snapshot files
 const LIME_HEADER_VERSION: u32 = 0x00000001;
 
@@ -65,6 +68,13 @@ impl MemoryRange {
 
         let magic = reader.read_u32(current_address)?;
         current_address = current_address + std::mem::size_of_val(&magic);
+
+        if magic == AVML_HEADER_MAGIC {
+            return Err(Error::new(
+                ErrorKind::InvalidSnapshotFormat,
+                "Compressed LiME snapshots (AVML format) are not supported; convert the file to an uncompressed LiME snapshot first",
+            ));
+        }
 
         if magic != LIME_HEADER_MAGIC {
             return Err(Error::new(
