@@ -129,6 +129,12 @@ impl LinuxOperatingSystem {
             &kernel_type_info,
         )?;
 
+        debug!(
+            "Init task located: root_page_table={}, raw_vaddr={}",
+            init_task_vaddr.root_page_table(),
+            init_task_vaddr.value(),
+        );
+
         let system_version = Self::get_system_version(
             memory_dump.as_ref(),
             architecture.as_ref(),
