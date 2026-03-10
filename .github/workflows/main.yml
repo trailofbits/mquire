@@ -17,17 +17,42 @@ on:
     branches:
       - main
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  zizmor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Clone the source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+
+    permissions:
+      contents: read
+
     steps:
       - name: Clone the source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Run checks
         uses: ./.github/actions/mquire/check
@@ -36,15 +61,21 @@ jobs:
     needs: [check]
     timeout-minutes: 30
 
+    permissions:
+      contents: read
+
     strategy:
       matrix:
         include:
           - os: ubuntu-24.04
             build_type: Release
+
           - os: ubuntu-24.04
             build_type: Debug
+
           - os: macos-15
             build_type: Release
+
           - os: windows-2022
             build_type: Release
 
@@ -52,10 +83,14 @@ jobs:
 
     steps:
       - name: Clone the source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+        with:
+          persist-credentials: false
 
       - name: Build
         uses: ./.github/actions/mquire/build
+
         with:
           build_type: ${{ matrix.build_type }}
 
@@ -65,5 +100,14 @@ jobs:
 
   sql-queries:
     needs: [check, build]
+
+    permissions:
+      contents: read
+
     uses: ./.github/workflows/integration_sql-queries_main.yml
-    secrets: inherit
+
+    secrets:
+      MQUIRE_TEST_S3_BUCKET: ${{ secrets.MQUIRE_TEST_S3_BUCKET }}
+      MQUIRE_TEST_S3_ENDPOINT: ${{ secrets.MQUIRE_TEST_S3_ENDPOINT }}
+      MQUIRE_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.MQUIRE_TEST_AWS_ACCESS_KEY_ID }}
+      MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
