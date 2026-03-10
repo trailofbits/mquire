@@ -10,18 +10,37 @@ name: sql-queries
 
 on:
   workflow_call:
+    secrets:
+      MQUIRE_TEST_S3_BUCKET:
+        required: true
+      MQUIRE_TEST_S3_ENDPOINT:
+        required: true
+      MQUIRE_TEST_AWS_ACCESS_KEY_ID:
+        required: true
+      MQUIRE_TEST_AWS_SECRET_ACCESS_KEY:
+        required: true
+
+permissions: {}
 
 jobs:
   test-simple:
     uses: ./.github/workflows/integration_sql-queries_runner.yml
-    secrets: inherit
+    secrets:
+      MQUIRE_TEST_S3_BUCKET: ${{ secrets.MQUIRE_TEST_S3_BUCKET }}
+      MQUIRE_TEST_S3_ENDPOINT: ${{ secrets.MQUIRE_TEST_S3_ENDPOINT }}
+      MQUIRE_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.MQUIRE_TEST_AWS_ACCESS_KEY_ID }}
+      MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
     with:
       test_suite: simple
       config_file: ../cfg/linux_simple.json
 
   test-examples:
     uses: ./.github/workflows/integration_sql-queries_runner.yml
-    secrets: inherit
+    secrets:
+      MQUIRE_TEST_S3_BUCKET: ${{ secrets.MQUIRE_TEST_S3_BUCKET }}
+      MQUIRE_TEST_S3_ENDPOINT: ${{ secrets.MQUIRE_TEST_S3_ENDPOINT }}
+      MQUIRE_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.MQUIRE_TEST_AWS_ACCESS_KEY_ID }}
+      MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
     with:
       test_suite: examples
       config_file: ../cfg/linux_examples.json
@@ -34,7 +53,7 @@ jobs:
     if: always()
     steps:
       - name: Download all test results
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         with:
           pattern: integration-tests_sql-queries_*
           merge-multiple: true

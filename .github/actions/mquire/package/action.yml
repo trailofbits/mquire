@@ -34,28 +34,28 @@ runs:
 
     - name: Upload .deb package
       if: ${{ runner.os == 'Linux' }}
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ steps.prefix.outputs.value }}-deb
         path: package-build/*.deb
 
     - name: Upload .rpm package
       if: ${{ runner.os == 'Linux' }}
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ steps.prefix.outputs.value }}-rpm
         path: package-build/*.rpm
 
     - name: Upload .tar.gz package
       if: ${{ runner.os != 'Windows' }}
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ steps.prefix.outputs.value }}-tgz
         path: package-build/*.tar.gz
 
     - name: Upload .zip package
       if: ${{ runner.os == 'Windows' }}
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ steps.prefix.outputs.value }}-zip
         path: package-build/*.zip

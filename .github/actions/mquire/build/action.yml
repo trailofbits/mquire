@@ -40,25 +40,34 @@ runs:
       id: build_parameter
       shell: bash
       run: |
-        if [[ "${{ inputs.build_type }}" == "Release" ]]; then
+        if [[ "${INPUTS_BUILD_TYPE}" == "Release" ]]; then
           echo "VALUE=--release" >> $GITHUB_OUTPUT
         fi
+
+      env:
+        INPUTS_BUILD_TYPE: ${{ inputs.build_type }}
 
     - name: Build the project
       shell: bash
       env:
         RUST_BACKTRACE: 1
+        STEPS_TARGET_PARAMETER_OUTPUTS_VALUE: ${{ steps.target_parameter.outputs.VALUE }}
+        STEPS_BUILD_PARAMETER_OUTPUTS_VALUE: ${{ steps.build_parameter.outputs.VALUE }}
+
       run: |
         cargo build \
-          ${{ steps.target_parameter.outputs.VALUE }} \
-          ${{ steps.build_parameter.outputs.VALUE }}
+          ${STEPS_TARGET_PARAMETER_OUTPUTS_VALUE} \
+          ${STEPS_BUILD_PARAMETER_OUTPUTS_VALUE}
 
     - name: Run the tests
       shell: bash
       env:
         RUST_BACKTRACE: 1
+        STEPS_TARGET_PARAMETER_OUTPUTS_VALUE: ${{ steps.target_parameter.outputs.VALUE }}
+        STEPS_BUILD_PARAMETER_OUTPUTS_VALUE: ${{ steps.build_parameter.outputs.VALUE }}
+
       run: |
         cargo test \
           --examples \
-          ${{ steps.target_parameter.outputs.VALUE }} \
-          ${{ steps.build_parameter.outputs.VALUE }}
+          ${STEPS_TARGET_PARAMETER_OUTPUTS_VALUE} \
+          ${STEPS_BUILD_PARAMETER_OUTPUTS_VALUE}

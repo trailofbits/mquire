@@ -21,17 +21,35 @@ on:
         type: string
         description: "Path to config file relative to verifier dir (e.g., ../cfg/linux_simple.json)"
 
+    secrets:
+      MQUIRE_TEST_S3_BUCKET:
+        required: true
+
+      MQUIRE_TEST_S3_ENDPOINT:
+        required: true
+
+      MQUIRE_TEST_AWS_ACCESS_KEY_ID:
+        required: true
+
+      MQUIRE_TEST_AWS_SECRET_ACCESS_KEY:
+        required: true
+
+permissions: {}
+
 jobs:
   run:
     name: Integration Tests (${{ inputs.test_suite }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: integration-tests
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Download mquire package
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8
         with:
           name: linux-x64-tgz
           path: .
@@ -44,7 +62,7 @@ jobs:
           chmod +x target/release/mquire
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7
         with:
           version: "latest"
 
@@ -59,12 +77,14 @@ jobs:
           MQUIRE_TEST_S3_ENDPOINT: ${{ secrets.MQUIRE_TEST_S3_ENDPOINT }}
           MQUIRE_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.MQUIRE_TEST_AWS_ACCESS_KEY_ID }}
           MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
+          INPUTS_CONFIG_FILE: ${{ inputs.config_file }}
+          INPUTS_TEST_SUITE: ${{ inputs.test_suite }}
         run: |
-          uv run mquire-sql-query-verifier ${{ inputs.config_file }} \
-            integration-tests_sql-queries_${{ inputs.test_suite }}.xml
+          uv run mquire-sql-query-verifier ${INPUTS_CONFIG_FILE} \
+            integration-tests_sql-queries_${INPUTS_TEST_SUITE}.xml
 
       - name: Upload test results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
         with:
           name: integration-tests_sql-queries_${{ inputs.test_suite }}
