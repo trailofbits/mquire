@@ -32,7 +32,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000661C8000)"
+        "String": "paddr(0x00000000661c8000)"
       },
       "pid": {
         "SignedInteger": 5268
@@ -53,7 +53,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829018C8000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829018c8000)"
       }
     },
     {
@@ -73,7 +73,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000661C8000)"
+        "String": "paddr(0x00000000661c8000)"
       },
       "pid": {
         "SignedInteger": 5269
@@ -94,7 +94,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829018CA8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829018ca8c0)"
       }
     },
     {
@@ -114,7 +114,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5316
@@ -135,7 +135,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829018CD180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829018cd180)"
       }
     },
     {
@@ -155,7 +155,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5171
@@ -176,7 +176,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829018D0000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829018d0000)"
       }
     },
     {
@@ -196,7 +196,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5090
@@ -217,7 +217,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829018D28C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829018d28c0)"
       }
     },
     {
@@ -237,7 +237,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5170
@@ -258,7 +258,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829018D5180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829018d5180)"
       }
     },
     {
@@ -278,7 +278,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000115FE6000)"
+        "String": "paddr(0x0000000115fe6000)"
       },
       "pid": {
         "SignedInteger": 4206
@@ -299,7 +299,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901908000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901908000)"
       }
     },
     {
@@ -319,7 +319,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4193
@@ -340,7 +340,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF98290190A8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff98290190a8c0)"
       }
     },
     {
@@ -360,7 +360,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4196
@@ -381,7 +381,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF98290190D180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff98290190d180)"
       }
     },
     {
@@ -401,7 +401,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000002EFA000)"
+        "String": "paddr(0x0000000002efa000)"
       },
       "pid": {
         "SignedInteger": 4170
@@ -422,7 +422,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829019C8000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829019c8000)"
       }
     },
     {
@@ -442,7 +442,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000002EFA000)"
+        "String": "paddr(0x0000000002efa000)"
       },
       "pid": {
         "SignedInteger": 4171
@@ -463,7 +463,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829019CA8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829019ca8c0)"
       }
     },
     {
@@ -483,7 +483,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000002EFA000)"
+        "String": "paddr(0x0000000002efa000)"
       },
       "pid": {
         "SignedInteger": 4172
@@ -504,7 +504,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829019CD180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829019cd180)"
       }
     },
     {
@@ -524,7 +524,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000115FE6000)"
+        "String": "paddr(0x0000000115fe6000)"
       },
       "pid": {
         "SignedInteger": 4127
@@ -545,7 +545,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829019F0000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829019f0000)"
       }
     },
     {
@@ -565,7 +565,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000002EFA000)"
+        "String": "paddr(0x0000000002efa000)"
       },
       "pid": {
         "SignedInteger": 4160
@@ -586,7 +586,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829019F28C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829019f28c0)"
       }
     },
     {
@@ -606,7 +606,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000109D6000)"
+        "String": "paddr(0x00000000109d6000)"
       },
       "pid": {
         "SignedInteger": 4116
@@ -627,7 +627,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF9829019F5180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff9829019f5180)"
       }
     },
     {
@@ -647,7 +647,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4886
@@ -668,7 +668,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901A90000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901a90000)"
       }
     },
     {
@@ -688,7 +688,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5724
@@ -709,7 +709,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901A928C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901a928c0)"
       }
     },
     {
@@ -729,7 +729,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4872
@@ -750,7 +750,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901A95180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901a95180)"
       }
     },
     {
@@ -770,7 +770,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5833
@@ -791,7 +791,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901B18000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901b18000)"
       }
     },
     {
@@ -811,7 +811,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5834
@@ -832,7 +832,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901B1D180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901b1d180)"
       }
     },
     {
@@ -852,7 +852,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000147C04000)"
+        "String": "paddr(0x0000000147c04000)"
       },
       "pid": {
         "SignedInteger": 5838
@@ -873,7 +873,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901B80000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901b80000)"
       }
     },
     {
@@ -893,7 +893,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001D96000)"
+        "String": "paddr(0x0000000001d96000)"
       },
       "pid": {
         "SignedInteger": 5842
@@ -914,7 +914,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901B828C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901b828c0)"
       }
     },
     {
@@ -934,7 +934,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001B2A000)"
+        "String": "paddr(0x0000000001b2a000)"
       },
       "pid": {
         "SignedInteger": 5537
@@ -955,7 +955,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901B85180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901b85180)"
       }
     },
     {
@@ -975,7 +975,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5247
@@ -996,7 +996,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901BF8000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901bf8000)"
       }
     },
     {
@@ -1016,7 +1016,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000001039D8000)"
+        "String": "paddr(0x00000001039d8000)"
       },
       "pid": {
         "SignedInteger": 5695
@@ -1037,7 +1037,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901BFA8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901bfa8c0)"
       }
     },
     {
@@ -1057,7 +1057,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000001039D8000)"
+        "String": "paddr(0x00000001039d8000)"
       },
       "pid": {
         "SignedInteger": 5694
@@ -1078,7 +1078,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901BFD180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901bfd180)"
       }
     },
     {
@@ -1098,7 +1098,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5714
@@ -1119,7 +1119,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901C08000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901c08000)"
       }
     },
     {
@@ -1139,7 +1139,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000448C6000)"
+        "String": "paddr(0x00000000448c6000)"
       },
       "pid": {
         "SignedInteger": 5860
@@ -1160,7 +1160,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901C0A8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901c0a8c0)"
       }
     },
     {
@@ -1180,7 +1180,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5713
@@ -1201,7 +1201,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901C0D180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901c0d180)"
       }
     },
     {
@@ -1221,7 +1221,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000661C8000)"
+        "String": "paddr(0x00000000661c8000)"
       },
       "pid": {
         "SignedInteger": 5659
@@ -1242,7 +1242,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901D00000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901d00000)"
       }
     },
     {
@@ -1260,7 +1260,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001982000)"
+        "String": "paddr(0x0000000001982000)"
       },
       "pid": {
         "SignedInteger": 5661
@@ -1281,7 +1281,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901D028C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901d028c0)"
       }
     },
     {
@@ -1301,7 +1301,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5738
@@ -1322,7 +1322,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901D28000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901d28000)"
       }
     },
     {
@@ -1342,7 +1342,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5736
@@ -1363,7 +1363,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901D2A8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901d2a8c0)"
       }
     },
     {
@@ -1383,7 +1383,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5737
@@ -1404,7 +1404,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982901D2D180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982901d2d180)"
       }
     },
     {
@@ -1424,7 +1424,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5242
@@ -1445,7 +1445,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902C10000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902c10000)"
       }
     },
     {
@@ -1465,7 +1465,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5241
@@ -1486,7 +1486,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902C128C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902c128c0)"
       }
     },
     {
@@ -1506,7 +1506,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000006FCDC000)"
+        "String": "paddr(0x000000006fcdc000)"
       },
       "pid": {
         "SignedInteger": 5240
@@ -1527,7 +1527,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902C15180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902c15180)"
       }
     },
     {
@@ -1547,7 +1547,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x000000002EDA6000)"
+        "String": "paddr(0x000000002eda6000)"
       },
       "pid": {
         "SignedInteger": 4398
@@ -1568,7 +1568,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902C38000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902c38000)"
       }
     },
     {
@@ -1588,7 +1588,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4194
@@ -1609,7 +1609,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902C3A8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902c3a8c0)"
       }
     },
     {
@@ -1629,7 +1629,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4195
@@ -1650,7 +1650,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902C3D180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902c3d180)"
       }
     },
     {
@@ -1670,7 +1670,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001B2A000)"
+        "String": "paddr(0x0000000001b2a000)"
       },
       "pid": {
         "SignedInteger": 5589
@@ -1691,7 +1691,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902CA8000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902ca8000)"
       }
     },
     {
@@ -1711,7 +1711,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 5726
@@ -1732,7 +1732,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902CAA8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902caa8c0)"
       }
     },
     {
@@ -1752,7 +1752,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000028D32000)"
+        "String": "paddr(0x0000000028d32000)"
       },
       "pid": {
         "SignedInteger": 4454
@@ -1773,7 +1773,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902CAD180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902cad180)"
       }
     },
     {
@@ -1793,7 +1793,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001D9C000)"
+        "String": "paddr(0x0000000001d9c000)"
       },
       "pid": {
         "SignedInteger": 5704
@@ -1814,7 +1814,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902D55180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902d55180)"
       }
     },
     {
@@ -1834,7 +1834,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000109D6000)"
+        "String": "paddr(0x00000000109d6000)"
       },
       "pid": {
         "SignedInteger": 4111
@@ -1855,7 +1855,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902D60000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902d60000)"
       }
     },
     {
@@ -1875,7 +1875,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000109D6000)"
+        "String": "paddr(0x00000000109d6000)"
       },
       "pid": {
         "SignedInteger": 4104
@@ -1896,7 +1896,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902D628C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902d628c0)"
       }
     },
     {
@@ -1916,7 +1916,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000109D6000)"
+        "String": "paddr(0x00000000109d6000)"
       },
       "pid": {
         "SignedInteger": 4105
@@ -1937,7 +1937,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902D65180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902d65180)"
       }
     },
     {
@@ -1957,7 +1957,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001A00000)"
+        "String": "paddr(0x0000000001a00000)"
       },
       "pid": {
         "SignedInteger": 4085
@@ -1978,7 +1978,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902DC8000) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902dc8000)"
       }
     },
     {
@@ -1998,7 +1998,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x00000000779EA000)"
+        "String": "paddr(0x00000000779ea000)"
       },
       "pid": {
         "SignedInteger": 4088
@@ -2019,7 +2019,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902DCA8C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902dca8c0)"
       }
     },
     {
@@ -2039,7 +2039,7 @@
         "SignedInteger": 1000
       },
       "page_table": {
-        "String": "PhysicalAddress(0x0000000001A00000)"
+        "String": "paddr(0x0000000001a00000)"
       },
       "pid": {
         "SignedInteger": 4084
@@ -2060,7 +2060,7 @@
         "SignedInteger": 1000
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFF982902DCD180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffff982902dcd180)"
       }
     }
   ]
