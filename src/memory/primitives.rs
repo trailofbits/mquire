@@ -9,7 +9,7 @@
 use std::{fmt, ops, str::FromStr};
 
 macro_rules! define_address_type {
-    ("base_defs", $name:ident, $inner_type:ty) => {
+    ("base_defs", $name:ident, $short_name:expr, $inner_type:ty) => {
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
         pub struct $name($inner_type);
 
@@ -79,7 +79,7 @@ macro_rules! define_address_type {
 
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{}(0x{:016X})", stringify!($name), self.0)
+                write!(f, "{}(0x{:016x})", $short_name, self.0)
             }
         }
 
@@ -101,9 +101,11 @@ macro_rules! define_address_type {
             type Err = ();
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                let s = s.trim();
-                let s = s.strip_prefix(concat!(stringify!($name), "(0x")).ok_or(())?;
-                let s = s.strip_suffix(')').ok_or(())?;
+                let s = s.trim().to_ascii_lowercase();
+                let s = s.strip_prefix(concat!($short_name, "(0x"))
+                         .ok_or(())?
+                         .strip_suffix(')')
+                         .ok_or(())?;
 
                 let value = <$inner_type>::from_str_radix(s, 16).map_err(|_| ())?;
                 Ok(Self::new(value))
@@ -123,8 +125,8 @@ macro_rules! define_address_type {
         )*
     };
 
-    ("main", $name:ident, $inner_type:ty, $test_module:ident) => {
-        define_address_type!("base_defs", $name, $inner_type);
+    ("main", $name:ident, $short_name:expr, $inner_type:ty, $test_module:ident) => {
+        define_address_type!("base_defs", $name, $short_name, $inner_type);
 
         define_address_type!(
             "arithmetic_ops", $name, $inner_type,
@@ -234,13 +236,13 @@ macro_rules! define_address_type {
             #[test]
             fn test_display_format() {
                 let addr = <$name>::new(0xAABBCCDD);
-                assert_eq!(format!("{}", addr), format!("{}(0x00000000AABBCCDD)", stringify!($name)));
+                assert_eq!(format!("{}", addr), format!("{}(0x00000000aabbccdd)", $short_name));
             }
 
             #[test]
             fn test_debug_format() {
                 let addr = <$name>::new(0xAABBCCDD);
-                assert_eq!(format!("{:?}", addr), format!("{}(0x00000000AABBCCDD)", stringify!($name)));
+                assert_eq!(format!("{:?}", addr), format!("{}(0x00000000aabbccdd)", $short_name));
             }
 
             #[test]
@@ -301,56 +303,56 @@ macro_rules! define_address_type {
 
             #[test]
             fn test_from_str_valid() {
-                let input = format!("{}(0x0000000001A60000)", stringify!($name));
+                let input = format!("{}(0x0000000001A60000)", $short_name);
                 let result: $name = input.parse().unwrap();
                 assert_eq!(result, <$name>::new(0x0000000001A60000));
             }
 
             #[test]
             fn test_from_str_lowercase() {
-                let input = format!("{}(0x0000000001a60000)", stringify!($name));
+                let input = format!("{}(0x0000000001a60000)", $short_name);
                 let result: $name = input.parse().unwrap();
                 assert_eq!(result, <$name>::new(0x0000000001a60000));
             }
 
             #[test]
             fn test_from_str_with_whitespace() {
-                let input = format!("  {}(0x1234)  ", stringify!($name));
+                let input = format!("  {}(0x1234)  ", $short_name);
                 let result: $name = input.parse().unwrap();
                 assert_eq!(result, <$name>::new(0x1234));
             }
 
             #[test]
             fn test_from_str_rejects_trailing_content() {
-                let input = format!("{}(0x1234) extra", stringify!($name));
+                let input = format!("{}(0x1234) extra", $short_name);
                 let result: Result<$name, _> = input.parse();
                 assert!(result.is_err());
             }
 
             #[test]
             fn test_from_str_rejects_leading_content() {
-                let input = format!("extra {}(0x1234)", stringify!($name));
+                let input = format!("extra {}(0x1234)", $short_name);
                 let result: Result<$name, _> = input.parse();
                 assert!(result.is_err());
             }
 
             #[test]
             fn test_from_str_missing_hex_prefix() {
-                let input = format!("{}(0000000001A60000)", stringify!($name));
+                let input = format!("{}(0000000001A60000)", $short_name);
                 let result: Result<$name, _> = input.parse();
                 assert!(result.is_err());
             }
 
             #[test]
             fn test_from_str_invalid_hex() {
-                let input = format!("{}(0xGGGG)", stringify!($name));
+                let input = format!("{}(0xGGGG)", $short_name);
                 let result: Result<$name, _> = input.parse();
                 assert!(result.is_err());
             }
 
             #[test]
             fn test_from_str_empty_hex() {
-                let input = format!("{}(0x)", stringify!($name));
+                let input = format!("{}(0x)", $short_name);
                 let result: Result<$name, _> = input.parse();
                 assert!(result.is_err());
             }
@@ -365,9 +367,9 @@ macro_rules! define_address_type {
         }
     };
 
-    ($($name:ident, $inner_type:ty, $test_module:ident);* $(;)?) => {
+    ($($name:ident, $short_name:expr, $inner_type:ty, $test_module:ident);* $(;)?) => {
         $(
-            define_address_type!("main", $name, $inner_type, $test_module);
+            define_address_type!("main", $name, $short_name, $inner_type, $test_module);
         )*
     }
 }
@@ -393,8 +395,8 @@ impl RawVirtualAddress {
 }
 
 define_address_type!(
-    PhysicalAddress, u64, physical_address_tests;
-    RawVirtualAddress, u64, raw_virtual_address_tests;
+    PhysicalAddress, "paddr", u64, physical_address_tests;
+    RawVirtualAddress, "raddr", u64, raw_virtual_address_tests;
 );
 
 #[cfg(test)]

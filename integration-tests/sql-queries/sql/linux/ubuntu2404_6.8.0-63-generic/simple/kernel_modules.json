@@ -31,7 +31,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC051C140) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc051c140)"
       }
     },
     {
@@ -53,7 +53,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0507100) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0507100)"
       }
     },
     {
@@ -71,7 +71,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFF90DDD9B8) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffff90ddd9b8)"
       }
     },
     {
@@ -95,7 +95,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04F4480) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04f4480)"
       }
     },
     {
@@ -117,7 +117,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0246380) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0246380)"
       }
     },
     {
@@ -139,7 +139,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC050D3C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc050d3c0)"
       }
     },
     {
@@ -161,7 +161,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0251040) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0251040)"
       }
     },
     {
@@ -185,7 +185,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04FCA40) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04fca40)"
       }
     },
     {
@@ -209,7 +209,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC025DE80) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc025de80)"
       }
     },
     {
@@ -233,7 +233,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04E27C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04e27c0)"
       }
     },
     {
@@ -257,7 +257,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0289840) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0289840)"
       }
     },
     {
@@ -279,7 +279,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04B11C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04b11c0)"
       }
     },
     {
@@ -301,7 +301,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02AD240) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02ad240)"
       }
     },
     {
@@ -325,7 +325,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04C4440) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04c4440)"
       }
     },
     {
@@ -347,7 +347,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02B8500) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02b8500)"
       }
     },
     {
@@ -371,7 +371,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC049CC40) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc049cc40)"
       }
     },
     {
@@ -397,7 +397,7 @@
         "String": "3.0"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02C9A00) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02c9a00)"
       }
     },
     {
@@ -421,7 +421,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC046F1C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc046f1c0)"
       }
     },
     {
@@ -445,7 +445,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02ED100) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02ed100)"
       }
     },
     {
@@ -467,7 +467,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0488280) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0488280)"
       }
     },
     {
@@ -491,7 +491,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02A2140) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02a2140)"
       }
     },
     {
@@ -513,7 +513,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC047E280) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc047e280)"
       }
     },
     {
@@ -537,7 +537,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02C0D40) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02c0d40)"
       }
     },
     {
@@ -559,7 +559,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0465580) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0465580)"
       }
     },
     {
@@ -581,7 +581,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC02B3180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc02b3180)"
       }
     },
     {
@@ -603,7 +603,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0446340) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0446340)"
       }
     },
     {
@@ -625,7 +625,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0325D40) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0325d40)"
       }
     },
     {
@@ -647,7 +647,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC046B280) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc046b280)"
       }
     },
     {
@@ -669,7 +669,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC033CEC0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc033cec0)"
       }
     },
     {
@@ -691,7 +691,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04604C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04604c0)"
       }
     },
     {
@@ -713,7 +713,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0357840) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0357840)"
       }
     },
     {
@@ -735,7 +735,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC04541C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc04541c0)"
       }
     },
     {
@@ -757,7 +757,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0330680) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0330680)"
       }
     },
     {
@@ -779,7 +779,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC044B140) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc044b140)"
       }
     },
     {
@@ -801,7 +801,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC034C680) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc034c680)"
       }
     },
     {
@@ -823,7 +823,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03DE9C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03de9c0)"
       }
     },
     {
@@ -847,7 +847,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03601C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03601c0)"
       }
     },
     {
@@ -869,7 +869,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03DA300) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03da300)"
       }
     },
     {
@@ -891,7 +891,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0375800) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0375800)"
       }
     },
     {
@@ -913,7 +913,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03CB140) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03cb140)"
       }
     },
     {
@@ -937,7 +937,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC0390640) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc0390640)"
       }
     },
     {
@@ -961,7 +961,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03D3400) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03d3400)"
       }
     },
     {
@@ -983,7 +983,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC039B500) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc039b500)"
       }
     },
     {
@@ -1005,7 +1005,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03C38C0) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03c38c0)"
       }
     },
     {
@@ -1029,7 +1029,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03A5E40) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03a5e40)"
       }
     },
     {
@@ -1051,7 +1051,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03B7180) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03b7180)"
       }
     },
     {
@@ -1075,7 +1075,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03A0100) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03a0100)"
       }
     },
     {
@@ -1097,7 +1097,7 @@
       },
       "version": null,
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFFC03B2340) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffffc03b2340)"
       }
     }
   ]

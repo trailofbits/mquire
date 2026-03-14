@@ -607,7 +607,7 @@ Architecture: x86_64
 $ mquire command ubuntu2404_6.8.0-63-generic.lime .task_tree | head -n 10
 Parent: task_struct::parent
 Threads: Disabled
-Page Table: PhysicalAddress(0x0000000001A60000)
+Page Table: paddr(0x0000000001a60000)
 
 └─ [0] (ffffffff90c0fcc0) swapper/0
    ╎   ↳ [0] (ffff982a00e33518) \xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd,)\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd\x0e

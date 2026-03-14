@@ -9,7 +9,7 @@
         "SignedInteger": 1765803533
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x000000010FB6E000), raw_virtual_address: RawVirtualAddress(0xFFFFFFFF9162C880) }"
+        "String": "vaddr(0x000000010fb6e000, 0xffffffff9162c880)"
       }
     }
   ]
