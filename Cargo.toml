@@ -18,6 +18,12 @@ documentation = "https://docs.rs/mquire"
 readme = "README.md"
 keywords = ["linux", "kernel", "memory", "forensics", "sql"]
 categories = ["command-line-utilities", "development-tools::debugging"]
+exclude = [
+    ".github/",
+    "integration-tests/",
+    "justfile",
+    "package/",
+]
 
 [dependencies]
 # Core library dependencies
