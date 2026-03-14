@@ -442,22 +442,19 @@ impl LinuxOperatingSystem {
         Ok(Box::new(candidates.into_iter()))
     }
 
-    /// Attempts to refine the page table by reading `active_mm->pgd` from the swapper task.
-    /// Returns the refined page table physical address, or an error if `active_mm` is NULL.
-    fn try_refine_page_table(
+    /// Attempts acquire the page table from task_struct::active_mm::pgd`
+    fn get_task_active_mm_pgd(
         memory_dump: &dyn Readable,
         architecture: &dyn Architecture,
-        swapper_struct: &VirtualStruct,
+        task_struct: &VirtualStruct,
     ) -> Result<PhysicalAddress> {
-        let active_mm = swapper_struct.traverse("active_mm")?;
+        let active_mm = task_struct.traverse("active_mm")?;
         debug!("active_mm pointer at: {:?}", active_mm);
 
         let mm_struct = active_mm.dereference()?;
         debug!("mm_struct at: {:?}", mm_struct);
 
         if mm_struct.virtual_address().is_null() {
-            debug!("active_mm is NULL, skipping page table refinement");
-
             return Err(Error::new(ErrorKind::MemoryNotMapped, "active_mm is NULL"));
         }
 
@@ -469,7 +466,6 @@ impl LinuxOperatingSystem {
             architecture.translate_virtual_address(memory_dump, swapper_pgd_vaddr)?;
 
         let resolved = swapper_pgd_phys.address();
-        debug!("Resolved page table (from swapper's active_mm): {resolved}");
         Ok(resolved)
     }
 
@@ -491,19 +487,26 @@ impl LinuxOperatingSystem {
             &swapper_vaddr,
         )?;
 
-        // The page table we have now might not be accurate. Before we start scanning for the
-        // init task, let's move to the page table in active_mm object of the swapper task_struct.
-        let swapper_page_table = Self::try_refine_page_table(
+        // Try to get a better page table address by extracting the pgd value
+        let swapper_page_table = match Self::get_task_active_mm_pgd(
             memory_dump.as_ref(),
             architecture.as_ref(),
             &swapper_struct,
-        )
-        .unwrap_or_else(|_| {
-            debug!("Falling back to discovered page table candidate: {discovered_page_table}");
-            discovered_page_table
-        });
+        ) {
+            Ok(swapper_struct_pgd) => {
+                debug!(
+                    "Using the swapper's pgd ({swapper_struct_pgd}) instead of {discovered_page_table}"
+                );
 
-        // Attempt to look for the init task now, using the new root page table
+                swapper_struct_pgd
+            }
+
+            Err(error) => {
+                debug!("Keeping {discovered_page_table}: {error:?}");
+                discovered_page_table
+            }
+        };
+
         let mut task_iter = TaskStructIterator::new(
             memory_dump.clone(),
             architecture.clone(),
@@ -511,7 +514,7 @@ impl LinuxOperatingSystem {
             VirtualAddress::new(swapper_page_table, swapper_raw_vaddr),
         )?;
 
-        task_iter
+        let init_task_vaddr = task_iter
             .find_map(|task_vaddr| {
                 let task_struct = VirtualStruct::from_name(
                     &vmem_reader,
@@ -530,7 +533,37 @@ impl LinuxOperatingSystem {
             .ok_or(Error::new(
                 ErrorKind::OperatingSystemInitializationFailed,
                 "Failed to locate the init task struct",
-            ))
+            ))?;
+
+        // Try again to get a better page table address by extracting the pgd value
+        let init_task_struct = VirtualStruct::from_name(
+            &vmem_reader,
+            kernel_type_info,
+            "task_struct",
+            &init_task_vaddr,
+        )?;
+
+        let current_page_table = init_task_vaddr.root_page_table();
+        let init_page_table = match Self::get_task_active_mm_pgd(
+            memory_dump.as_ref(),
+            architecture.as_ref(),
+            &init_task_struct,
+        ) {
+            Ok(init_task_pgd) => {
+                debug!("Using init task's pgd ({init_task_pgd}) instead of {current_page_table}");
+                init_task_pgd
+            }
+
+            Err(error) => {
+                debug!("Keeping {current_page_table}: {error:?}");
+                current_page_table
+            }
+        };
+
+        Ok(VirtualAddress::new(
+            init_page_table,
+            init_task_vaddr.value(),
+        ))
     }
 
     /// Returns the virtual address of the swapper task_struct

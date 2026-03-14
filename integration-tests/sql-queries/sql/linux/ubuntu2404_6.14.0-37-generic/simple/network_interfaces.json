@@ -31,7 +31,7 @@
         "String": "down"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x00000001040B0000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601D5D000) }"
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000105450000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601D5D000) }"
       }
     },
     {
@@ -54,7 +54,7 @@
         "String": "down"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x00000001040B0000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601D5D000) }"
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000105450000), raw_virtual_address: RawVirtualAddress(0xFFFF88A601D5D000) }"
       }
     },
     {
@@ -81,7 +81,7 @@
         "String": "down"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x00000001040B0000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000105450000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
       }
     },
     {
@@ -108,7 +108,7 @@
         "String": "down"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x00000001040B0000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000105450000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
       }
     },
     {
@@ -135,7 +135,7 @@
         "String": "down"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x00000001040B0000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000105450000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
       }
     },
     {
@@ -162,7 +162,7 @@
         "String": "down"
       },
       "virtual_address": {
-        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x00000001040B0000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
+        "String": "VirtualAddress { root_page_table: PhysicalAddress(0x0000000105450000), raw_virtual_address: RawVirtualAddress(0xFFFF88A60D086000) }"
       }
     }
   ]
