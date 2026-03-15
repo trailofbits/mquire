@@ -9,7 +9,7 @@
 use crate::{
     database::table_plugins::{
         common::{
-            log_messages::LogMessagesTablePlugin, os_version::OSVersionTablePlugin,
+            mquire_diagnostics::MquireDiagnosticsTablePlugin, os_version::OSVersionTablePlugin,
             system_info::SystemInfoTablePlugin,
         },
         linux::{
@@ -107,7 +107,7 @@ generate_table_registry! {
     },
 
     Standalone, Common => {
-        log_messages: LogMessagesTablePlugin,
+        mquire_diagnostics: MquireDiagnosticsTablePlugin,
     },
 
     Linux, Common => {

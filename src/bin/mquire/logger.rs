@@ -29,7 +29,7 @@ pub struct LogEntry {
     pub message: String,
 }
 
-/// A logger that captures messages for later retrieval via the log_messages table
+/// A logger that captures messages for later retrieval via the mquire_diagnostics table
 pub struct Logger {
     /// List of captured log entries
     log_entry_list: Mutex<Vec<LogEntry>>,
