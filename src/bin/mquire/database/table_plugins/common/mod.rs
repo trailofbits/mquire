@@ -6,6 +6,6 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-pub mod log_messages;
+pub mod mquire_diagnostics;
 pub mod os_version;
 pub mod system_info;

@@ -16,17 +16,17 @@ use crate::{
 
 use std::{collections::BTreeMap, sync::Arc};
 
-/// A table plugin that exports the internal logger output
-pub struct LogMessagesTablePlugin;
+/// A table plugin that exports mquire's internal diagnostics
+pub struct MquireDiagnosticsTablePlugin;
 
-impl LogMessagesTablePlugin {
+impl MquireDiagnosticsTablePlugin {
     /// Creates a new table plugin instance
     pub fn new() -> Arc<Self> {
         Arc::new(Self {})
     }
 }
 
-impl TablePlugin for LogMessagesTablePlugin {
+impl TablePlugin for MquireDiagnosticsTablePlugin {
     fn schema(&self) -> BTreeMap<String, ColumnDef> {
         BTreeMap::from([
             (String::from("time"), ColumnDef::visible(ColumnType::String)),
@@ -47,7 +47,7 @@ impl TablePlugin for LogMessagesTablePlugin {
     }
 
     fn name(&self) -> String {
-        String::from("log_messages")
+        String::from("mquire_diagnostics")
     }
 
     fn generate(&self, _constraints: &Constraints) -> Result<RowList> {

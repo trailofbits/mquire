@@ -70,7 +70,7 @@ mquire provides SQL tables to query different aspects of the system or the state
 
 #### Debugging
 
-- **log_messages** - Internal mquire logs showing analysis progress, warnings, and errors
+- **mquire_diagnostics** - Internal mquire logs showing analysis progress, warnings, and errors
 
 ## Commands
 
@@ -646,10 +646,10 @@ Use the `--debug` flag to enable verbose debug messages during initialization an
 mquire --debug command /path/to/memory.raw ".system_version"
 ```
 
-- **`shell` and `query` modes**: Debug messages are stored in the `log_messages` SQL table. Query them with `SELECT * FROM log_messages;`
+- **`shell` and `query` modes**: Debug messages are stored in the `mquire_diagnostics` SQL table. Query them with `SELECT * FROM mquire_diagnostics;`
 - **`command` mode**: Debug messages are printed directly to stderr.
 
-For initialization issues that prevent mquire from successfully loading the snapshot, using `command` mode with a simple command like `.system_version` is recommended, as it prints debug output to stderr immediately without needing to query the `log_messages` table.
+For initialization issues that prevent mquire from successfully loading the snapshot, using `command` mode with a simple command like `.system_version` is recommended, as it prints debug output to stderr immediately without needing to query the `mquire_diagnostics` table.
 
 ## Development
 
