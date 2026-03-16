@@ -39,7 +39,11 @@ The Kallsyms scanner depends on the data format from `scripts/kallsyms.c` in the
 
 ### Tables
 
-mquire provides SQL tables to query different aspects of the system or the state of the tool itself:
+mquire provides SQL tables to query different aspects of the system or the state of the tool itself.
+
+> **mquire is not a database.** Each query reconstructs kernel data structures by scanning memory and following pointers. There are no precomputed indexes or cached results: every table access is a traversal of kernel data. Use `AS MATERIALIZED` to avoid redundant scans (see [Query Optimization](#query-optimization)), and provide constraints like `task` when querying per-process tables like `task_open_files` and `memory_mappings` to limit the scan to a single process.
+
+> **Design principle: virtual addresses as join keys.** Tables use `virtual_address` (the kernel address of the underlying data structure) as the canonical join key: not `pid` or other user-visible identifiers. This is intentional, because the same PID can appear multiple times across different discovery sources and root tasks, while a virtual address uniquely identifies a specific kernel object. Both the SQL tables and the underlying `LinuxOperatingSystem` API are built around this convention.
 
 #### System information
 
