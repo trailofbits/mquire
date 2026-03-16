@@ -45,9 +45,20 @@ jobs:
       test_suite: examples
       config_file: ../cfg/linux_examples.json
 
+  test-views:
+    uses: ./.github/workflows/integration_sql-queries_runner.yml
+    secrets:
+      MQUIRE_TEST_S3_BUCKET: ${{ secrets.MQUIRE_TEST_S3_BUCKET }}
+      MQUIRE_TEST_S3_ENDPOINT: ${{ secrets.MQUIRE_TEST_S3_ENDPOINT }}
+      MQUIRE_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.MQUIRE_TEST_AWS_ACCESS_KEY_ID }}
+      MQUIRE_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.MQUIRE_TEST_AWS_SECRET_ACCESS_KEY }}
+    with:
+      test_suite: views
+      config_file: ../cfg/linux_views.json
+
   summary:
     name: Integration Test Summary
-    needs: [test-simple, test-examples]
+    needs: [test-simple, test-examples, test-views]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()

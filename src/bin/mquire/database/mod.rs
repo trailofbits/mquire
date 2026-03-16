@@ -39,7 +39,7 @@ impl Database {
         let mut sqlite_db = SqliteDatabase::new()?;
 
         table_registry::register_all_tables(os_type, arch_type, &mut sqlite_db, system.clone())?;
-        sqlite_db.load_autostart_files();
+        sqlite_db.load_autostart_files(os_type, arch_type);
 
         let mut command_registry = CommandRegistry::new();
         commands::register_all_commands(os_type, arch_type, &mut command_registry);

@@ -11,7 +11,7 @@ use crate::sqlite::{
     table_plugin::{ColumnDef, ColumnType, ColumnValue},
 };
 
-use std::io;
+use std::{fmt, io};
 
 /// Represents the operating system type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,11 +20,27 @@ pub enum OperatingSystemType {
     Linux,
 }
 
+impl fmt::Display for OperatingSystemType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OperatingSystemType::Linux => write!(f, "linux"),
+        }
+    }
+}
+
 /// Represents the architecture type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArchitectureType {
     /// Intel/x86_64 architecture
     Intel,
+}
+
+impl fmt::Display for ArchitectureType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ArchitectureType::Intel => write!(f, "intel"),
+        }
+    }
 }
 
 /// Displays the schema for the given table

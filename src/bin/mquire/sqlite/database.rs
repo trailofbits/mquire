@@ -30,7 +30,7 @@ use std::{
     ffi::c_int,
     fs,
     marker::PhantomData,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -161,32 +161,55 @@ impl Database {
             .map_err(|e| Error::InvalidSqlStatement(format!("{}", e)))
     }
 
-    /// Loads and executes all .sql files from the autostart directory
-    /// The autostart directory is located at ${HOME}/.config/trailofbits/mquire/autostart
-    pub fn load_autostart_files(&self) {
+    /// Loads and executes SQL files from the autostart directory tree.
+    ///
+    /// The autostart directory is located at `$HOME/.config/trailofbits/mquire/autostart/`.
+    /// Files are loaded from OS/architecture subdirectories in the following order:
+    /// 1. `common/common/`: views for all platforms and architectures
+    /// 2. `common/{arch}/`: views for all platforms on a specific architecture
+    /// 3. `{os}/common/`: views for a specific platform on all architectures
+    /// 4. `{os}/{arch}/`: views for a specific platform and architecture
+    pub fn load_autostart_files(
+        &self,
+        os_type: crate::utils::OperatingSystemType,
+        arch_type: crate::utils::ArchitectureType,
+    ) {
         let home_dir = match std::env::var("HOME") {
             Ok(dir) => dir,
             Err(_) => return,
         };
 
-        let autostart_dir = PathBuf::from(home_dir)
+        let base_dir = PathBuf::from(home_dir)
             .join(".config")
             .join("trailofbits")
             .join("mquire")
             .join("autostart");
 
-        if !autostart_dir.exists() {
+        let os_str = os_type.to_string();
+        let arch_str = arch_type.to_string();
+
+        let dirs = [
+            base_dir.join("common").join("common"),
+            base_dir.join("common").join(&arch_str),
+            base_dir.join(&os_str).join("common"),
+            base_dir.join(&os_str).join(&arch_str),
+        ];
+
+        for dir in &dirs {
+            self.load_sql_files_from(dir);
+        }
+    }
+
+    /// Loads and executes all .sql files from a single directory, sorted alphabetically.
+    fn load_sql_files_from(&self, dir: &Path) {
+        if !dir.exists() {
             return;
         }
 
-        let entries = match fs::read_dir(&autostart_dir) {
+        let entries = match fs::read_dir(dir) {
             Ok(entries) => entries,
             Err(e) => {
-                log::error!(
-                    "Failed to read autostart directory {:?}: {}",
-                    autostart_dir,
-                    e
-                );
+                log::error!("Failed to read autostart directory {:?}: {}", dir, e);
                 return;
             }
         };
