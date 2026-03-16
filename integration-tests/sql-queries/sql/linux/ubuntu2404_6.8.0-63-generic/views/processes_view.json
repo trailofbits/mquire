@@ -1,0 +1,119 @@
+{
+  "column_order": [
+    "pid",
+    "comm",
+    "binary_path"
+  ],
+  "row_list": [
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd"
+      },
+      "comm": {
+        "String": "systemd"
+      },
+      "pid": {
+        "SignedInteger": 1
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-journald"
+      },
+      "comm": {
+        "String": "systemd-journal"
+      },
+      "pid": {
+        "SignedInteger": 430
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/bin/udevadm"
+      },
+      "comm": {
+        "String": "systemd-udevd"
+      },
+      "pid": {
+        "SignedInteger": 495
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-oomd"
+      },
+      "comm": {
+        "String": "systemd-oomd"
+      },
+      "pid": {
+        "SignedInteger": 786
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-resolved"
+      },
+      "comm": {
+        "String": "systemd-resolve"
+      },
+      "pid": {
+        "SignedInteger": 787
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/lib/systemd/systemd-timesyncd"
+      },
+      "comm": {
+        "String": "systemd-timesyn"
+      },
+      "pid": {
+        "SignedInteger": 788
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/sbin/anacron"
+      },
+      "comm": {
+        "String": "anacron"
+      },
+      "pid": {
+        "SignedInteger": 824
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/sbin/avahi-daemon"
+      },
+      "comm": {
+        "String": "avahi-daemon"
+      },
+      "pid": {
+        "SignedInteger": 826
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/bin/dbus-daemon"
+      },
+      "comm": {
+        "String": "dbus-daemon"
+      },
+      "pid": {
+        "SignedInteger": 827
+      }
+    },
+    {
+      "binary_path": {
+        "String": "/usr/libexec/gnome-remote-desktop-daemon"
+      },
+      "comm": {
+        "String": "gnome-remote-de"
+      },
+      "pid": {
+        "SignedInteger": 830
+      }
+    }
+  ]
+}

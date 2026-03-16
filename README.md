@@ -259,146 +259,32 @@ mquire command /path/to/memory.raw ".task_tree --help"
 
 ## Autostart SQL Files
 
-mquire automatically loads and executes SQL files from `~/.config/trailofbits/mquire/autostart/` when starting the shell or executing queries. This is useful for:
+mquire automatically loads and executes SQL files from `$HOME/.config/trailofbits/mquire/autostart/` on startup. Files are organized by operating system and architecture:
 
-- Creating reusable SQL views
-- Setting up custom tables
-- Defining frequently-used queries
+```
+autostart/
+  common/common/    # All platforms and architectures
+  common/{arch}/    # All platforms, specific architecture
+  {os}/common/      # Specific platform, all architectures
+  {os}/{arch}/      # Specific platform and architecture
+```
+
+Files within each directory are sorted alphabetically. Directories are scanned in the order shown above.
 
 **Features:**
-- SQL files are executed in alphabetical order
 - Files must have a `.sql` extension
-- Errors are displayed but don't block execution
+- Errors are logged to `mquire_diagnostics` but don't block execution
 - Works with both `mquire shell` and `mquire query` commands
 
-### Deduplicated process list
+### Shipped views
 
-The `tasks` table discovers tasks using multiple independent sources (e.g., `task_list`, `pid_ns`) so that investigators can compare them and detect rootkits. This means each process may appear more than once. For everyday use, create a `processes` view that deduplicates and filters to user-space process leaders.
+mquire ships reusable SQL views in the [`sql/views/`](sql/views/) directory. Install them with `just install-views`. See the [views README](sql/views/README.md) for the full list, numbering convention, and directory structure.
 
-Create a file `~/.config/trailofbits/mquire/autostart/000_processes.sql`:
+**Linux views** (`sql/views/linux/common/`):
 
-```sql
--- Deduplicated process view across all discovery sources.
--- The tasks table may return the same task from multiple sources for rootkit detection.
--- This view provides a clean, single-row-per-process result by deduplicating across sources.
-CREATE VIEW IF NOT EXISTS processes AS
-WITH tasks_mat AS MATERIALIZED (
-  SELECT * FROM tasks
-  WHERE type = 'thread_group_leader'
-    AND pid > 0
-)
-SELECT DISTINCT
-  pid,
-  ppid,
-  tgid,
-  comm,
-  binary_path,
-  command_line,
-  environment,
-  uid,
-  gid,
-  page_table,
-  virtual_address,
-  type
-FROM tasks_mat;
-```
-
-Then query the view:
-
-```sql
-SELECT pid, comm, binary_path FROM processes ORDER BY pid;
-```
-
-### Creating a reusable view for process network connections
-
-Create a file `~/.config/trailofbits/mquire/autostart/001_process_network_connections.sql`:
-
-```sql
-CREATE VIEW IF NOT EXISTS process_network_connections AS
-WITH
-  network_connections_mat AS MATERIALIZED (
-    SELECT * FROM network_connections
-  ),
-
-  task_open_files_mat AS MATERIALIZED (
-    SELECT * FROM task_open_files
-  ),
-
-  -- Deduplicate tasks by virtual_address since the default query returns
-  -- results from multiple enumeration sources
-  tasks_mat AS MATERIALIZED (
-    SELECT DISTINCT virtual_address, pid, tgid, comm, binary_path
-    FROM tasks
-    WHERE type = 'thread_group_leader'
-  )
-
-SELECT
-  t.pid,
-  t.comm,
-  t.binary_path,
-  nc.protocol,
-  nc.local_address,
-  nc.local_port,
-  nc.remote_address,
-  nc.remote_port,
-  nc.state,
-  nc.type as ip_type,
-  nc.inode
-FROM network_connections_mat nc
-JOIN task_open_files_mat tof ON nc.inode = tof.inode
-JOIN tasks_mat t ON tof.task = t.virtual_address
-ORDER BY t.pid, nc.local_port;
-```
-
-Then query the view:
-
-```sql
-SELECT * FROM process_network_connections WHERE comm = 'sshd';
-```
-
-### Comparing task enumeration methods for rootkit detection
-
-Rootkits often hide processes by unlinking them from the kernel's task list while keeping them running. mquire supports multiple task enumeration strategies that can be compared to detect such hidden processes.
-
-> **Note:** The `task_list` source aggressively follows pointers within `task_struct` (e.g., `parent`, `children`, `sibling`, `group_leader`) to maximize process discovery. This may occasionally yield invalid entries from corrupted or stale pointers in memory.
-
-Create a file `~/.config/trailofbits/mquire/autostart/002_hidden_process_detection.sql`:
-
-```sql
-CREATE VIEW IF NOT EXISTS hidden_processes AS
-WITH
-  tasks_from_task_list AS MATERIALIZED (
-    SELECT virtual_address, pid, comm
-    FROM tasks
-    WHERE source = 'task_list'
-  ),
-
-  tasks_from_pid_ns AS MATERIALIZED (
-    SELECT virtual_address, pid, comm
-    FROM tasks
-    WHERE source = 'pid_ns'
-  )
-
-SELECT
-  COALESCE(tl.pid, pn.pid) AS pid,
-  COALESCE(tl.comm, pn.comm) AS comm,
-  COALESCE(tl.virtual_address, pn.virtual_address) AS virtual_address,
-  CASE
-    WHEN tl.virtual_address IS NULL THEN 'hidden_from_task_list'
-    WHEN pn.virtual_address IS NULL THEN 'hidden_from_pid_ns'
-    ELSE 'visible'
-  END AS visibility
-FROM tasks_from_task_list tl
-FULL OUTER JOIN tasks_from_pid_ns pn
-  ON tl.virtual_address = pn.virtual_address
-WHERE tl.virtual_address IS NULL OR pn.virtual_address IS NULL;
-```
-
-Then query for potentially hidden processes:
-
-```sql
-SELECT * FROM hidden_processes;
-```
+- [**`000_processes.sql`**](sql/views/linux/common/000_processes.sql) - Deduplicated process list across all discovery sources, filtered to user-space process leaders. Query with `SELECT * FROM processes`.
+- [**`100_process_network_connections.sql`**](sql/views/linux/common/100_process_network_connections.sql) - Maps network connections to owning processes by joining through file descriptors. Query with `SELECT * FROM process_network_connections WHERE comm = 'sshd'`.
+- [**`200_hidden_process_detection.sql`**](sql/views/linux/common/200_hidden_process_detection.sql) - Detects processes visible in one discovery source but missing from another, useful for rootkit detection. Query with `SELECT * FROM hidden_processes`.
 
 ## Query Optimization
 
