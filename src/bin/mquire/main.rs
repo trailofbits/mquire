@@ -8,6 +8,7 @@
 
 mod command;
 mod commands;
+mod config;
 mod database;
 mod logger;
 mod query;
@@ -141,6 +142,8 @@ fn main() -> io::Result<()> {
     let stderr_output = cli.debug && matches!(cli.command, Commands::Command { .. });
     logger::Logger::initialize(cli.debug, stderr_output);
 
+    let config = config::Config::load();
+
     let os_type = parse_operating_system(&cli.operating_system)?;
     let arch_type = parse_architecture(&cli.architecture)?;
 
@@ -165,6 +168,8 @@ fn main() -> io::Result<()> {
             let database = Database::new(os_type, arch_type, system.clone()).map_err(|error| {
                 io::Error::other(format!("Failed to create the mquire database: {error:?}"))
             })?;
+
+            logger::Logger::set_entry_budget(config.database.mquire_diagnostics_max_entries);
 
             shell::run_interactive_shell(
                 system.clone(),
@@ -201,6 +206,8 @@ fn main() -> io::Result<()> {
             let database = Database::new(os_type, arch_type, system).map_err(|error| {
                 io::Error::other(format!("Failed to create the mquire database: {error:?}"))
             })?;
+
+            logger::Logger::set_entry_budget(config.database.mquire_diagnostics_max_entries);
 
             query::execute_query(&database, &query, output_format)?;
         }

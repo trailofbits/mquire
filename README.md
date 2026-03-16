@@ -651,6 +651,21 @@ mquire --debug command /path/to/memory.raw ".system_version"
 
 For initialization issues that prevent mquire from successfully loading the snapshot, using `command` mode with a simple command like `.system_version` is recommended, as it prints debug output to stderr immediately without needing to query the `mquire_diagnostics` table.
 
+## Configuration
+
+mquire can be configured via a TOML file at `$HOME/.config/trailofbits/mquire/config.toml`. If the file does not exist, default values are used.
+
+### Available options and default values
+
+```toml
+[database]
+# Maximum number of entries retained in the mquire_diagnostics table.
+# During initialization, all entries are kept regardless of this limit.
+# Once initialization completes, new log entries trigger eviction of the
+# oldest entries when the total exceeds this value.
+mquire_diagnostics_max_entries = 1000
+```
+
 ## Development
 
 This project uses [just](https://github.com/casey/just) as a command runner. Run `just` to see available commands:

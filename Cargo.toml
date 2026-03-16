@@ -40,10 +40,11 @@ thiserror = "2.0"
 clap = { version = "4.5", features = ["derive"], optional = true }
 rustyline = { version = "17.0.2", default-features = false, optional = true }
 rusqlite = { version = "0.38.0", features = ["vtab", "bundled"], optional = true }
+toml = { version = "0.8", optional = true }
 
 [features]
 default = ["cli"]
-cli = ["clap", "rustyline", "rusqlite"]
+cli = ["clap", "rustyline", "rusqlite", "toml"]
 
 [lints.clippy]
 unwrap_used = "deny"
