@@ -51,7 +51,7 @@ mquire provides SQL tables to query different aspects of the system or the state
 
 #### Process information
 
-- **tasks** - Running processes with command lines and binary paths
+- **tasks** - Running processes with command lines and binary paths. Each task is discovered via multiple independent sources, which is useful for rootkit detection. See [Comparing task enumeration methods for rootkit detection](#comparing-task-enumeration-methods-for-rootkit-detection) and [Deduplicated process list](#deduplicated-process-list).
 - **task_open_files** - Files opened by each process (requires `task` constraint - see examples below)
 - **memory_mappings** - Memory regions mapped by each process (requires `task` constraint)
 
@@ -266,6 +266,44 @@ mquire automatically loads and executes SQL files from `~/.config/trailofbits/mq
 - Files must have a `.sql` extension
 - Errors are displayed but don't block execution
 - Works with both `mquire shell` and `mquire query` commands
+
+### Deduplicated process list
+
+The `tasks` table discovers tasks using multiple independent sources (e.g., `task_list`, `pid_ns`) so that investigators can compare them and detect rootkits. This means each process may appear more than once. For everyday use, create a `processes` view that deduplicates and filters to user-space process leaders.
+
+Create a file `~/.config/trailofbits/mquire/autostart/000_processes.sql`:
+
+```sql
+-- Deduplicated process view across all discovery sources.
+-- The tasks table may return the same task from multiple sources for rootkit detection.
+-- This view provides a clean, single-row-per-process result by deduplicating across sources.
+CREATE VIEW IF NOT EXISTS processes AS
+WITH tasks_mat AS MATERIALIZED (
+  SELECT * FROM tasks
+  WHERE type = 'thread_group_leader'
+    AND pid > 0
+)
+SELECT DISTINCT
+  pid,
+  ppid,
+  tgid,
+  comm,
+  binary_path,
+  command_line,
+  environment,
+  uid,
+  gid,
+  page_table,
+  virtual_address,
+  type
+FROM tasks_mat;
+```
+
+Then query the view:
+
+```sql
+SELECT pid, comm, binary_path FROM processes ORDER BY pid;
+```
 
 ### Creating a reusable view for process network connections
 
