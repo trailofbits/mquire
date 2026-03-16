@@ -56,8 +56,8 @@ mquire provides SQL tables to query different aspects of the system or the state
 #### Process information
 
 - **tasks** - Running processes with command lines and binary paths. Each task is discovered via multiple independent sources, which is useful for rootkit detection. See [Comparing task enumeration methods for rootkit detection](#comparing-task-enumeration-methods-for-rootkit-detection) and [Deduplicated process list](#deduplicated-process-list).
-- **task_open_files** - Files opened by each process (requires `task` constraint - see examples below)
-- **memory_mappings** - Memory regions mapped by each process (requires `task` constraint)
+- **task_open_files** - Files opened by each process (provide a `task` constraint for targeted analysis, or query all tasks at once)
+- **memory_mappings** - Memory regions mapped by each process (provide a `task` constraint for targeted analysis, or query all tasks at once)
 
 #### Kernel modules
 
