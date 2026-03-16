@@ -51,6 +51,8 @@ impl TablePlugin for MquireDiagnosticsTablePlugin {
     }
 
     fn generate(&self, _constraints: &Constraints) -> Result<RowList> {
+        // Important: this function must not emit log entries (directly or indirectly),
+        // otherwise querying this table would trigger eviction of the entries being read.
         let row_list = Logger::get_messages()
             .into_iter()
             .map(|entry| {
