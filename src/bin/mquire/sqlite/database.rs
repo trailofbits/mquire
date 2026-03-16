@@ -182,9 +182,10 @@ impl Database {
         let entries = match fs::read_dir(&autostart_dir) {
             Ok(entries) => entries,
             Err(e) => {
-                eprintln!(
-                    "Error: Failed to read autostart directory {:?}: {}",
-                    autostart_dir, e
+                log::error!(
+                    "Failed to read autostart directory {:?}: {}",
+                    autostart_dir,
+                    e
                 );
                 return;
             }
@@ -204,13 +205,13 @@ impl Database {
             let sql_content = match fs::read_to_string(&sql_file) {
                 Ok(content) => content,
                 Err(e) => {
-                    eprintln!("Error: Failed to read SQL file {:?}: {}", sql_file, e);
+                    log::error!("Failed to read SQL file {:?}: {}", sql_file, e);
                     continue;
                 }
             };
 
             if let Err(e) = self.execute(&sql_content) {
-                eprintln!("Error: Failed to execute SQL file {:?}: {}", sql_file, e);
+                log::error!("Failed to execute SQL file {:?}: {}", sql_file, e);
                 continue;
             }
         }
