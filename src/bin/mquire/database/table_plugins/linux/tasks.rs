@@ -151,6 +151,16 @@ impl TasksTablePlugin {
                 Some(ColumnValue::SignedInteger(task.gid as i64)),
             ),
             (
+                String::from("start_time"),
+                task.start_time
+                    .map(|t| ColumnValue::SignedInteger(t as i64)),
+            ),
+            (
+                String::from("start_boottime"),
+                task.start_boottime
+                    .map(|t| ColumnValue::SignedInteger(t as i64)),
+            ),
+            (
                 String::from("source"),
                 Some(ColumnValue::String(source.to_string())),
             ),
@@ -267,6 +277,14 @@ impl TablePlugin for TasksTablePlugin {
             ),
             (
                 String::from("gid"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("start_time"),
+                ColumnDef::visible(ColumnType::SignedInteger),
+            ),
+            (
+                String::from("start_boottime"),
                 ColumnDef::visible(ColumnType::SignedInteger),
             ),
             (

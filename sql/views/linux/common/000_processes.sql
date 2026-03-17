@@ -19,5 +19,7 @@ SELECT DISTINCT
   gid,
   page_table,
   virtual_address,
-  type
+  type,
+  start_time,
+  start_boottime
 FROM tasks_mat;
