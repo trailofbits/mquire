@@ -313,6 +313,18 @@ impl LinuxOperatingSystem {
         let uid = cred.traverse("uid")?.read_u32()?;
         let gid = cred.traverse("gid")?.read_u32()?;
 
+        let start_time = task_struct
+            .traverse("start_time")
+            .and_then(|f| f.read_u64())
+            .inspect_err(|error| debug!("Could not read start_time: {error:?}"))
+            .ok();
+
+        let start_boottime = task_struct
+            .traverse("start_boottime")
+            .and_then(|f| f.read_u64())
+            .inspect_err(|error| debug!("Could not read start_boottime: {error:?}"))
+            .ok();
+
         let mut page_table = task_struct.virtual_address().root_page_table();
         let mut command_line: Option<String> = None;
         let mut environment_variable_map = BTreeMap::new();
@@ -463,6 +475,8 @@ impl LinuxOperatingSystem {
             pid,
             uid,
             gid,
+            start_time,
+            start_boottime,
         })
     }
 

@@ -64,4 +64,10 @@ pub struct Task {
 
     /// The group identifier of the task.
     pub gid: u32,
+
+    /// Monotonic start time in nanoseconds (task_struct::start_time, CLOCK_MONOTONIC)
+    pub start_time: Option<u64>,
+
+    /// Boot-relative start time in nanoseconds (task_struct::start_boottime, CLOCK_BOOTTIME)
+    pub start_boottime: Option<u64>,
 }
