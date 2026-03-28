@@ -15,14 +15,18 @@ use crate::{
     memory::{readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
         entities::dmesg::{DmesgDataSource, DmesgEntry},
-        operating_system::{LinuxOperatingSystem, syslog_file::is_valid_text},
+        operating_system::LinuxOperatingSystem,
         virtual_struct::VirtualStruct,
     },
+    utils::text::is_valid_text,
 };
 
 use {btfparse::TypeInformation, log::debug};
 
 use std::sync::Arc;
+
+/// Minimum percentage of printable characters for valid text
+const PRINTABLE_THRESHOLD_PERCENT: u8 = 80;
 
 //
 // Constants for the printk ringbuffer
@@ -316,7 +320,7 @@ impl<'a> Iterator for DmesgEntryIterator<'a> {
                     if bytes_read == text_len {
                         let msg = String::from_utf8_lossy(&text_buffer).to_string();
 
-                        if !is_valid_text(&msg, 1) {
+                        if !is_valid_text(&msg, 1, PRINTABLE_THRESHOLD_PERCENT) {
                             debug!(
                                 "Invalid/corrupted message text at index {index}: not enough printable characters"
                             );
