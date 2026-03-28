@@ -20,12 +20,13 @@
 //! The extent is determined entirely by the snapshot format (file size for
 //! raw dumps, headers for LiME), not by an external parameter.
 
+pub mod elf_core_snapshot;
 pub mod lime_snapshot;
 pub mod raw_snapshot;
 
 use crate::memory::readable::Readable;
 
-use {lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot};
+use {elf_core_snapshot::ElfCoreSnapshot, lime_snapshot::LimeSnapshot, raw_snapshot::RawSnapshot};
 
 use std::{
     io::{self, ErrorKind},
@@ -50,9 +51,17 @@ pub fn open_memory(path: &Path) -> io::Result<Arc<dyn Readable>> {
             Ok(snapshot)
         }
 
+        Some("elf") => {
+            let snapshot: Arc<dyn Readable> = ElfCoreSnapshot::new(path).map_err(|e| {
+                io::Error::other(format!("Failed to open ELF core snapshot: {e:?}"))
+            })?;
+
+            Ok(snapshot)
+        }
+
         _ => Err(io::Error::new(
             ErrorKind::InvalidInput,
-            "Unsupported memory dump format. Use .raw or .lime files.",
+            "Unsupported memory dump format. Use .raw, .lime, or .elf files.",
         )),
     }
 }
