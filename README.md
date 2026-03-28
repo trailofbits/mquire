@@ -184,11 +184,21 @@ cargo build --release
 # - mquire: Unified tool with shell, query, and command modes
 ```
 
+## Supported snapshot formats
+
+mquire supports the following memory snapshot formats, detected by file extension:
+
+| Format | Extension | Description |
+|--------|-----------|-------------|
+| Raw | `.raw` | Flat physical memory dump (byte-for-byte copy of physical address space) |
+| LiME | `.lime` | [Linux Memory Extractor](https://github.com/504ensicsLabs/LiME) format with address range headers |
+| ELF core | `.elf` | ELF core dump with PT_LOAD segments (as produced by `virsh dump` or QEMU `dump-guest-memory`) |
+
 ## Acquiring a memory snapshot
 
-We recommend [AVML](https://github.com/microsoft/avml) for acquiring memory snapshots. [LiME](https://github.com/504ensicsLabs/LiME) was previously suggested but is no longer actively maintained.
+### Using AVML (recommended)
 
-### Using AVML
+We recommend [AVML](https://github.com/microsoft/avml) for acquiring memory snapshots from live Linux systems. [LiME](https://github.com/504ensicsLabs/LiME) was previously suggested but is no longer actively maintained.
 
 ```bash
 sudo avml output.lime
@@ -197,6 +207,16 @@ sudo avml output.lime
 > **Important:** Do not use `--compress` when acquiring snapshots for mquire. mquire does not support compressed AVML snapshots. If you have a compressed snapshot, use `avml-convert` to decompress it first: `avml-convert compressed.lime uncompressed.lime`
 
 See the [AVML documentation](https://github.com/microsoft/avml) for additional options.
+
+### Using virsh (virtual machines)
+
+For libvirt/KVM virtual machines, use `virsh dump` to produce an ELF core dump:
+
+```bash
+virsh -c qemu:///system dump <domain> output.elf --memory-only --format elf
+```
+
+The VM is paused during the dump and resumed after. Add `--live` to avoid pausing, at the cost of snapshot consistency.
 
 ## Getting started
 
