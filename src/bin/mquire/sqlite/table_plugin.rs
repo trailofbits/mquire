@@ -101,7 +101,7 @@ pub type Row = BTreeMap<String, OptionalColumnValue>;
 pub type RowList = Vec<Row>;
 
 /// A plugin that generates a table
-pub trait TablePlugin {
+pub trait TablePlugin: Send + Sync {
     /// The table schema
     fn schema(&self) -> BTreeMap<String, ColumnDef>;
 
