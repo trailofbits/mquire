@@ -25,12 +25,16 @@ use crate::{
         virtual_struct::VirtualStruct,
     },
     try_chain,
+    utils::text::is_valid_text,
 };
 
 use {log::debug, std::collections::BTreeSet};
 
 /// Syslog path
 const SYSLOG_PATH: &str = "/var/log/syslog";
+
+/// Minimum percentage of printable characters for valid text
+const PRINTABLE_THRESHOLD_PERCENT: u8 = 80;
 
 /// Iterator over syslog file regions from memory
 pub struct SyslogFileIterator<'a> {
@@ -457,20 +461,6 @@ impl LinuxOperatingSystem {
     }
 }
 
-/// Validates if a text string contains mostly (80%) printable characters
-pub(crate) fn is_valid_text(text: &str, min_length: usize) -> bool {
-    if text.len() < min_length {
-        return false;
-    }
-
-    let printable_count = text
-        .chars()
-        .filter(|c| c.is_ascii_graphic() || c.is_whitespace())
-        .count();
-
-    printable_count as f32 / text.len() as f32 >= 0.8
-}
-
 /// Extracts valid text lines from a buffer that may contain binary data
 pub(super) fn extract_valid_lines(buffer: &[u8], min_line_length: usize) -> Vec<String> {
     let mut valid_lines = Vec::new();
@@ -484,7 +474,7 @@ pub(super) fn extract_valid_lines(buffer: &[u8], min_line_length: usize) -> Vec<
             if let Ok(line_str) = std::str::from_utf8(line_bytes) {
                 let line_clean = line_str.trim_end_matches('\r').trim();
 
-                if is_valid_text(line_clean, min_line_length) {
+                if is_valid_text(line_clean, min_line_length, PRINTABLE_THRESHOLD_PERCENT) {
                     valid_lines.push(line_clean.to_string());
                 }
             }
@@ -552,25 +542,5 @@ mod tests {
 
         let result = extract_valid_lines(input, 1);
         assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_is_valid_text_accepts_fully_printable() {
-        assert!(is_valid_text("This is 100% valid ASCII text!", 1));
-        assert!(is_valid_text("Line with spaces and punctuation.", 1));
-        assert!(is_valid_text("Numbers 12345 are fine", 1));
-    }
-
-    #[test]
-    fn test_is_valid_text_rejects_mostly_binary() {
-        let binary_heavy = "abc\x00\x01\x02\x03\x04\x05";
-        assert!(!is_valid_text(binary_heavy, 1));
-    }
-
-    #[test]
-    fn test_is_valid_text_respects_min_length() {
-        assert!(!is_valid_text("ab", 5));
-        assert!(is_valid_text("abcde", 5));
-        assert!(is_valid_text("abcdef", 5));
     }
 }

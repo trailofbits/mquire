@@ -106,7 +106,7 @@ const P64_FILESZ_OFFSET: usize = 32;
 
 /// ELF class (bitness).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ElfClass {
+enum ElfClass {
     Elf32,
     Elf64,
 }
@@ -223,19 +223,19 @@ impl Readable for ElfCoreSnapshot {
 }
 
 /// A memory range within the ELF core file.
-pub(crate) struct MemoryRange {
+struct MemoryRange {
     /// File offset of the segment data.
-    pub(crate) file_offset: u64,
+    file_offset: u64,
 
     /// Starting physical address.
-    pub(crate) s_addr: u64,
+    s_addr: u64,
 
     /// Ending physical address (exclusive).
-    pub(crate) e_addr: u64,
+    e_addr: u64,
 }
 
 impl MemoryRange {
-    pub(crate) fn len(&self) -> u64 {
+    fn len(&self) -> u64 {
         self.e_addr - self.s_addr
     }
 }
@@ -265,17 +265,17 @@ struct ProgramHeaderTable {
 }
 
 /// Parsed PT_LOAD segments from an ELF core file.
-pub(crate) struct ElfCoreLoads {
+struct ElfCoreLoads {
     /// Memory ranges from PT_LOAD segments, sorted by physical address.
-    pub(crate) memory_range_list: Vec<MemoryRange>,
+    memory_range_list: Vec<MemoryRange>,
 
     /// Total size of all mapped memory.
-    pub(crate) size: u64,
+    size: u64,
 }
 
 impl ElfCoreLoads {
     /// Parses an ELF core file, validating headers and extracting PT_LOAD segments.
-    pub(crate) fn new(readable: &ReadableFile) -> Result<Self> {
+    fn new(readable: &ReadableFile) -> Result<Self> {
         let mut magic = [0u8; 4];
         readable.read(&mut magic, PhysicalAddress::default())?;
         if magic != ELF_MAGIC {
