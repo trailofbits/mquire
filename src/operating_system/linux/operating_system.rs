@@ -37,7 +37,7 @@ use crate::{
         virtual_address::VirtualAddress,
     },
     operating_system::linux::{
-        btf::BtfparseReadableAdapter,
+        btf::BtfBatchScanner,
         entities::{
             boot_time::BootTime, kernel_module::KernelModule, network_connection::Protocol,
             task::Task,
@@ -78,11 +78,14 @@ const SCAN_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 /// Swapper process comm string
 const SWAPPER_PROCESS_COMM: &str = "swapper/0";
 
-/// BTF signature for little endian machines
-const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 3] = [
-    0x9F, 0xEB, // Magic number
-    0x01, // Version
-];
+/// The resolved kernel debug symbols and init task address
+struct KernelContext {
+    /// Kernel debug symbols (BTF type information)
+    type_info: TypeInformation,
+
+    /// The virtual address of the init task
+    init_task_vaddr: VirtualAddress,
+}
 
 /// The physical and virtual address of a swapper task_struct candidate
 struct SwapperLocation {
@@ -120,26 +123,16 @@ impl LinuxOperatingSystem {
         memory_dump: Arc<dyn Readable>,
         architecture: Arc<dyn Architecture>,
     ) -> Result<Arc<Self>> {
-        let kernel_type_info = Self::get_kernel_type_info(memory_dump.as_ref())
-            .inspect_err(|err| debug!("{err:?}"))?;
+        let kernel_ctx =
+            Self::find_kernel_btf_and_init_task(memory_dump.clone(), architecture.clone())?;
 
-        let init_task_vaddr = Self::get_init_task_vaddr(
-            memory_dump.clone(),
-            architecture.clone(),
-            &kernel_type_info,
-        )?;
-
-        debug!(
-            "Init task located: root_page_table={}, raw_vaddr={}",
-            init_task_vaddr.root_page_table(),
-            init_task_vaddr.value(),
-        );
+        debug!("Init task located: {}", kernel_ctx.init_task_vaddr);
 
         let system_version = Self::get_system_version(
             memory_dump.as_ref(),
             architecture.as_ref(),
-            &kernel_type_info,
-            &init_task_vaddr,
+            &kernel_ctx.type_info,
+            &kernel_ctx.init_task_vaddr,
         )?;
 
         let kernel_version: Option<KernelVersion> = system_version
@@ -149,7 +142,7 @@ impl LinuxOperatingSystem {
         let kallsyms = Kallsyms::new(
             memory_dump.as_ref(),
             architecture.as_ref(),
-            init_task_vaddr.root_page_table(),
+            kernel_ctx.init_task_vaddr.root_page_table(),
             &kernel_version,
         )
         .inspect_err(|err| debug!("{err:?}"))
@@ -158,8 +151,8 @@ impl LinuxOperatingSystem {
         Ok(Arc::new(Self {
             memory_dump,
             architecture,
-            kernel_type_info,
-            init_task_vaddr,
+            kernel_type_info: kernel_ctx.type_info,
+            init_task_vaddr: kernel_ctx.init_task_vaddr,
             kallsyms,
             kernel_version,
         }))
@@ -272,67 +265,41 @@ impl LinuxOperatingSystem {
         self.iter_network_interfaces_from_impl(list_head_vaddr)
     }
 
-    /// Scans the given `Readable` object for the kernel BTF debug symbols
-    fn get_kernel_type_info(readable: &dyn Readable) -> Result<TypeInformation> {
-        let regions = readable.regions()?;
+    /// Scans memory for BTF candidates and, for each one, attempts to
+    /// resolve the init task. Returns the first BTF whose offsets produce
+    /// a valid init task.
+    fn find_kernel_btf_and_init_task(
+        memory_dump: Arc<dyn Readable>,
+        architecture: Arc<dyn Architecture>,
+    ) -> Result<KernelContext> {
+        let btf_scanner = BtfBatchScanner::new(memory_dump.as_ref(), architecture.endianness())?;
 
-        regions
-            .par_iter()
-            .find_map_any(|region| {
-                let mut read_buffer = vec![0u8; SCAN_BUFFER_SIZE];
-
-                for range in generate_address_ranges!(
-                    region.start,
-                    region.end,
-                    read_buffer.len(),
-                    BTF_LITTLE_ENDIAN_SIGNATURE.len()
+        for batch in btf_scanner {
+            for type_info in batch {
+                match Self::get_init_task_vaddr(
+                    memory_dump.clone(),
+                    architecture.clone(),
+                    &type_info,
                 ) {
-                    let bytes_read =
-                        if let Ok(bytes_read) = readable.read(&mut read_buffer, range.start) {
-                            bytes_read
-                        } else {
-                            debug!("Failed to read buffer during BTF scan at {:?}", range.start);
-                            continue;
-                        };
+                    Ok(init_task_vaddr) => {
+                        return Ok(KernelContext {
+                            type_info,
+                            init_task_vaddr,
+                        });
+                    }
 
-                    for offset in read_buffer[..bytes_read]
-                        .windows(BTF_LITTLE_ENDIAN_SIGNATURE.len())
-                        .enumerate()
-                        .filter_map(|(offset, window)| {
-                            if window == BTF_LITTLE_ENDIAN_SIGNATURE {
-                                Some(offset)
-                            } else {
-                                None
-                            }
-                        })
-                    {
-                        let btf_offset = range.start + (offset as u64);
-                        let readable_adapter =
-                            BtfparseReadableAdapter::new(readable, btf_offset.value());
-
-                        let type_information =
-                            if let Ok(type_information) = TypeInformation::new(&readable_adapter) {
-                                type_information
-                            } else {
-                                debug!("Failed to parse BTF data at offset {}", btf_offset);
-                                continue;
-                            };
-
-                        if type_information.id_of("task_struct").is_some() {
-                            debug!("BTF data found at offset {btf_offset}");
-                            return Some(type_information);
-                        }
+                    Err(e) => {
+                        debug!("BTF candidate failed init_task resolution: {e:?}");
+                        continue;
                     }
                 }
+            }
+        }
 
-                None
-            })
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorKind::OperatingSystemInitializationFailed,
-                    "Failed to locate the BTF debug symbols",
-                )
-            })
+        Err(Error::new(
+            ErrorKind::OperatingSystemInitializationFailed,
+            "Failed to locate valid BTF debug symbols with a resolvable init task",
+        ))
     }
 
     /// Returns the location of the swapper task_struct
