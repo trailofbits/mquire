@@ -1,1 +1,3 @@
 package/**/* linguist-vendored
+integration-tests/**/*.py linguist-vendored
+justfile linguist-vendored
