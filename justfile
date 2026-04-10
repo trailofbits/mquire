@@ -48,3 +48,7 @@ package:
     cargo build --release --target x86_64-unknown-linux-musl
     cmake -S package -B package-build -DMQUIRE_REPOSITORY_PATH="$(pwd)"
     cmake --build package-build --target package
+    mkdir -p dist
+    find package-build -maxdepth 1 -type f -name 'mquire-*' -exec cp -f {} dist/ \;
+    rm -rf package-build
+    cargo clean --target x86_64-unknown-linux-musl
