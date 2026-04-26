@@ -70,10 +70,15 @@ use {
     rayon::prelude::*,
 };
 
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 /// Buffer size used for initial data discovery
 const SCAN_BUFFER_SIZE: usize = 4 * 1024 * 1024;
+
+thread_local! {
+    // Per-thread Scan buffer
+    static SCAN_BUFFER: RefCell<Vec<u8>> = RefCell::new(vec![0u8; SCAN_BUFFER_SIZE]);
+}
 
 /// Swapper process comm string
 const SWAPPER_PROCESS_COMM: &str = "swapper/0";
@@ -325,30 +330,41 @@ impl LinuxOperatingSystem {
         let task_struct_size = kernel_type_info.size_of(task_struct_tid)?;
         let regions = readable.regions()?;
 
-        let candidates: Vec<SwapperLocation> = regions
-            .par_iter()
-            .flat_map_iter(|region| {
-                let reader = Reader::new(readable, architecture.endianness() == Endianness::Little);
-                let mut read_buffer = vec![0u8; SCAN_BUFFER_SIZE];
-                let mut matches = Vec::new();
-
-                for range in generate_address_ranges!(
+        // Split the regions into fixed-size regions, this will ensure we can improve
+        // parallelization
+        let range_list: Vec<std::ops::Range<PhysicalAddress>> = regions
+            .iter()
+            .flat_map(|region| {
+                generate_address_ranges!(
                     region.start,
                     region.end,
-                    read_buffer.len(),
+                    SCAN_BUFFER_SIZE,
                     task_struct_size
-                ) {
-                    let read_size = if let Ok(read_size) = readable.read(&mut read_buffer, range.start) {
-                        read_size
-                    } else {
-                        debug!("Failed to read buffer during swapper scan at {:?}", range.start);
-                        continue;
+                )
+            })
+            .collect();
+
+        let candidates: Vec<SwapperLocation> = range_list
+            .par_iter()
+            .flat_map_iter(|range| {
+                SCAN_BUFFER.with(|buffer_cell| {
+                    let mut read_buffer = buffer_cell.borrow_mut();
+
+                    let read_size = match readable.read(&mut read_buffer[..], range.start) {
+                        Ok(read_size) => read_size,
+                        Err(_) => {
+                            debug!("Failed to read buffer during swapper scan at {:?}", range.start);
+                            return Vec::new();
+                        }
                     };
 
                     if read_size < SWAPPER_PROCESS_COMM.len() {
                         debug!("Read size {} too small for swapper comm", read_size);
-                        continue;
+                        return Vec::new();
                     }
+
+                    let mut matches = Vec::new();
+                    let reader = Reader::new(readable, architecture.endianness() == Endianness::Little);
 
                     for offset in read_buffer[..read_size]
                         .windows(SWAPPER_PROCESS_COMM.len())
@@ -394,14 +410,15 @@ impl LinuxOperatingSystem {
                             };
 
                         debug!("Swapper struct located: {swapper_task_physical_address} => {swapper_struct_raw_vaddr}");
+
                         matches.push(SwapperLocation {
                             physical_address: swapper_task_physical_address,
                             raw_virtual_address: swapper_struct_raw_vaddr,
                         });
                     }
-                }
 
-                matches
+                    matches
+                })
             })
             .collect();
 
