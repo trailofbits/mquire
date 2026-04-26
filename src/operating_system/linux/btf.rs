@@ -17,7 +17,11 @@ use btfparse::{
     Result as BTFParseResult, TypeInformation,
 };
 
-use {log::debug, rayon::prelude::*, std::ops::Range};
+use {
+    log::debug,
+    rayon::prelude::*,
+    std::ops::{Range, RangeInclusive},
+};
 
 /// BTF signature for little endian machines
 const BTF_LITTLE_ENDIAN_SIGNATURE: [u8; 3] = [
@@ -34,12 +38,62 @@ const BTF_BIG_ENDIAN_SIGNATURE: [u8; 3] = [
 /// BTF signature length (same for both endiannesses)
 const BTF_SIGNATURE_LEN: usize = 3;
 
+/// The per-CPU data section name, which is only used by the vmlinux BTF data.
+const KERNEL_PERCPU_DATASEC: &str = ".data..percpu";
+
+/// Size of the BTF header
+const BTF_HEADER_SIZE: usize = 24;
+
+/// The amount of bytes we'd expect to find in a vmlinux BTF data blob
+const KERNEL_BTF_PAYLOAD_RANGE: RangeInclusive<u64> = (1024 * 1024)..=(64 * 1024 * 1024);
+
 /// Buffer size used for chunk-based scanning (4 MB)
 const SCAN_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Number of 4MB chunks to scan per batch.
 /// 64 chunks * 4MB = 256MB scanned per `next()` call.
 const RANGE_COUNT_PER_BATCH: usize = 64;
+
+/// Parsed fields from a 24-byte BTF header.
+struct BtfHeader {
+    /// BTF flags
+    flags: u8,
+
+    /// Header length in bytes (expected to equal `BTF_HEADER_SIZE`)
+    hdr_len: u32,
+
+    /// Length of the type section in bytes
+    type_len: u32,
+
+    /// Length of the string section in bytes
+    str_len: u32,
+}
+
+impl BtfHeader {
+    /// Reads and parses a BTF header at the given offset. Returns `None`
+    /// if the read fails or the magic/version signature is not recognised.
+    fn new(readable: &dyn Readable, offset: PhysicalAddress) -> Option<Self> {
+        let mut buffer = [0u8; BTF_HEADER_SIZE];
+        if readable.read(&mut buffer, offset).ok()? != BTF_HEADER_SIZE {
+            return None;
+        }
+
+        let signature: [u8; BTF_SIGNATURE_LEN] = buffer[..BTF_SIGNATURE_LEN].try_into().ok()?;
+        let u32_from_bytes = match signature {
+            BTF_LITTLE_ENDIAN_SIGNATURE => u32::from_le_bytes,
+            BTF_BIG_ENDIAN_SIGNATURE => u32::from_be_bytes,
+
+            _ => return None,
+        };
+
+        Some(Self {
+            flags: buffer[3],
+            hdr_len: u32_from_bytes([buffer[4], buffer[5], buffer[6], buffer[7]]),
+            type_len: u32_from_bytes([buffer[12], buffer[13], buffer[14], buffer[15]]),
+            str_len: u32_from_bytes([buffer[20], buffer[21], buffer[22], buffer[23]]),
+        })
+    }
+}
 
 /// Makes the Snapshot object compatible with the btfparse library.
 pub struct BtfparseReadableAdapter<'a> {
@@ -89,7 +143,7 @@ impl<'a> BTFParseReadable for BtfparseReadableAdapter<'a> {
 }
 
 /// A lazy, batched iterator that scans physical memory for valid BTF
-/// sections containing `task_struct`.
+/// sections that pass the size + `task_struct` check.
 ///
 /// The kernel image is loaded by the bootloader as a single physically
 /// contiguous block. The `.BTF` ELF section within the kernel's rodata
@@ -178,8 +232,7 @@ impl<'a> Iterator for BtfBatchScanner<'a> {
 }
 
 /// Scans a single range for BTF signature matches, parses each match,
-/// and returns all valid `TypeInformation` objects (those containing
-/// `task_struct`) found in that range.
+/// and returns all valid `TypeInformation` objects found in that range.
 fn scan_range_for_btf(
     readable: &dyn Readable,
     range: &Range<PhysicalAddress>,
@@ -207,17 +260,33 @@ fn scan_range_for_btf(
         })
     {
         let btf_offset = range.start + (offset as u64);
+        let btf_header = match BtfHeader::new(readable, btf_offset) {
+            Some(obj) => obj,
+            None => continue,
+        };
+
+        if btf_header.flags != 0 || btf_header.hdr_len as usize != BTF_HEADER_SIZE {
+            continue;
+        }
+
+        let payload = btf_header.type_len as u64 + btf_header.str_len as u64;
+        if !KERNEL_BTF_PAYLOAD_RANGE.contains(&payload) {
+            continue;
+        }
+
         let readable_adapter = BtfparseReadableAdapter::new(readable, btf_offset.value());
 
         let type_information = match TypeInformation::new(&readable_adapter) {
-            Ok(ti) => ti,
+            Ok(type_information) => type_information,
             Err(_) => {
                 debug!("Failed to parse BTF data at offset {}", btf_offset);
                 continue;
             }
         };
 
-        if type_information.id_of("task_struct").is_some() {
+        if type_information.id_of(KERNEL_PERCPU_DATASEC).is_some()
+            && type_information.id_of("task_struct").is_some()
+        {
             debug!("BTF data found at offset {btf_offset}");
             results.push((btf_offset, type_information));
         }
