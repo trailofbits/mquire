@@ -159,14 +159,15 @@ impl LinuxOperatingSystem {
     ) -> Result<usize> {
         let tid = kernel_type_info
             .id_of(struct_name)
-            .ok_or(Error::new(
-                ErrorKind::TypeInformationError,
-                "Failed to acquire the type definition of `struct {struct_name}`",
-            ))
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::TypeInformationError,
+                    &format!("Failed to acquire the type definition of `struct {struct_name}`"),
+                )
+            })
             .inspect_err(|err| debug!("{err:?}"))?;
 
-        let struct_type_var = kernel_type_info.from_id(tid).ok_or(
-            Error::new(
+        let struct_type_var = kernel_type_info.from_id(tid).ok_or_else(|| Error::new(
                 ErrorKind::TypeInformationError,
                 &format!("Failed to acquire the type information for `struct {struct_name}` from tid {tid}"),
             )
@@ -187,27 +188,34 @@ impl LinuxOperatingSystem {
             }
         };
 
-        let member_tid = struct_type
-            .member_list()
-            .iter()
-            .find(|member| {
-                member
-                    .name()
-                    .map(|name| name == member_name)
-                    .unwrap_or(false)
-            })
-            .map(|member| member.tid())
-            .ok_or(Error::new(
-                ErrorKind::TypeInformationError,
-                &format!("No field `{member_name}` found inside the `{struct_name}` structure",),
-            ))?;
+        let member_tid =
+            struct_type
+                .member_list()
+                .iter()
+                .find(|member| {
+                    member
+                        .name()
+                        .map(|name| name == member_name)
+                        .unwrap_or(false)
+                })
+                .map(|member| member.tid())
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::TypeInformationError,
+                        &format!(
+                            "No field `{member_name}` found inside the `{struct_name}` structure",
+                        ),
+                    )
+                })?;
 
-        let member_type_var = kernel_type_info.from_id(member_tid).ok_or(Error::new(
-            ErrorKind::TypeInformationError,
-            &format!(
-                "Type ID {member_tid} for member `{struct_name}::{member_name}` was not found",
-            ),
-        ))?;
+        let member_type_var = kernel_type_info.from_id(member_tid).ok_or_else(|| {
+            Error::new(
+                ErrorKind::TypeInformationError,
+                &format!(
+                    "Type ID {member_tid} for member `{struct_name}::{member_name}` was not found",
+                ),
+            )
+        })?;
 
         match member_type_var {
             TypeVariant::Array(array_type) => Ok(*array_type.element_count() as usize),
