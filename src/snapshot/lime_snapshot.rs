@@ -251,7 +251,9 @@ impl Readable for LimeSnapshot {
 
         let range_offset = physical_address.value() - memory_range.s_addr;
 
-        let readable_bytes = std::cmp::min(buffer.len() as u64, memory_range.len()) as usize;
+        let readable_bytes =
+            std::cmp::min(buffer.len() as u64, memory_range.len() - range_offset) as usize;
+
         let read_buffer = buffer.get_mut(..readable_bytes).ok_or_else(|| {
             Error::new(
                 ErrorKind::IOError,
