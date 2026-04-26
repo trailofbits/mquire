@@ -546,6 +546,15 @@ impl LinuxOperatingSystem {
         )?;
 
         for swapper in swapper_candidates {
+            if !swapper.raw_virtual_address.is_in_high_canonical_space() {
+                debug!(
+                    "Skipping swapper candidate with non-kernel virtual address: {} => {}",
+                    swapper.physical_address, swapper.raw_virtual_address,
+                );
+
+                continue;
+            }
+
             debug!(
                 "Trying swapper candidate: {} => {}",
                 swapper.physical_address, swapper.raw_virtual_address,
