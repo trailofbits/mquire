@@ -334,16 +334,14 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
             })
             .collect();
 
-        let mut arg_index = 1;
         let mut used_generator_inputs = Vec::new();
 
-        for (constraint_idx, col_name) in referenced_generator_inputs {
+        for (arg_index, (constraint_idx, col_name)) in (1..).zip(referenced_generator_inputs) {
             let mut usage = info.constraint_usage(constraint_idx);
             usage.set_argv_index(arg_index);
             usage.set_omit(true);
 
             used_generator_inputs.push(col_name);
-            arg_index += 1;
         }
 
         if !used_generator_inputs.is_empty() {
