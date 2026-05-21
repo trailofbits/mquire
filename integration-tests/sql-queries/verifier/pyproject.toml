@@ -12,17 +12,17 @@ version = "0.1.0"
 description = "mquire SQL query verifier"
 requires-python = ">=3.10"
 dependencies = [
-    "boto3>=1.42.94",
+    "boto3>=1.43.7",
     "click>=8.3.3",
-    "pydantic>=2.13.3",
+    "pydantic>=2.13.4",
     "rich>=15.0.0",
 ]
 
 [dependency-groups]
 dev = [
-    "mypy>=1.20.2",
-    "ruff>=0.15.11",
-    "boto3-stubs[s3]>=1.42.94",
+    "mypy>=2.1.0",
+    "ruff>=0.15.13",
+    "boto3-stubs[s3]>=1.43.7",
 ]
 
 [project.scripts]
