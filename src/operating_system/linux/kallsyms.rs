@@ -590,69 +590,50 @@ impl Kallsyms {
             b'7', 0x00, b'8', 0x00, b'9', 0x00,
         ];
 
-        const UPPERCASE_TOKEN_SEQUENCE: [u8; 52] = [
-            b'A', 0x00, b'B', 0x00, b'C', 0x00, b'D', 0x00, b'E', 0x00, b'F', 0x00, b'G', 0x00,
-            b'H', 0x00, b'I', 0x00, b'J', 0x00, b'K', 0x00, b'L', 0x00, b'M', 0x00, b'N', 0x00,
-            b'O', 0x00, b'P', 0x00, b'Q', 0x00, b'R', 0x00, b'S', 0x00, b'T', 0x00, b'U', 0x00,
-            b'V', 0x00, b'W', 0x00, b'X', 0x00, b'Y', 0x00, b'Z', 0x00,
-        ];
-
-        const LOWERCASE_TOKEN_SEQUENCE: [u8; 52] = [
-            b'a', 0x00, b'b', 0x00, b'c', 0x00, b'd', 0x00, b'e', 0x00, b'f', 0x00, b'g', 0x00,
-            b'h', 0x00, b'i', 0x00, b'j', 0x00, b'k', 0x00, b'l', 0x00, b'm', 0x00, b'n', 0x00,
-            b'o', 0x00, b'p', 0x00, b'q', 0x00, b'r', 0x00, b's', 0x00, b't', 0x00, b'u', 0x00,
-            b'v', 0x00, b'w', 0x00, b'x', 0x00, b'y', 0x00, b'z', 0x00,
-        ];
-
-        // Scan backwards to find the start of the token table.
+        // Scan backwards to find candidate start positions for the token table.
         //
-        // Stop at either:
-        // 1. Two consecutive null bytes: the start is the last non-null byte we have seen
-        // 2. Any byte that is not a valid token character (<= 0x20 or >= 0x7F): the start
-        //    is the first byte after the last null byte we have seen
+        // Two consecutive null bytes means we encountered section padding (.balign 8)
+        // from kernels < 7.x. In this case, we just return a single candidate past both
+        // padding nulls. This is the easiest scenario.
         //
-        // Note: A single null byte is allowed because it's used to separate tokens.
-        fn find_token_table_start(buffer: &[u8], start_position: usize) -> Option<usize> {
+        // In all other cases, we scan backward until we end up inside the kallsyms_markers
+        // section by looking for non-printable characters. From there we start scanning
+        // forward again, generating a candidate for each potential token table entry (a null
+        // byte followed by a printable character).
+        fn find_token_table_start(buffer: &[u8], start_position: usize) -> Vec<usize> {
             let mut current_index = start_position;
-
             let mut prev_was_null = false;
-            let mut last_null_pos = None;
 
             while current_index > 0 {
                 let current_byte = buffer[current_index];
 
                 if current_byte == 0 {
-                    last_null_pos = Some(current_index);
-
                     if prev_was_null {
-                        // Re-align ourselves to the last known good position
-                        return Some(current_index + 2);
+                        return vec![current_index + 2];
                     }
 
-                    // One null is fine, because it's used to separate tokens
                     prev_was_null = true;
-                } else {
-                    // Check for bytes that can't fit inside a token (but allow a single null to pass through)
-                    if current_byte <= 0x20 || current_byte >= 0x7F {
-                        // Re-align ourselves to the last known good position
-                        match last_null_pos {
-                            None => {
-                                return None;
-                            }
+                } else if current_byte <= 0x20 || current_byte >= 0x7F {
+                    // We are now inside the kallsyms_markers section. Generate all
+                    // the possible candidates now.
+                    let boundary = current_index + 1;
+                    let mut candidates = vec![boundary];
 
-                            Some(last_null_pos) => {
-                                return Some(last_null_pos + 1);
-                            }
+                    for pos in (boundary + 1)..=start_position {
+                        if buffer[pos - 1] == 0 && buffer[pos] > 0x20 && buffer[pos] < 0x7F {
+                            candidates.push(pos);
                         }
                     }
 
+                    return candidates;
+                } else {
                     prev_was_null = false;
                 }
 
                 current_index -= 1;
             }
 
-            None
+            vec![]
         }
 
         // Scans forward to find the end of the token table.
@@ -725,53 +706,6 @@ impl Kallsyms {
                 };
 
                 for digits_vaddr in digits_vaddr_iter {
-                    let start_vaddr = digits_vaddr + DIGITS_TOKEN_SEQUENCE.len() as u64;
-                    let end_vaddr = digits_vaddr + TOKEN_SEQUENCE_SCAN_SIZE;
-
-                    // Check for exactly one uppercase match, otherwise skip this candidate
-                    let mut uppercase_scanner = match MemoryScanner::new(
-                        &vmem_reader,
-                        start_vaddr,
-                        end_vaddr,
-                        &UPPERCASE_TOKEN_SEQUENCE,
-                    ) {
-                        Ok(scanner) => scanner.filter_map(|r| r.ok()),
-                        Err(_) => continue,
-                    };
-
-                    let uppercase_vaddr = match uppercase_scanner.next() {
-                        Some(addr) => {
-                            if uppercase_scanner.next().is_some() {
-                                continue;
-                            }
-                            addr
-                        }
-                        None => continue,
-                    };
-
-                    let start_vaddr = uppercase_vaddr + UPPERCASE_TOKEN_SEQUENCE.len() as u64;
-
-                    // Check for exactly one lowercase match, otherwise skip this candidate
-                    let mut lowercase_scanner = match MemoryScanner::new(
-                        &vmem_reader,
-                        start_vaddr,
-                        end_vaddr,
-                        &LOWERCASE_TOKEN_SEQUENCE,
-                    ) {
-                        Ok(scanner) => scanner.filter_map(|r| r.ok()),
-                        Err(_) => continue,
-                    };
-
-                    let _lowercase_vaddr = match lowercase_scanner.next() {
-                        Some(addr) => {
-                            if lowercase_scanner.next().is_some() {
-                                continue;
-                            }
-                            addr
-                        }
-                        None => continue,
-                    };
-
                     if vmem_reader
                         .read_exact(
                             &mut backward_scan_buffer,
@@ -782,62 +716,56 @@ impl Kallsyms {
                         continue;
                     }
 
-                    let scan_position = match find_token_table_start(
+                    let scan_positions = find_token_table_start(
                         &backward_scan_buffer,
                         backward_scan_buffer.len() - 1,
-                    ) {
-                        Some(pos) => pos,
-                        None => continue,
-                    };
+                    );
 
-                    let token_table_start_vaddr =
-                        digits_vaddr - TOKEN_SEQUENCE_SCAN_SIZE + scan_position;
+                    for scan_position in scan_positions {
+                        let token_table_start_vaddr =
+                            digits_vaddr - TOKEN_SEQUENCE_SCAN_SIZE + scan_position;
 
-                    //
-                    // Scan forward to locate the end of the token table.
-                    // A valid table must have exactly 256 tokens, each terminated by a single null byte.
-                    // The table ends after the 256th token's null terminator.
-                    //
-                    // If we encounter two consecutive null bytes, the table is corrupted - skip it.
-                    //
+                        // Scan forward to locate the end of the token table: a valid table must have exactly
+                        // 256 tokens, each terminated by a single null byte. After the null byte of the last
+                        // token, the table ends.
+                        if vmem_reader
+                            .read_exact(&mut forward_scan_buffer, token_table_start_vaddr)
+                            .is_err()
+                        {
+                            continue;
+                        }
 
-                    if vmem_reader
-                        .read_exact(&mut forward_scan_buffer, token_table_start_vaddr)
-                        .is_err()
-                    {
-                        continue;
+                        let token_table_end_pos = match find_token_table_end(&forward_scan_buffer) {
+                            Some(pos) => pos,
+                            None => continue,
+                        };
+
+                        let kallsyms_token_table_range = Range {
+                            start: token_table_start_vaddr.value(),
+                            end: token_table_start_vaddr.value() + token_table_end_pos as u64,
+                        };
+
+                        let mut read_buffer = vec![0u8; token_table_end_pos];
+                        if vmem_reader
+                            .read_exact(&mut read_buffer, token_table_start_vaddr)
+                            .is_err()
+                        {
+                            continue;
+                        }
+
+                        let kallsyms_token_table = read_buffer
+                            .split(|&byte| byte == 0)
+                            .take(256)
+                            .map(|token| String::from_utf8_lossy(token).to_string())
+                            .collect();
+
+                        results.push(ScanSession::new(
+                            root_page_table,
+                            kernel_version.clone(),
+                            kallsyms_token_table_range,
+                            kallsyms_token_table,
+                        ));
                     }
-
-                    let token_table_end_pos = match find_token_table_end(&forward_scan_buffer) {
-                        Some(pos) => pos,
-                        None => continue,
-                    };
-
-                    let kallsyms_token_table_range = Range {
-                        start: token_table_start_vaddr.value(),
-                        end: token_table_start_vaddr.value() + token_table_end_pos as u64,
-                    };
-
-                    let mut read_buffer = vec![0u8; token_table_end_pos];
-                    if vmem_reader
-                        .read_exact(&mut read_buffer, token_table_start_vaddr)
-                        .is_err()
-                    {
-                        continue;
-                    }
-
-                    let kallsyms_token_table = read_buffer
-                        .split(|&byte| byte == 0)
-                        .take(256)
-                        .map(|token| String::from_utf8_lossy(token).to_string())
-                        .collect();
-
-                    results.push(ScanSession::new(
-                        root_page_table,
-                        kernel_version.clone(),
-                        kallsyms_token_table_range,
-                        kallsyms_token_table,
-                    ));
                 }
 
                 results
@@ -1101,12 +1029,19 @@ impl Kallsyms {
         //
         //  The kernel build process (scripts/link-vmlinux.sh) links object files
         //  in a specific order:
-        //    ld ... vmlinux.a init/version-timestamp.o ${kallsymso} ...
+        //    ld \
+        //      ... \
+        //      vmlinux.a \
+        //      init/version-timestamp.o \
+        //      ${kallsymso} \
+        //      ...
         //
         //  The linker script (include/asm-generic/vmlinux.lds.h) merges all .rodata
         //  sections using the wildcard pattern "*(.rodata)", which concatenates
         //  sections in command-line order:
-        //    [.rodata from vmlinux.a] → [version-timestamp.o] → [kallsymso]
+        //    [.rodata from vmlinux.a]
+        //    [version-timestamp.o]
+        //    [kallsymso]
         //
         //  Since both linux_banner (in version-timestamp.o) and kallsyms data
         //  (in kallsymso) reside in .rodata, and kallsyms_num_syms is now first
