@@ -18,16 +18,15 @@ use {
     rusqlite::{
         Connection,
         types::Value,
-        vtab::{
-            Context, Filters, IndexInfo, VTab, VTabConnection, VTabCursor, eponymous_only_module,
-        },
+        vtab::{Context, Filters, IndexInfo, Module, VTab, VTabConnection, VTabCursor},
     },
     serde::Serialize,
 };
 
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashMap},
-    ffi::c_int,
+    ffi::{CStr, CString, c_int},
     fs,
     marker::PhantomData,
     path::{Path, PathBuf},
@@ -118,11 +117,11 @@ impl Database {
             return Err(Error::DuplicatedTableName(table_plugin.name()));
         }
 
-        let module = eponymous_only_module::<PluginVTab>();
+        const MODULE: Module<PluginVTab<'static>> = Module::eponymous_only_module();
         self.conn
             .create_module(
                 table_plugin.name().as_str(),
-                module,
+                &MODULE,
                 Some(table_plugin.clone()),
             )
             .map_err(|e| {
@@ -268,8 +267,11 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
     fn connect(
         _db: &mut VTabConnection,
         aux: Option<&Self::Aux>,
+        _module_name: &[u8],
+        _database_name: &[u8],
+        _table_name: &[u8],
         _args: &[&[u8]],
-    ) -> rusqlite::Result<(String, Self)> {
+    ) -> rusqlite::Result<(Cow<'static, CStr>, Self)> {
         let plugin = aux
             .ok_or_else(|| rusqlite::Error::ModuleError("No plugin provided".to_string()))?
             .clone();
@@ -296,11 +298,12 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
             column_names.push(column_name.clone());
         }
 
-        let create_table_sql = format!(
+        let create_table_sql = CString::new(format!(
             "CREATE TABLE {} ({})",
             plugin.name(),
             column_declarations.join(", ")
-        );
+        ))
+        .map_err(|e| rusqlite::Error::ModuleError(format!("Invalid table schema: {}", e)))?;
 
         let vtab = Self {
             base: rusqlite::vtab::sqlite3_vtab::default(),
@@ -310,10 +313,10 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
             phantom: PhantomData,
         };
 
-        Ok((create_table_sql, vtab))
+        Ok((Cow::Owned(create_table_sql), vtab))
     }
 
-    fn best_index(&self, info: &mut IndexInfo) -> rusqlite::Result<()> {
+    fn best_index(&self, info: &mut IndexInfo) -> rusqlite::Result<bool> {
         let referenced_generator_inputs: Vec<(usize, String)> = info
             .constraints()
             .enumerate()
@@ -357,7 +360,7 @@ unsafe impl<'vtab> VTab<'vtab> for PluginVTab<'vtab> {
         };
 
         info.set_estimated_cost(cost);
-        Ok(())
+        Ok(true)
     }
 
     fn open(&'vtab mut self) -> rusqlite::Result<Self::Cursor> {
