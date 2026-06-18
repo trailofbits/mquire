@@ -23,7 +23,7 @@
   ```
     .section kallsyms_num_syms
 
-      symbol count, as an 8 bytes value
+      symbol count, as a 4 bytes value
 
     .section kallsyms_names
 
@@ -1121,7 +1121,7 @@ impl Kallsyms {
         //   - commit 404bad70fcf7 "scripts/kallsyms: change the output order" (v6.4)
 
         const SCAN_WINDOW_SIZE: u64 = 10 * 1024 * 1024;
-        const KALLSYMS_NUM_SYS_SIZE: u64 = 8;
+        const KALLSYMS_NUM_SYS_SIZE: u64 = 4;
 
         let expected_linux_banner_prefix = format!(
             "Linux version {}.{}.{}",
@@ -1176,12 +1176,12 @@ impl Kallsyms {
                 None => continue,
             };
 
-            let aligned_kallsyms_num_syms_offset = ((linux_banner_end + 1 + 7) & !7) as u64;
+            let aligned_kallsyms_num_syms_offset = ((linux_banner_end + 1 + 3) & !3) as u64;
 
             let kallsyms_num_syms_start = scan_window_start + aligned_kallsyms_num_syms_offset;
             let kallsyms_num_syms_end = kallsyms_num_syms_start + KALLSYMS_NUM_SYS_SIZE;
 
-            let kallsyms_num_syms = match vmem_reader.read_u64(kallsyms_num_syms_start) {
+            let kallsyms_num_syms = match vmem_reader.read_u32(kallsyms_num_syms_start) {
                 Ok(value) => value as usize,
                 Err(_) => continue,
             };
