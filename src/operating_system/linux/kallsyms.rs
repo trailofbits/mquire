@@ -90,6 +90,34 @@
 
     .section kallsyms_seqs_of_names
   ```
+
+  Kernel v7.0.0
+
+  ```
+    .section kallsyms_num_syms
+    .section kallsyms_names
+    .section kallsyms_markers
+    .section kallsyms_token_table
+    .section kallsyms_token_index
+    .section kallsyms_offsets
+    .section kallsyms_seqs_of_names
+  ```
+
+  - `kallsyms_relative_base` was removed entirely. The `relative_base`
+    variable and `record_relative_base()` were dropped from
+    scripts/kallsyms.c.
+
+  - `kallsyms_offsets` is now PC-relative by default (controlled by
+    the new `--pc-relative` flag). Offsets are relative to `_text`,
+    not to a separate base address. Symbol address reconstruction:
+    `addr = offset_entry_value + offset_entry_position + _text`.
+
+  - `kallsyms_addresses` (full 64-bit addresses) was also removed.
+    The only mode is now `kallsyms_offsets`.
+
+  - Alignment changed from 8-byte (`.balign 8`) to 4-byte (`.balign 4`).
+    `kallsyms_num_syms` is emitted as `.long` (4 bytes) with no padding
+    after it.
 */
 
 use crate::{
@@ -320,13 +348,23 @@ impl Kallsyms {
             ));
         }
 
-        let scan_session_list = Self::scan_for_kallsyms_offsets_or_addresses(
-            memory_dump,
-            architecture,
-            root_page_table,
-            scan_session_list,
-            kernel_version,
-        )?;
+        let mut scan_session_list = if kernel_version < &KernelVersion::new(7, 0, 0) {
+            Self::scan_for_v6_kallsyms_offsets_or_addresses(
+                memory_dump,
+                architecture,
+                root_page_table,
+                scan_session_list,
+                kernel_version,
+            )?
+        } else {
+            Self::scan_for_v7_kallsyms_offsets(
+                memory_dump,
+                architecture,
+                root_page_table,
+                scan_session_list,
+                kernel_version,
+            )?
+        };
 
         if scan_session_list.is_empty() {
             return Err(Error::new(
@@ -335,19 +373,22 @@ impl Kallsyms {
             ));
         }
 
-        let scan_session_list = Self::scan_for_kallsyms_relative_base(
-            memory_dump,
-            architecture,
-            root_page_table,
-            scan_session_list,
-            kernel_version,
-        )?;
+        // The kallsyms_relative_base field is no longer available/used in kernels >= 7.0.0
+        if kernel_version < &KernelVersion::new(7, 0, 0) {
+            scan_session_list = Self::scan_for_kallsyms_relative_base(
+                memory_dump,
+                architecture,
+                root_page_table,
+                scan_session_list,
+                kernel_version,
+            )?;
 
-        if scan_session_list.is_empty() {
-            return Err(Error::new(
-                ErrorKind::OperatingSystemInitializationFailed,
-                "Failed to locate any kallsyms_relative_base candidate",
-            ));
+            if scan_session_list.is_empty() {
+                return Err(Error::new(
+                    ErrorKind::OperatingSystemInitializationFailed,
+                    "Failed to locate any kallsyms_relative_base candidate",
+                ));
+            }
         }
 
         let scan_session_list = Self::scan_for_kallsyms_names(
@@ -408,7 +449,39 @@ impl Kallsyms {
                 &scan_session.kallsyms_token_table,
             )?;
 
-            let raw_vaddr = if scan_session.kallsyms_addresses_range.is_some() {
+            let raw_vaddr = if scan_session.kernel_version >= KernelVersion::new(7, 0, 0) {
+                // Kernels >= 7.0.0 no longer supports relative bases or absolute addresses.
+                // Instead, we always use the entry-relative offset: &kallsyms_offsets[idx] +
+                //                                                    kallsyms_offsets[idx]
+
+                let entry_raw_vaddr = scan_session
+                  .kallsyms_offsets_range
+                  .as_ref()
+                  .map(|range| range.start + (index * 4))
+                  .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::OperatingSystemInitializationFailed,
+                        "kallsyms_offsets/kallsyms_offsets_range is expected on >= 7.0.0 kernels",
+                    )
+                  })?;
+
+                let relative_offset = scan_session
+                                        .kallsyms_offsets
+                                        .get(index)
+                                        .map(|&offset| {
+                                            // Sign extend, then cast to u64. The two's-complement
+                                            // will allow us to just use wrapping_add
+                                            offset as i64 as u64
+                                        })
+                                        .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::OperatingSystemInitializationFailed,
+                        "kallsyms_offsets/kallsyms_offsets_range is expected on >= 7.0.0 kernels",
+                    )
+                })?;
+
+                entry_raw_vaddr + relative_offset
+            } else if scan_session.kallsyms_addresses_range.is_some() {
                 RawVirtualAddress::new(scan_session.kallsyms_addresses[index] as u64)
             } else if let Some(kallsyms_relative_base) = &scan_session.kallsyms_relative_base {
                 let offset = scan_session.kallsyms_offsets[index];
@@ -1141,17 +1214,83 @@ impl Kallsyms {
     }
 
     /// Scans the virtual memory for the kallsyms_offsets or kallsyms_addresses data
-    fn scan_for_kallsyms_offsets_or_addresses(
+    fn scan_for_v7_kallsyms_offsets(
         readable: &dyn Readable,
         architecture: &dyn Architecture,
         root_page_table: PhysicalAddress,
         scan_session_list: ScanSessionList,
         kernel_version: &KernelVersion,
     ) -> Result<ScanSessionList> {
-        if kernel_version < &KernelVersion::new(6, 4, 0) {
+        if kernel_version < &KernelVersion::new(7, 0, 0) {
             return Err(Error::new(
                 ErrorKind::NotSupported,
-                "scan_for_kallsyms_offsets is not yet implemented for kernel versions prior to 6.4",
+                "scan_for_v7_kallsyms_offsets is only implemented for kernel versions equal to or greater than 7.0.0",
+            ));
+        }
+
+        const KALLSYMS_OFFSET_ENTRY_SIZE: usize = 4;
+
+        let mut active_scan_session_list = ScanSessionList::new();
+        let vmem_reader = VirtualMemoryReader::new(readable, architecture);
+
+        for scan_session in &scan_session_list {
+            let kallsyms_num_syms = match scan_session.kallsyms_num_syms_range {
+                Some(_) => scan_session.kallsyms_num_syms,
+                None => continue,
+            };
+
+            let kallsyms_token_index_range = match &scan_session.kallsyms_token_index_range {
+                Some(range) => range,
+                None => continue,
+            };
+
+            let unaligned_offset = kallsyms_token_index_range.end.value();
+            let aligned_offset = unaligned_offset.div_ceil(KALLSYMS_OFFSET_ENTRY_SIZE as u64)
+                * KALLSYMS_OFFSET_ENTRY_SIZE as u64;
+
+            let start = RawVirtualAddress::new(aligned_offset);
+
+            let array_size = kallsyms_num_syms * 4;
+            let end = start + array_size;
+
+            let mut read_buffer = vec![0u8; array_size];
+            if vmem_reader
+                .read_exact(
+                    &mut read_buffer,
+                    VirtualAddress::new(root_page_table, start),
+                )
+                .is_err()
+            {
+                continue;
+            }
+
+            let mut new_scan_session = scan_session.clone();
+            new_scan_session.kallsyms_offsets_range = Some(Range { start, end });
+
+            new_scan_session.kallsyms_offsets = read_buffer
+                .chunks_exact(KALLSYMS_OFFSET_ENTRY_SIZE)
+                .map(|chunk| i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                .collect();
+
+            active_scan_session_list.push(new_scan_session);
+        }
+
+        Ok(active_scan_session_list)
+    }
+
+    /// Scans the virtual memory for the kallsyms_offsets or kallsyms_addresses data
+    /// Limited to Linux kernels < 7.0.0
+    fn scan_for_v6_kallsyms_offsets_or_addresses(
+        readable: &dyn Readable,
+        architecture: &dyn Architecture,
+        root_page_table: PhysicalAddress,
+        scan_session_list: ScanSessionList,
+        kernel_version: &KernelVersion,
+    ) -> Result<ScanSessionList> {
+        if kernel_version >= &KernelVersion::new(7, 0, 0) {
+            return Err(Error::new(
+                ErrorKind::NotSupported,
+                "scan_for_v6_kallsyms_offsets_or_addresses is only implemented for kernel versions prior to 7.0.0",
             ));
         }
 
