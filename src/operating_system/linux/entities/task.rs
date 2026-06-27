@@ -6,7 +6,10 @@
 // the LICENSE file found in the root directory of this source tree.
 //
 
-use crate::memory::{primitives::PhysicalAddress, virtual_address::VirtualAddress};
+use crate::{
+    memory::{primitives::PhysicalAddress, virtual_address::VirtualAddress},
+    operating_system::linux::entities::task_ptrace_state::TaskPtraceState,
+};
 
 use std::collections::BTreeMap;
 
@@ -70,4 +73,7 @@ pub struct Task {
 
     /// Boot-relative start time in nanoseconds (task_struct::start_boottime, CLOCK_BOOTTIME)
     pub start_boottime: Option<u64>,
+
+    /// The decoded task_struct::ptrace field (None if it could not be read).
+    pub ptrace: Option<TaskPtraceState>,
 }

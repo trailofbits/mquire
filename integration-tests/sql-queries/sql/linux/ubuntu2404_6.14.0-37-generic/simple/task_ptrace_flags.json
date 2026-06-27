@@ -1,0 +1,120 @@
+{
+  "column_order": [
+    "name",
+    "value"
+  ],
+  "row_list": [
+    {
+      "name": {
+        "String": "PT_EXITKILL"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_PTRACED"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_SEIZED"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_SUSPEND_SECCOMP"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACESYSGOOD"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_CLONE"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_EXEC"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_EXIT"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_FORK"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_SECCOMP"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_VFORK"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "PT_TRACE_VFORK_DONE"
+      },
+      "value": {
+        "String": "0"
+      }
+    },
+    {
+      "name": {
+        "String": "raw"
+      },
+      "value": {
+        "String": "0x00000000"
+      }
+    },
+    {
+      "name": {
+        "String": "unused"
+      },
+      "value": {
+        "String": "0x00000000"
+      }
+    }
+  ]
+}

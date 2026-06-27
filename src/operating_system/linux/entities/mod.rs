@@ -16,3 +16,4 @@ pub mod memory_mapping;
 pub mod network_connection;
 pub mod syslog_file;
 pub mod task;
+pub mod task_ptrace_state;
