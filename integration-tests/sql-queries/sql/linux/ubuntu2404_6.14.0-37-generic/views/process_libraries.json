@@ -1,0 +1,88 @@
+{
+  "column_order": [
+    "comm",
+    "library_count"
+  ],
+  "row_list": [
+    {
+      "comm": {
+        "String": "gnome-shell"
+      },
+      "library_count": {
+        "SignedInteger": 214
+      }
+    },
+    {
+      "comm": {
+        "String": "nautilus"
+      },
+      "library_count": {
+        "SignedInteger": 176
+      }
+    },
+    {
+      "comm": {
+        "String": "evolution-sourc"
+      },
+      "library_count": {
+        "SignedInteger": 166
+      }
+    },
+    {
+      "comm": {
+        "String": "xdg-desktop-por"
+      },
+      "library_count": {
+        "SignedInteger": 164
+      }
+    },
+    {
+      "comm": {
+        "String": "evolution-alarm"
+      },
+      "library_count": {
+        "SignedInteger": 161
+      }
+    },
+    {
+      "comm": {
+        "String": "firefox"
+      },
+      "library_count": {
+        "SignedInteger": 141
+      }
+    },
+    {
+      "comm": {
+        "String": "RDD Process"
+      },
+      "library_count": {
+        "SignedInteger": 132
+      }
+    },
+    {
+      "comm": {
+        "String": "Utility Process"
+      },
+      "library_count": {
+        "SignedInteger": 132
+      }
+    },
+    {
+      "comm": {
+        "String": "code"
+      },
+      "library_count": {
+        "SignedInteger": 131
+      }
+    },
+    {
+      "comm": {
+        "String": "snapd-desktop-i"
+      },
+      "library_count": {
+        "SignedInteger": 126
+      }
+    }
+  ]
+}
