@@ -14,7 +14,10 @@ use crate::{
     },
     memory::{primitives::RawVirtualAddress, readable::Readable, virtual_address::VirtualAddress},
     operating_system::linux::{
-        entities::task::{Task, TaskKind},
+        entities::{
+            capabilities::Capabilities,
+            task::{Task, TaskKind},
+        },
         kallsyms::Kallsyms,
         operating_system::LinuxOperatingSystem,
         pid_ns_iterator::PidNsIterator,
@@ -214,6 +217,44 @@ impl LinuxOperatingSystem {
             &self.kernel_type_info,
             &task_struct,
         )
+    }
+
+    /// Reads the Linux capability sets for the task at the given virtual address.
+    pub(super) fn task_capabilities_impl(&self, vaddr: VirtualAddress) -> Result<Capabilities> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        let task_struct =
+            VirtualStruct::from_name(&vmem_reader, &self.kernel_type_info, "task_struct", &vaddr)?;
+
+        let cred = task_struct.traverse("cred")?.dereference()?;
+
+        // Capability sets are kernel_cap_t. The type keeps its name across kernels but
+        // changed members: { __u64 val } on >= 6.3, { __u32 cap[2] } before. Gate on the
+        // field that is actually present (reading either as a u64 yields the LE mask).
+        let read_capability_set = |field: &str| -> Option<u64> {
+            let capability_set = cred.traverse(field).ok()?;
+            let value_path = if capability_set.has_field("val") {
+                "val"
+            } else {
+                "cap"
+            };
+
+            capability_set
+                .traverse(value_path)
+                .and_then(|value| value.read_u64())
+                .inspect_err(|error| debug!("Could not read {field}: {error:?}"))
+                .ok()
+        };
+
+        Ok(Capabilities {
+            task: vaddr,
+            effective: read_capability_set("cap_effective"),
+            permitted: read_capability_set("cap_permitted"),
+            inheritable: read_capability_set("cap_inheritable"),
+            bounding: read_capability_set("cap_bset"),
+            ambient: read_capability_set("cap_ambient"),
+        })
     }
 
     /// Returns an iterator over tasks starting from init_task

@@ -7,6 +7,7 @@
 //
 
 pub mod boot_time;
+pub mod capabilities;
 pub mod dmesg;
 pub mod file;
 pub mod kallsyms_symbol;
