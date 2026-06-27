@@ -1,0 +1,88 @@
+{
+  "column_order": [
+    "comm",
+    "rwx_regions"
+  ],
+  "row_list": [
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "rwx_regions": {
+        "SignedInteger": 37
+      }
+    },
+    {
+      "comm": {
+        "String": "gnome-shell"
+      },
+      "rwx_regions": {
+        "SignedInteger": 14
+      }
+    },
+    {
+      "comm": {
+        "String": "WebExtensions"
+      },
+      "rwx_regions": {
+        "SignedInteger": 12
+      }
+    },
+    {
+      "comm": {
+        "String": "code"
+      },
+      "rwx_regions": {
+        "SignedInteger": 6
+      }
+    },
+    {
+      "comm": {
+        "String": "Privileged Cont"
+      },
+      "rwx_regions": {
+        "SignedInteger": 5
+      }
+    },
+    {
+      "comm": {
+        "String": "Web Content"
+      },
+      "rwx_regions": {
+        "SignedInteger": 4
+      }
+    },
+    {
+      "comm": {
+        "String": "gjs"
+      },
+      "rwx_regions": {
+        "SignedInteger": 3
+      }
+    },
+    {
+      "comm": {
+        "String": "gnome-session-b"
+      },
+      "rwx_regions": {
+        "SignedInteger": 2
+      }
+    },
+    {
+      "comm": {
+        "String": "gnome-terminal-"
+      },
+      "rwx_regions": {
+        "SignedInteger": 2
+      }
+    },
+    {
+      "comm": {
+        "String": "firefox"
+      },
+      "rwx_regions": {
+        "SignedInteger": 1
+      }
+    }
+  ]
+}
