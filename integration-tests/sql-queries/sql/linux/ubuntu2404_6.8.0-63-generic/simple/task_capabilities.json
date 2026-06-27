@@ -1,0 +1,92 @@
+{
+  "column_order": [
+    "name",
+    "effective",
+    "permitted",
+    "inheritable",
+    "bounding",
+    "ambient"
+  ],
+  "row_list": [
+    {
+      "ambient": {
+        "SignedInteger": 0
+      },
+      "bounding": {
+        "SignedInteger": 1
+      },
+      "effective": {
+        "SignedInteger": 1
+      },
+      "inheritable": {
+        "SignedInteger": 0
+      },
+      "name": {
+        "String": "CAP_CHECKPOINT_RESTORE"
+      },
+      "permitted": {
+        "SignedInteger": 1
+      }
+    },
+    {
+      "ambient": {
+        "SignedInteger": 0
+      },
+      "bounding": {
+        "SignedInteger": 1
+      },
+      "effective": {
+        "SignedInteger": 1
+      },
+      "inheritable": {
+        "SignedInteger": 0
+      },
+      "name": {
+        "String": "CAP_CHOWN"
+      },
+      "permitted": {
+        "SignedInteger": 1
+      }
+    },
+    {
+      "ambient": {
+        "SignedInteger": 0
+      },
+      "bounding": {
+        "SignedInteger": 1
+      },
+      "effective": {
+        "SignedInteger": 1
+      },
+      "inheritable": {
+        "SignedInteger": 0
+      },
+      "name": {
+        "String": "CAP_NET_RAW"
+      },
+      "permitted": {
+        "SignedInteger": 1
+      }
+    },
+    {
+      "ambient": {
+        "SignedInteger": 0
+      },
+      "bounding": {
+        "SignedInteger": 1
+      },
+      "effective": {
+        "SignedInteger": 1
+      },
+      "inheritable": {
+        "SignedInteger": 0
+      },
+      "name": {
+        "String": "CAP_SYS_ADMIN"
+      },
+      "permitted": {
+        "SignedInteger": 1
+      }
+    }
+  ]
+}

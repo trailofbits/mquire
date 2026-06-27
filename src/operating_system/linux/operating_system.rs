@@ -39,8 +39,8 @@ use crate::{
     operating_system::linux::{
         btf::BtfBatchScanner,
         entities::{
-            boot_time::BootTime, kernel_module::KernelModule, network_connection::Protocol,
-            task::Task,
+            boot_time::BootTime, capabilities::Capabilities, kernel_module::KernelModule,
+            network_connection::Protocol, task::Task,
         },
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
@@ -166,6 +166,11 @@ impl LinuxOperatingSystem {
     /// Returns a task at the given virtual address
     pub fn task_at(&self, vaddr: VirtualAddress) -> Result<Task> {
         self.task_at_impl(vaddr)
+    }
+
+    /// Returns the Linux capability sets for the task at the given virtual address
+    pub fn task_capabilities(&self, vaddr: VirtualAddress) -> Result<Capabilities> {
+        self.task_capabilities_impl(vaddr)
     }
 
     /// Returns an iterator over all tasks starting from init_task

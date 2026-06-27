@@ -17,6 +17,7 @@ use crate::{
             kernel_modules::KernelModulesTablePlugin, memory_mappings::MemoryMappingsTablePlugin,
             network_connections::NetworkConnectionsTablePlugin,
             network_interfaces::NetworkInterfacesTablePlugin, syslog_file::SyslogFileTablePlugin,
+            task_capabilities::TaskCapabilitiesTablePlugin,
             task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
         },
     },
@@ -121,6 +122,7 @@ generate_table_registry! {
         network_connections: NetworkConnectionsTablePlugin,
         network_interfaces: NetworkInterfacesTablePlugin,
         syslog_file: SyslogFileTablePlugin,
+        task_capabilities: TaskCapabilitiesTablePlugin,
     },
 }
 

@@ -120,6 +120,14 @@ impl<'a> VirtualStruct<'a> {
         })
     }
 
+    /// Returns true if the current type exposes a field reachable by the given path.
+    ///
+    /// Useful for gating kernel-version-dependent parsing on the presence of a field
+    /// (for a struct that changed members across versions) rather than on a version number.
+    pub fn has_field(&self, path: &str) -> bool {
+        self.type_information.offset_of(self.tid, path).is_ok()
+    }
+
     /// Dereferences the current pointer
     pub fn dereference(&self) -> Result<Self> {
         let pointee_tid = self
