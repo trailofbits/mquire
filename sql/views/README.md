@@ -52,4 +52,4 @@ Leave gaps between your custom views (increments of 10) so new shipped views can
 | [`110_process_libraries.sql`](linux/common/110_process_libraries.sql) | `process_libraries` | Lists shared libraries mapped into each process, for spotting unexpected loaded objects |
 | [`200_hidden_process_detection.sql`](linux/common/200_hidden_process_detection.sql) | `hidden_processes` | Detects processes visible in one discovery source but missing from another (rootkit detection) |
 | [`210_process_anon_wx_regions.sql`](linux/common/210_process_anon_wx_regions.sql) | `process_anon_wx_regions` | List per-process anonymous W+X memory regions, as an indicator for code injection |
-
+| [`220_ld_env_override_processes.sql`](linux/common/220_ld_env_override_processes.sql) | `ld_env_override_processes` | Lists processes that override the dynamic linker via `LD_PRELOAD` / `LD_AUDIT` / `LD_LIBRARY_PATH` |

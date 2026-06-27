@@ -1,0 +1,368 @@
+{
+  "column_order": [
+    "pid",
+    "comm",
+    "has_ld_preload",
+    "has_ld_audit",
+    "has_ld_library_path"
+  ],
+  "row_list": [
+    {
+      "comm": {
+        "String": "snapd-desktop-i"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 1890
+      }
+    },
+    {
+      "comm": {
+        "String": "snapd-desktop-i"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 1949
+      }
+    },
+    {
+      "comm": {
+        "String": "firefox"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 2481
+      }
+    },
+    {
+      "comm": {
+        "String": "Socket Process"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 2763
+      }
+    },
+    {
+      "comm": {
+        "String": "Privileged Cont"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 2804
+      }
+    },
+    {
+      "comm": {
+        "String": "RDD Process"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 2810
+      }
+    },
+    {
+      "comm": {
+        "String": "WebExtensions"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3210
+      }
+    },
+    {
+      "comm": {
+        "String": "Utility Process"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3450
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3471
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3493
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3510
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3666
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3719
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3777
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3822
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3863
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 3915
+      }
+    },
+    {
+      "comm": {
+        "String": "Isolated Web Co"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 4001
+      }
+    },
+    {
+      "comm": {
+        "String": "Web Content"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 4050
+      }
+    },
+    {
+      "comm": {
+        "String": "Web Content"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 4092
+      }
+    },
+    {
+      "comm": {
+        "String": "Web Content"
+      },
+      "has_ld_audit": {
+        "SignedInteger": 0
+      },
+      "has_ld_library_path": {
+        "SignedInteger": 1
+      },
+      "has_ld_preload": {
+        "SignedInteger": 1
+      },
+      "pid": {
+        "SignedInteger": 4117
+      }
+    }
+  ]
+}
