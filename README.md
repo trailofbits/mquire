@@ -59,6 +59,7 @@ mquire provides SQL tables to query different aspects of the system or the state
 - **task_open_files** - Files opened by each process (provide a `task` constraint for targeted analysis, or query all tasks at once)
 - **memory_mappings** - Memory regions mapped by each process (provide a `task` constraint for targeted analysis, or query all tasks at once)
 - **task_capabilities** - Linux capability sets (effective, permitted, inheritable, bounding, ambient) for a task. Requires a `task` constraint, so join it against `tasks`/`processes` (e.g. `JOIN task_capabilities c ON c.task = p.virtual_address`).
+- **task_ptrace_flags** - Decodes the ptrace field of a given task. Requires a `task` constraint.
 
 #### Kernel modules
 

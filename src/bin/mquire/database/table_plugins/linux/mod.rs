@@ -16,4 +16,5 @@ pub mod network_interfaces;
 pub mod syslog_file;
 pub mod task_capabilities;
 pub mod task_open_files;
+pub mod task_ptrace_flags;
 pub mod tasks;

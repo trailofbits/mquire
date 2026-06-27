@@ -18,7 +18,8 @@ use crate::{
             network_connections::NetworkConnectionsTablePlugin,
             network_interfaces::NetworkInterfacesTablePlugin, syslog_file::SyslogFileTablePlugin,
             task_capabilities::TaskCapabilitiesTablePlugin,
-            task_open_files::TaskOpenFilesTablePlugin, tasks::TasksTablePlugin,
+            task_open_files::TaskOpenFilesTablePlugin,
+            task_ptrace_flags::TaskPtraceFlagsTablePlugin, tasks::TasksTablePlugin,
         },
     },
     sqlite::{
@@ -123,6 +124,7 @@ generate_table_registry! {
         network_interfaces: NetworkInterfacesTablePlugin,
         syslog_file: SyslogFileTablePlugin,
         task_capabilities: TaskCapabilitiesTablePlugin,
+        task_ptrace_flags: TaskPtraceFlagsTablePlugin,
     },
 }
 

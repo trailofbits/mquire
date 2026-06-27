@@ -17,6 +17,7 @@ use crate::{
         entities::{
             capabilities::Capabilities,
             task::{Task, TaskKind},
+            task_ptrace_state::TaskPtraceState,
         },
         kallsyms::Kallsyms,
         operating_system::LinuxOperatingSystem,
@@ -257,6 +258,18 @@ impl LinuxOperatingSystem {
         })
     }
 
+    /// Reads and decodes the task_struct::ptrace field for the task at the given virtual address.
+    pub(super) fn task_ptrace_impl(&self, vaddr: VirtualAddress) -> Result<TaskPtraceState> {
+        let vmem_reader =
+            VirtualMemoryReader::new(self.memory_dump.as_ref(), self.architecture.as_ref());
+
+        let task_struct =
+            VirtualStruct::from_name(&vmem_reader, &self.kernel_type_info, "task_struct", &vaddr)?;
+
+        let raw = task_struct.traverse("ptrace")?.read_u32()?;
+        Ok(TaskPtraceState::from_raw(raw))
+    }
+
     /// Returns an iterator over tasks starting from init_task
     pub(super) fn iter_tasks_impl(&self) -> Result<TaskIterator<'_>> {
         TaskIterator::new(
@@ -353,6 +366,13 @@ impl LinuxOperatingSystem {
         let cred = task_struct.traverse("cred")?.dereference()?;
         let uid = cred.traverse("uid")?.read_u32()?;
         let gid = cred.traverse("gid")?.read_u32()?;
+
+        let ptrace = task_struct
+            .traverse("ptrace")
+            .and_then(|field| field.read_u32())
+            .inspect_err(|error| debug!("Could not read ptrace flags: {error:?}"))
+            .ok()
+            .map(TaskPtraceState::from_raw);
 
         let start_time = task_struct
             .traverse("start_time")
@@ -518,6 +538,7 @@ impl LinuxOperatingSystem {
             gid,
             start_time,
             start_boottime,
+            ptrace,
         })
     }
 
