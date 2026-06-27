@@ -305,6 +305,7 @@ mquire ships reusable SQL views in the [`sql/views/`](sql/views/) directory. Ins
 
 - [**`000_processes.sql`**](sql/views/linux/common/000_processes.sql) - Deduplicated process list across all discovery sources, filtered to user-space process leaders. Query with `SELECT * FROM processes`.
 - [**`100_process_network_connections.sql`**](sql/views/linux/common/100_process_network_connections.sql) - Maps network connections to owning processes by joining through file descriptors. Query with `SELECT * FROM process_network_connections WHERE comm = 'sshd'`.
+- [**`120_process_capabilities.sql`**](sql/views/linux/common/120_process_capabilities.sql) - Quick-peek capability overview, one row per process with each set as a compact list (`ALL`, `''`, or cap names; `NULL` if unreadable). Query with `SELECT * FROM process_capabilities`.
 - [**`200_tasklist_pidns_differences.sql`**](sql/views/linux/common/200_tasklist_pidns_differences.sql) - Detects processes visible in one discovery source but missing from another, useful for rootkit detection. Query with `SELECT * FROM tasklist_pidns_differences`.
 
 ## Query Optimization
