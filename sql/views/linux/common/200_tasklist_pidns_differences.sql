@@ -5,7 +5,7 @@
 -- Note: The task_list source aggressively follows pointers within task_struct
 -- (e.g., parent, children, sibling, group_leader) to maximize process discovery.
 -- This may occasionally yield invalid entries from corrupted or stale pointers.
-CREATE VIEW IF NOT EXISTS hidden_processes AS
+CREATE VIEW IF NOT EXISTS tasklist_pidns_differences AS
 WITH
   tasks_from_task_list AS MATERIALIZED (
     SELECT virtual_address, pid, comm

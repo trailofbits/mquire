@@ -50,6 +50,6 @@ Leave gaps between your custom views (increments of 10) so new shipped views can
 | [`000_processes.sql`](linux/common/000_processes.sql) | `processes` | Deduplicated process list across all discovery sources, filtered to user-space process leaders |
 | [`100_process_network_connections.sql`](linux/common/100_process_network_connections.sql) | `process_network_connections` | Maps network connections to owning processes by joining through file descriptors |
 | [`110_process_libraries.sql`](linux/common/110_process_libraries.sql) | `process_libraries` | Lists shared libraries mapped into each process, for spotting unexpected loaded objects |
-| [`200_hidden_process_detection.sql`](linux/common/200_hidden_process_detection.sql) | `hidden_processes` | Detects processes visible in one discovery source but missing from another (rootkit detection) |
+| [`200_tasklist_pidns_differences.sql`](linux/common/200_tasklist_pidns_differences.sql) | `tasklist_pidns_differences` | Detects processes present in the `task_list` discovery source but missing from `pid_ns` (or vice versa), a rootkit-hiding indicator |
 | [`210_process_anon_wx_regions.sql`](linux/common/210_process_anon_wx_regions.sql) | `process_anon_wx_regions` | List per-process anonymous W+X memory regions, as an indicator for code injection |
 | [`220_ld_env_override_processes.sql`](linux/common/220_ld_env_override_processes.sql) | `ld_env_override_processes` | Lists processes that override the dynamic linker via `LD_PRELOAD` / `LD_AUDIT` / `LD_LIBRARY_PATH` |
