@@ -9,6 +9,7 @@
 pub mod boot_time;
 pub mod dmesg;
 pub mod kallsyms;
+pub mod kernel_module_mem_entries;
 pub mod kernel_modules;
 pub mod memory_mappings;
 pub mod network_connections;

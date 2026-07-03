@@ -14,6 +14,7 @@ use crate::{
         },
         linux::{
             boot_time::BootTimeTablePlugin, dmesg::DmesgTablePlugin, kallsyms::KallsymsTablePlugin,
+            kernel_module_mem_entries::KernelModuleMemEntriesTablePlugin,
             kernel_modules::KernelModulesTablePlugin, memory_mappings::MemoryMappingsTablePlugin,
             network_connections::NetworkConnectionsTablePlugin,
             network_interfaces::NetworkInterfacesTablePlugin, syslog_file::SyslogFileTablePlugin,
@@ -118,6 +119,7 @@ generate_table_registry! {
         boot_time: BootTimeTablePlugin,
         dmesg: DmesgTablePlugin,
         kallsyms: KallsymsTablePlugin,
+        kernel_module_mem_entries: KernelModuleMemEntriesTablePlugin,
         kernel_modules: KernelModulesTablePlugin,
         memory_mappings: MemoryMappingsTablePlugin,
         network_connections: NetworkConnectionsTablePlugin,
