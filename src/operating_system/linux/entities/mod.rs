@@ -10,6 +10,7 @@ pub mod boot_time;
 pub mod capabilities;
 pub mod dmesg;
 pub mod file;
+pub mod ftrace_ops;
 pub mod kallsyms_symbol;
 pub mod kernel_module;
 pub mod kernel_module_mem_entry;

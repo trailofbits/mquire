@@ -9,6 +9,7 @@
 mod boot_time;
 mod dmesg;
 mod file;
+mod ftrace_ops;
 mod kallsyms_symbol;
 mod kernel_module;
 mod kernel_module_mem_entry;
@@ -40,14 +41,16 @@ use crate::{
     operating_system::linux::{
         btf::BtfBatchScanner,
         entities::{
-            boot_time::BootTime, capabilities::Capabilities, kernel_module::KernelModule,
-            network_connection::Protocol, task::Task, task_ptrace_state::TaskPtraceState,
+            boot_time::BootTime, capabilities::Capabilities, ftrace_ops::FtraceOps,
+            kernel_module::KernelModule, network_connection::Protocol, task::Task,
+            task_ptrace_state::TaskPtraceState,
         },
         kallsyms::Kallsyms,
         kernel_version::KernelVersion,
         operating_system::{
             dmesg::DmesgEntryIterator,
             file::TaskOpenFilesIterator,
+            ftrace_ops::FtraceOpsIterator,
             kallsyms_symbol::KallsymsSymbolIterator,
             kernel_module::KernelModuleIterator,
             kernel_module_mem_entry::KernelModuleMemEntryIterator,
@@ -270,6 +273,25 @@ impl LinuxOperatingSystem {
         module_vaddr: VirtualAddress,
     ) -> Result<KernelModuleMemEntryIterator> {
         self.iter_kernel_module_mem_entries_impl(module_vaddr)
+    }
+
+    /// Returns the `ftrace_ops` at the given address
+    pub fn ftrace_ops_at(&self, vaddr: VirtualAddress) -> Result<FtraceOps> {
+        self.ftrace_ops_at_impl(vaddr)
+    }
+
+    /// Returns an `ftrace_ops` iterator over the `ftrace_ops_list` symbol
+    pub fn iter_ftrace_ops(&self) -> Result<FtraceOpsIterator> {
+        self.iter_ftrace_ops_impl()
+    }
+
+    /// Returns a custom `ftrace_ops` iterator
+    pub fn iter_ftrace_ops_from(
+        &self,
+        start_vaddr: VirtualAddress,
+        end_vaddr: Option<VirtualAddress>,
+    ) -> Result<FtraceOpsIterator> {
+        self.iter_ftrace_ops_from_impl(start_vaddr, end_vaddr)
     }
 
     /// Returns a network interface at the given virtual address
