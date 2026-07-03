@@ -12,6 +12,7 @@ pub mod dmesg;
 pub mod file;
 pub mod kallsyms_symbol;
 pub mod kernel_module;
+pub mod kernel_module_mem_entry;
 pub mod memory_mapping;
 pub mod network_connection;
 pub mod syslog_file;

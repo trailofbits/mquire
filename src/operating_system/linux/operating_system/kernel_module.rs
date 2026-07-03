@@ -27,6 +27,7 @@ use {btfparse::TypeInformation, log::debug};
 pub struct KernelModuleIterator {
     /// The underlying list iterator
     inner: std::vec::IntoIter<Result<KernelModule>>,
+
     /// The list head address used for iteration
     list_head: VirtualAddress,
 }
