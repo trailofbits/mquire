@@ -11,6 +11,7 @@ mod dmesg;
 mod file;
 mod kallsyms_symbol;
 mod kernel_module;
+mod kernel_module_mem_entry;
 mod memory_mapping;
 mod network_connection;
 mod network_interface;
@@ -49,6 +50,7 @@ use crate::{
             file::TaskOpenFilesIterator,
             kallsyms_symbol::KallsymsSymbolIterator,
             kernel_module::KernelModuleIterator,
+            kernel_module_mem_entry::KernelModuleMemEntryIterator,
             memory_mapping::MemoryMappingIterator,
             network_connection::NetworkConnectionIterator,
             network_interface::NetworkInterfaceIterator,
@@ -260,6 +262,14 @@ impl LinuxOperatingSystem {
         list_head_vaddr: VirtualAddress,
     ) -> Result<KernelModuleIterator> {
         self.iter_kernel_modules_from_impl(list_head_vaddr)
+    }
+
+    /// Returns an iterator over the memory regions of the kernel module at the given address
+    pub fn iter_kernel_module_mem_entries(
+        &self,
+        module_vaddr: VirtualAddress,
+    ) -> Result<KernelModuleMemEntryIterator> {
+        self.iter_kernel_module_mem_entries_impl(module_vaddr)
     }
 
     /// Returns a network interface at the given virtual address
