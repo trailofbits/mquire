@@ -1,0 +1,86 @@
+{
+  "column_order": [
+    "mem_type",
+    "entry_count",
+    "unmapped_entries"
+  ],
+  "row_list": [
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "data"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 0
+      }
+    },
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "init_data"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 47
+      }
+    },
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "init_rodata"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 47
+      }
+    },
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "init_text"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 47
+      }
+    },
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "ro_after_init"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 24
+      }
+    },
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "rodata"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 0
+      }
+    },
+    {
+      "entry_count": {
+        "SignedInteger": 47
+      },
+      "mem_type": {
+        "String": "text"
+      },
+      "unmapped_entries": {
+        "SignedInteger": 0
+      }
+    }
+  ]
+}

@@ -64,6 +64,7 @@ mquire provides SQL tables to query different aspects of the system or the state
 #### Kernel modules
 
 - **kernel_modules** - Loaded kernel modules with metadata (name, state, version, parameters, taint flags)
+- **kernel_module_mem_entries** - The `mem` entries from a kernel module object. Requires a `kernel_module` constraint, so join it against `kernel_modules` (e.g. `JOIN kernel_module_mem_entries r ON r.kernel_module = m.virtual_address`).
 
 #### Network information
 
