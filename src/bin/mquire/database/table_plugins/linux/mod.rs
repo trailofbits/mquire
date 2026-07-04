@@ -8,6 +8,7 @@
 
 pub mod boot_time;
 pub mod dmesg;
+pub mod ftrace_ops;
 pub mod kallsyms;
 pub mod kernel_module_mem_entries;
 pub mod kernel_modules;

@@ -13,7 +13,8 @@ use crate::{
             system_info::SystemInfoTablePlugin,
         },
         linux::{
-            boot_time::BootTimeTablePlugin, dmesg::DmesgTablePlugin, kallsyms::KallsymsTablePlugin,
+            boot_time::BootTimeTablePlugin, dmesg::DmesgTablePlugin,
+            ftrace_ops::FtraceOpsTablePlugin, kallsyms::KallsymsTablePlugin,
             kernel_module_mem_entries::KernelModuleMemEntriesTablePlugin,
             kernel_modules::KernelModulesTablePlugin, memory_mappings::MemoryMappingsTablePlugin,
             network_connections::NetworkConnectionsTablePlugin,
@@ -118,6 +119,7 @@ generate_table_registry! {
         task_open_files: TaskOpenFilesTablePlugin,
         boot_time: BootTimeTablePlugin,
         dmesg: DmesgTablePlugin,
+        ftrace_ops: FtraceOpsTablePlugin,
         kallsyms: KallsymsTablePlugin,
         kernel_module_mem_entries: KernelModuleMemEntriesTablePlugin,
         kernel_modules: KernelModulesTablePlugin,
