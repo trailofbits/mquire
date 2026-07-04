@@ -1,0 +1,12 @@
+{
+  "column_order": [
+    "ftrace_ops_count"
+  ],
+  "row_list": [
+    {
+      "ftrace_ops_count": {
+        "SignedInteger": 1
+      }
+    }
+  ]
+}

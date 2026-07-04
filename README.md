@@ -65,6 +65,7 @@ mquire provides SQL tables to query different aspects of the system or the state
 
 - **kernel_modules** - Loaded kernel modules with metadata (name, state, version, parameters, taint flags)
 - **kernel_module_mem_entries** - The `mem` entries from a kernel module object. Requires a `kernel_module` constraint, so join it against `kernel_modules` (e.g. `JOIN kernel_module_mem_entries r ON r.kernel_module = m.virtual_address`).
+- **ftrace_ops** - A list of `struct ftrace_ops` nodes, walked from the `ftrace_ops_list` symbol by default. Constrain `virtual_address` to read a single node, or `start_vaddr` (optionally bounded by `end_vaddr`) to walk from an arbitrary node.
 
 #### Network information
 
