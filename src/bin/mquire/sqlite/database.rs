@@ -95,6 +95,19 @@ impl Database {
         )
         .map_err(|e| Error::Internal(format!("Failed to register raw_vaddr: {e}")))?;
 
+        // Returns the value unchanged but raises `message` as an error when it is NULL
+        conn.create_scalar_function("expect", 2, FunctionFlags::SQLITE_UTF8, |ctx| {
+            let value = ctx.get::<Value>(0)?;
+
+            if matches!(value, Value::Null) {
+                let message: String = ctx.get(1)?;
+                return Err(rusqlite::Error::UserFunctionError(message.into()));
+            }
+
+            Ok(value)
+        })
+        .map_err(|e| Error::Internal(format!("Failed to register expect: {e}")))?;
+
         Ok(())
     }
 
@@ -1001,5 +1014,67 @@ mod tests {
         assert_eq!(lower, "0000000000000080");
         assert_eq!(higher, "0000000000000100");
         assert!(lower < higher, "`{lower}` must sort before `{higher}`");
+    }
+
+    /// Evaluates `expect(<args_sql>)`: `Ok(cell)` on success, `Err` when it raises.
+    fn expect_query(database: &Database, args_sql: &str) -> Result<Option<ColumnValue>> {
+        database
+            .query(&format!("SELECT expect({args_sql}) AS result"))
+            .map(|data| {
+                data.row_list[0]
+                    .get("result")
+                    .expect("result column")
+                    .clone()
+            })
+    }
+
+    #[test]
+    fn test_expect_passes_present_values_through_unchanged() {
+        let database = Database::new().unwrap();
+
+        assert_eq!(
+            expect_query(&database, "'hello', 'boom'").unwrap(),
+            Some(ColumnValue::String("hello".to_string()))
+        );
+
+        assert_eq!(
+            expect_query(&database, "42, 'boom'").unwrap(),
+            Some(ColumnValue::SignedInteger(42))
+        );
+
+        assert_eq!(
+            expect_query(&database, "1.5, 'boom'").unwrap(),
+            Some(ColumnValue::Double(1.5))
+        );
+    }
+
+    #[test]
+    fn test_expect_raises_the_message_on_null() {
+        let database = Database::new().unwrap();
+
+        match expect_query(&database, "NULL, 'could not resolve _stext'").unwrap_err() {
+            Error::TablePlugin(message) => {
+                assert!(
+                    message.contains("could not resolve _stext"),
+                    "got: {message}"
+                )
+            }
+            other => panic!("expected a TablePlugin error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_expect_requires_two_arguments() {
+        let database = Database::new().unwrap();
+
+        assert!(matches!(
+            expect_query(&database, "1").unwrap_err(),
+            Error::InvalidSqlStatement(_)
+        ));
+
+        assert!(matches!(
+            expect_query(&database, "1, 'a', 'b'").unwrap_err(),
+            Error::InvalidSqlStatement(_)
+        ));
     }
 }
