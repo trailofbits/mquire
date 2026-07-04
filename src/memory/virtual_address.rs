@@ -349,13 +349,13 @@ mod tests {
     }
 
     #[test]
-    fn test_from_str_case_insensitive_prefix() {
-        let input = "VADDR(0x1234, 0x5678)";
+    fn test_from_str_case_insensitive() {
+        let input = "VADDR(0X1A2B, 0X3C4D)";
         let result: VirtualAddress = input.parse().unwrap();
 
         assert_eq!(
             result,
-            VirtualAddress::new(PhysicalAddress::new(0x1234), RawVirtualAddress::new(0x5678))
+            VirtualAddress::new(PhysicalAddress::new(0x1a2b), RawVirtualAddress::new(0x3c4d))
         );
     }
 
