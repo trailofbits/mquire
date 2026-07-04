@@ -311,6 +311,7 @@ mquire ships reusable SQL views in the [`sql/views/`](sql/views/) directory. Ins
 - [**`120_process_capabilities.sql`**](sql/views/linux/common/120_process_capabilities.sql) - Quick-peek capability overview, one row per process with each set as a compact list (`ALL`, `''`, or cap names; `NULL` if unreadable). Query with `SELECT * FROM process_capabilities`.
 - [**`130_process_ptrace_flags.sql`**](sql/views/linux/common/130_process_ptrace_flags.sql) - Quick-peek ptrace overview, one row per process with the set `PT_*` flags as a compact list (`''` when not traced) plus the raw value. Query with `SELECT * FROM process_ptrace_flags`.
 - [**`200_tasklist_pidns_differences.sql`**](sql/views/linux/common/200_tasklist_pidns_differences.sql) - Detects processes visible in one discovery source but missing from another, useful for rootkit detection. Query with `SELECT * FROM tasklist_pidns_differences`.
+- [**`230_unbacked_ftrace_ops.sql`**](sql/views/linux/common/230_unbacked_ftrace_ops.sql) - Registered ftrace callbacks pointing outside the kernel text and every module listed in `kernel_modules`. Query with `SELECT * FROM unbacked_ftrace_ops`.
 
 ## Query Optimization
 

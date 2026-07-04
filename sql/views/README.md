@@ -55,3 +55,4 @@ Leave gaps between your custom views (increments of 10) so new shipped views can
 | [`200_tasklist_pidns_differences.sql`](linux/common/200_tasklist_pidns_differences.sql) | `tasklist_pidns_differences` | Detects processes present in the `task_list` discovery source but missing from `pid_ns` (or vice versa), a rootkit-hiding indicator |
 | [`210_process_anon_wx_regions.sql`](linux/common/210_process_anon_wx_regions.sql) | `process_anon_wx_regions` | List per-process anonymous W+X memory regions, as an indicator for code injection |
 | [`220_ld_env_override_processes.sql`](linux/common/220_ld_env_override_processes.sql) | `ld_env_override_processes` | Lists processes that override the dynamic linker via `LD_PRELOAD` / `LD_AUDIT` / `LD_LIBRARY_PATH` |
+| [`230_unbacked_ftrace_ops.sql`](linux/common/230_unbacked_ftrace_ops.sql) | `unbacked_ftrace_ops` | Registered ftrace callbacks pointing outside the kernel text and every module listed in `kernel_modules` |
