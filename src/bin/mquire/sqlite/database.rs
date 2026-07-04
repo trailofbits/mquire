@@ -15,8 +15,10 @@ use crate::sqlite::{
 };
 
 use {
+    mquire::memory::virtual_address::VirtualAddress,
     rusqlite::{
         Connection,
+        functions::FunctionFlags,
         types::Value,
         vtab::{Context, Filters, IndexInfo, Module, VTab, VTabConnection, VTabCursor},
     },
@@ -52,15 +54,48 @@ pub struct Database {
     table_plugin_map: HashMap<String, Arc<dyn TablePlugin>>,
 }
 
+/// Converts a `vaddr(...)` string to its raw virtual address as a zero-padded
+/// 16-hex string. Returns `None` when it can't be parsed correctly.
+fn raw_vaddr_hex(vaddr_text: &str) -> Option<String> {
+    vaddr_text
+        .parse::<VirtualAddress>()
+        .ok()
+        .map(|vaddr| format!("{:016x}", vaddr.value().value()))
+}
+
 impl Database {
     /// Creates a new in-memory database
     pub fn new() -> Result<Self> {
         let conn = Connection::open_in_memory().map_err(|_| Error::DatabaseCreationFailed)?;
 
+        Self::register_scalar_functions(&conn)?;
+
         Ok(Self {
             conn,
             table_plugin_map: HashMap::new(),
         })
+    }
+
+    /// Registers all custom scalar SQL functions for mquire
+    fn register_scalar_functions(conn: &Connection) -> Result<()> {
+        // Converts a `vaddr(...)` string to its raw virtual address as a zero-padded
+        // 16-hex string
+        conn.create_scalar_function(
+            "raw_vaddr",
+            1,
+            FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+            |ctx| {
+                let hex = match ctx.get::<Value>(0)? {
+                    Value::Text(text) => raw_vaddr_hex(&text),
+                    _ => None,
+                };
+
+                Ok(hex)
+            },
+        )
+        .map_err(|e| Error::Internal(format!("Failed to register raw_vaddr: {e}")))?;
+
+        Ok(())
     }
 
     /// Executes a query and returns the result
@@ -898,5 +933,73 @@ mod tests {
 
         assert!(items.contains(&"apple".to_string()));
         assert!(items.contains(&"apricot".to_string()));
+    }
+
+    /// Evaluates `raw_vaddr(<arg_sql>)` and returns the resulting cell (`None` == SQL NULL).
+    fn eval_raw_vaddr(database: &Database, arg_sql: &str) -> Option<ColumnValue> {
+        database
+            .query(&format!("SELECT raw_vaddr({arg_sql}) AS result"))
+            .expect("raw_vaddr query should always execute")
+            .row_list[0]
+            .get("result")
+            .expect("result column")
+            .clone()
+    }
+
+    #[test]
+    fn test_raw_vaddr_hex_roundtrips_display() {
+        for raw in [0u64, 0x80, 0xffffffff8e600000, u64::MAX] {
+            let address: VirtualAddress = format!("vaddr(0x000000010fb6e000, 0x{raw:016x})")
+                .parse()
+                .unwrap();
+
+            assert_eq!(
+                raw_vaddr_hex(&format!("{address}")),
+                Some(format!("{raw:016x}"))
+            );
+        }
+    }
+
+    #[test]
+    fn test_raw_vaddr_sql_function_dispatches_value_types() {
+        let database = Database::new().unwrap();
+
+        assert_eq!(
+            eval_raw_vaddr(&database, "'vaddr(0x000000010fb6e000, 0xffffffff8e600000)'"),
+            Some(ColumnValue::String("ffffffff8e600000".to_string()))
+        );
+
+        for argument in ["NULL", "123", "-1", "1.5", "x'0011'", "'invalid'"] {
+            assert_eq!(
+                eval_raw_vaddr(&database, argument),
+                None,
+                "argument `{argument}` should yield NULL"
+            );
+        }
+    }
+
+    #[test]
+    fn test_raw_vaddr_hex_returns_none_on_unparseable_text() {
+        for value in [
+            "",
+            "invalid",
+            "0xffffffff8e600000",
+            "vaddr(0xffffffff8e600000)",
+            "vaddr(0x1, 0xnothex)",
+            "vaddr(0x1, 0xabc",
+            "notvaddr(0x1, 0xabc)",
+        ] {
+            assert_eq!(raw_vaddr_hex(value), None, "`{value}` should not parse");
+        }
+    }
+
+    #[test]
+    fn test_raw_vaddr_hex_zero_pads() {
+        let lower = raw_vaddr_hex("vaddr(0x0, 0x0000000000000080)").unwrap();
+        let higher = raw_vaddr_hex("vaddr(0x0, 0x0000000000000100)").unwrap();
+
+        assert_eq!(lower, "0000000000000080");
+        assert_eq!(higher, "0000000000000100");
+        assert!(lower < higher, "`{lower}` must sort before `{higher}`");
     }
 }
