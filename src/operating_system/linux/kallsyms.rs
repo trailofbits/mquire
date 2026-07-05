@@ -1404,8 +1404,14 @@ impl Kallsyms {
                 None => continue,
             };
 
+            let names_alignment = if kernel_version >= &KernelVersion::new(7, 0, 0) {
+                4_u64
+            } else {
+                8_u64
+            };
+
             let unaligned_offset = kallsyms_num_syms_range.end.value();
-            let aligned_offset = unaligned_offset.div_ceil(8_u64) * 8_u64;
+            let aligned_offset = unaligned_offset.div_ceil(names_alignment) * names_alignment;
 
             let start = RawVirtualAddress::new(aligned_offset);
 
