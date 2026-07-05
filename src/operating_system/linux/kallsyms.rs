@@ -1111,7 +1111,14 @@ impl Kallsyms {
                 None => continue,
             };
 
-            let aligned_kallsyms_num_syms_offset = ((linux_banner_end + 1 + 3) & !3) as u64;
+            let num_syms_alignment: u64 = if kernel_version >= &KernelVersion::new(7, 0, 0) {
+                4
+            } else {
+                8
+            };
+
+            let aligned_kallsyms_num_syms_offset =
+                (linux_banner_end as u64 + 1).div_ceil(num_syms_alignment) * num_syms_alignment;
 
             let kallsyms_num_syms_start = scan_window_start + aligned_kallsyms_num_syms_offset;
             let kallsyms_num_syms_end = kallsyms_num_syms_start + KALLSYMS_NUM_SYS_SIZE;
