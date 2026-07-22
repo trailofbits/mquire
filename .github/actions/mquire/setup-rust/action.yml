@@ -1,0 +1,27 @@
+#
+# Copyright (c) 2025-present, Trail of Bits, Inc.
+# All rights reserved.
+#
+# This source code is licensed in accordance with the terms specified in
+# the LICENSE file found in the root directory of this source tree.
+#
+
+name: 'setup-rust'
+description: 'Install and select the pinned Rust toolchain used across CI'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install and select the Rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt
+        rustup default 1.97.1
+
+    - name: Install the musl target
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools
+        rustup target add x86_64-unknown-linux-musl

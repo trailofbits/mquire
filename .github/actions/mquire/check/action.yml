@@ -12,6 +12,9 @@ description: 'Run linting and formatting checks'
 runs:
   using: 'composite'
   steps:
+    - name: Install and select the Rust toolchain
+      uses: ./.github/actions/mquire/setup-rust
+
     - name: Install just
       shell: bash
       run: cargo install just
