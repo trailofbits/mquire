@@ -72,7 +72,7 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
-        .and_then(|s| if s.is_empty() { None } else { Some(s) });
+        .filter(|s| !s.is_empty());
 
         let system_version = try_chain!(
             new_utsname
@@ -81,7 +81,7 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
-        .and_then(|s| if s.is_empty() { None } else { Some(s) });
+        .filter(|s| !s.is_empty());
 
         let arch = try_chain!(
             new_utsname
@@ -90,7 +90,7 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
-        .and_then(|s| if s.is_empty() { None } else { Some(s) });
+        .filter(|s| !s.is_empty());
 
         Ok(SystemVersion {
             system_version,
@@ -137,7 +137,7 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
-        .and_then(|s| if s.is_empty() { None } else { Some(s) });
+        .filter(|s| !s.is_empty());
 
         let domain = try_chain!(
             new_utsname
@@ -146,7 +146,7 @@ impl LinuxOperatingSystem {
         )
         .inspect_err(|err| debug!("{err:?}"))
         .ok()
-        .and_then(|s| if s.is_empty() { None } else { Some(s) });
+        .filter(|s| !s.is_empty());
 
         Ok(SystemInformation { hostname, domain })
     }
