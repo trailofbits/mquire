@@ -115,10 +115,12 @@ impl<'a> Iterator for MemoryScanner<'a> {
                     let last_byte = window[pattern_len - 1];
                     self.current_read_buffer_offset += self.skip_table[last_byte as usize];
                 }
-            } else if let Some(range) = self.range_list.get(self.current_range_index) {
+            } else {
                 //
                 // Current buffer is exhausted, load the next range.
                 //
+
+                let range = self.range_list.get(self.current_range_index)?;
 
                 self.current_range_index += 1;
                 self.current_range_start = range.start;
@@ -149,9 +151,6 @@ impl<'a> Iterator for MemoryScanner<'a> {
                         return Some(Err(Error::new(ErrorKind::IOError, "Failed to read memory")));
                     }
                 }
-            } else {
-                // No more ranges to process
-                return None;
             }
         }
     }
